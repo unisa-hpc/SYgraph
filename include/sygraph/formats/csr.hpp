@@ -10,52 +10,56 @@ namespace formats {
 template <typename index_t,
           typename offset_t,
           typename value_t>
-class csr_t {
+class CSR {
 private:
   index_t n_rows;
   index_t n_cols;
   offset_t n_nonzeros;
 
-  std::shared_ptr<sycl::buffer<offset_t, 1>> row_offsets;
-  std::shared_ptr<sycl::buffer<index_t, 1>> column_indices;
-  std::shared_ptr<sycl::buffer<value_t, 1>> nonzero_values;
+  offset_t* row_offsets;
+  index_t* column_indices;
+  value_t* nonzero_values;
 
   void build() {
-    this->row_offsets = std::make_shared<sycl::buffer<offset_t, 1>>(sycl::range<1>(n_rows + 1));
-    this->column_indices = std::make_shared<sycl::buffer<index_t, 1>>(sycl::range<1>(n_nonzeros));
-    this->nonzero_values = std::make_shared<sycl::buffer<value_t, 1>>(sycl::range<1>(n_nonzeros));
+    this->row_offsets = sycl::malloc_shared<offset_t>(n_rows + 1, q);
+    this->column_indices = sycl::malloc_shared<index_t>(n_nonzeros, q);
+    this->nonzero_values = sycl::malloc_shared<value_t>(n_nonzeros, q);
   }
   
 public:
-  csr_t(index_t n_rows, index_t n_cols, offset_t n_nonzeros)
-    : n_rows(n_rows), n_cols(n_cols), n_nonzeros(n_nonzeros) {
+  CSR(sycl::queue& q, index_t n_rows, index_t n_cols, offset_t n_nonzeros)
+    : q(q), n_rows(n_rows), n_cols(n_cols), n_nonzeros(n_nonzeros) {
     build();   
   }
   
-  csr_t(index_t n_rows, offset_t n_nonzeros)
-    : csr_t(n_rows, 0, n_nonzeros) {}
+  CSR(sycl::queue& q, index_t n_rows, offset_t n_nonzeros)
+    : csr_t(q, n_rows, 0, n_nonzeros) {}
   
-  csr_t() : csr_t(0, 0, 0) {}
+  CSR(sycl::queue& q) : csr_t(q, 0, 0, 0) {}
 
-  csr_t(const csr_t& other)
+  CSR(const csr_t& other)
     : n_rows(other.n_rows), n_cols(other.n_cols), n_nonzeros(other.n_nonzeros) {
     build();
   }
 
-  csr_t(csr_t&& other) = default;
+  CSR(csr_t&& other) = default;
 
-  ~csr_t() {};
+  ~CSR() {
+    sycl::free(this->row_offsets, q);
+    sycl::free(this->column_indices, q);
+    sycl::free(this->nonzero_values, q);
+  };
 
-  sycl::buffer<offset_t, 1>& get_row_offsets() {
-    return *row_offsets;
+  offset_t* get_row_offsets() {
+    return row_offsets;
   }
 
-  sycl::buffer<index_t, 1>& get_column_indices() {
-    return *column_indices;
+  index_t* get_column_indices() {
+    return column_indices;
   }
 
-  sycl::buffer<value_t, 1>& get_nonzero_values() {
-    return *nonzero_values;
+  value_t* get_nonzero_values() {
+    return nonzero_values;
   }
 
   index_t get_n_rows() const {
