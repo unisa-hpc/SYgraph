@@ -15,6 +15,10 @@ int main() {
   for (int i = 0; i < G.getNumVals(); i++) {
     std::cout << G.getNnzValues()[i] << std::endl;
   }
+
+  auto properties = G.getProperties();
+  std::cout << "Directed: " << properties.directed << std::endl;
+  std::cout << "Weighted: " << properties.weighted << std::endl;
   
   return 0;  
 }

@@ -12,7 +12,7 @@ template <memory::space space,
           typename index_t,
           typename offset_t,
           typename value_t>
-class graph_csr_t : Graph<index_t, offset_t, value_t> {
+class graph_csr_t : public Graph<index_t, offset_t, value_t> {
 public:
 /* Constructors */
   graph_csr_t(sycl::queue& q, formats::CSR<value_t, index_t, offset_t>& csr, Properties properties)

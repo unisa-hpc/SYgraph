@@ -22,6 +22,10 @@ public:
   
   ~Graph() = default;
 
+  const Properties& getProperties() const {
+    return properties;
+  }
+
 private:
 
   graph::Properties properties;
