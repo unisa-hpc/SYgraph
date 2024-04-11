@@ -4,9 +4,10 @@ namespace sygraph {
 inline namespace v0 {
 namespace graph {
 
-template<typename Node, typename Edge>
-class Properties {
 
+struct Properties {
+  bool directed {false};
+  bool weighted {false};
 };
 
 }

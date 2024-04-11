@@ -12,11 +12,10 @@ inline namespace v0 {
 namespace graph {
 namespace detail {
 
-class graph_impl {
+template <class... graph_view_t>
+class graph_impl_t : public ...graph_view_t{
 public:
-  // TODO: Retrieve the edges of a node, the neighbors of a node, etc.
-  // TODO: [Optional] Add methods for graph manipulation: add_node, add_edge, remove_node, remove_edge, etc.
-
+  
 };
 
 } // namespace detail

@@ -11,42 +11,21 @@ namespace sygraph {
 inline namespace v0 {
 namespace graph {
 
-enum class GraphRepr {
-  csr,
-  csc,
-  coo,
-};
 
-class Graph {
+template<typename vertex_t,
+         typename edge_t,
+         typename weight_t,
+         class... graph_view_t>
+class Graph : public graph_view_t... {
 public:
-  template <typename index_t,
-            typename offset_t,
-            typename value_t>
-  Graph(sygraph::formats::CSR<index_t, offset_t, value_t>& csr) {
-    impl = std::make_unique<detail::graph_csr_t>(csr);
-  }
-
-  template <typename index_t,
-            typename offset_t,
-            typename value_t>
-  Graph(sygraph::formats::CSC<index_t, offset_t, value_t>& csc) {
-    throw std::runtime_error("Not implemented yet");
-  }
-
-  template <typename index_t,
-            typename offset_t,
-            typename value_t>
-  Graph(sygraph::formats::COO<index_t, offset_t, value_t>& coo) {
-    throw std::runtime_error("Not implemented yet");
-  }
-
-  Graph() = delete;
+  using graph_view_t...::graph_view_t;
+  Graph(Properties properties) : properties(properties) {}
   
   ~Graph() = default;
 
 private:
 
-  std::unique_ptr<detail::graph_impl> impl;
+  graph::Properties properties;
 };
 
 } // namespace graph
