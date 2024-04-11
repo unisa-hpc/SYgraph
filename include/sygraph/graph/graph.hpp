@@ -3,7 +3,6 @@
 #include <sycl/sycl.hpp>
 #include <memory>
 
-#include <sygraph/graph/graph_impl.hpp>
 #include <sygraph/graph/properties.hpp>
 
 
@@ -14,12 +13,12 @@ namespace graph {
 
 template<typename vertex_t,
          typename edge_t,
-         typename weight_t,
-         class... graph_view_t>
-class Graph : public graph_view_t... {
+         typename weight_t>
+class Graph {
 public:
-  using graph_view_t...::graph_view_t;
+
   Graph(Properties properties) : properties(properties) {}
+  Graph() = default;
   
   ~Graph() = default;
 
