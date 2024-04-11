@@ -12,10 +12,10 @@ template <memory::space space,
           typename index_t,
           typename offset_t,
           typename value_t>
-class graph_impl_csr_t : Graph<index_t, offset_t, value_t> {
+class graph_csr_t : Graph<index_t, offset_t, value_t> {
 public:
 /* Constructors */
-  graph_impl_csr_t(sycl::queue& q, formats::CSR<value_t, index_t, offset_t>& csr, Properties properties)
+  graph_csr_t(sycl::queue& q, formats::CSR<value_t, index_t, offset_t>& csr, Properties properties)
     : Graph<index_t, offset_t, value_t>(properties), q(q)
   {
     this->n_rows = csr.getNumRows();
@@ -30,7 +30,7 @@ public:
     e1.wait(); e2.wait(); e3.wait();
   }
 
-  ~graph_impl_csr_t() {
+  ~graph_csr_t() {
     sycl::free(row_offsets, q);
     sycl::free(column_indices, q);
     sycl::free(nnz_values, q);
