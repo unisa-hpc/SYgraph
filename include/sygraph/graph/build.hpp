@@ -3,7 +3,7 @@
 #include <sycl/sycl.hpp>
 
 #include <sygraph/graph/graph.hpp>
-#include <sygraph/graph/formats/graph_csr.hpp>
+#include <sygraph/graph/impls/graph_csr.hpp>
 #include <sygraph/graph/properties.hpp>
 #include <sygraph/formats/csr.hpp>
 #include <sygraph/utils/memory.hpp>
