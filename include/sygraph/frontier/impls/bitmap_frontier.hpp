@@ -140,6 +140,7 @@ public:
   /**
    * @brief Retrieves the number of active elements in the bitmap.
    * @note This function should be called only on the host-side.
+   * @todo Implement a more efficient version of this function. (TODO: maybe with a reduction)
    * @return The number of active elements in the bitmap.
    */
   SYCL_EXTERNAL size_t getNumActiveElements() const {
