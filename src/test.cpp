@@ -32,8 +32,25 @@ int main() {
   std::cout << "Directed: " << properties.directed << std::endl;
   std::cout << "Weighted: " << properties.weighted << std::endl;
 
-  sygraph::frontier::Frontier<int, sygraph::frontier::FrontierType::bitmap> f;
-  f.print();
+  sygraph::frontier::Frontier<int> f {q, 128};
+  auto n = f.getNumActiveElements();
+  std::cout << "Range: " << f.getBitmapRange() << std::endl;
+  std::cout << "Num Elements: " << f.getNumElems() << std::endl;
+  std::cout << "Size of bitmap: " << f.getSize() << std::endl;
+  std::cout << "Active elements: " << n << std::endl;
+
+  q.submit([&](sycl::handler &h) {
+    
+    auto bitmap = f.getDeviceBitmap();
+    h.parallel_for(sycl::range<1>{128}, [=](sycl::id<1> idx) {
+      int val = idx;
+      bitmap.setOn(val);
+    });
+  }).wait();
+  std::cout << "Next step" << std::endl;
+  
+  n = f.getNumActiveElements();
+  std::cout << "Active elements: " << n << std::endl;
   
   return 0;  
 }
