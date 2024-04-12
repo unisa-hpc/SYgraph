@@ -3,13 +3,16 @@
 namespace sygraph {
 inline namespace v0 {
 namespace frontier {
+namespace detail {
 
-enum class FrontierView {
-  vertex,
-  edge,
-  vertex_edge
+template <typename type_t>
+class frontier_bitmap_t {
+public:
+  
 };
 
+
+} // namespace detail
 } // namespace frontier
 } // namespace v0
 } // namespace sygraph
