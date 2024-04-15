@@ -28,27 +28,16 @@ int main() {
     std::cout << G.getNnzValues()[i] << std::endl;
   }
 
-  auto properties = G.getProperties();
-  std::cout << "Directed: " << properties.directed << std::endl;
-  std::cout << "Weighted: " << properties.weighted << std::endl;
-
-  sygraph::frontier::Frontier<int> f {q, 128};
+  sygraph::frontier::Frontier<size_t> f {q, 20};
   auto n = f.getNumActiveElements();
   std::cout << "Range: " << f.getBitmapRange() << std::endl;
   std::cout << "Num Elements: " << f.getNumElems() << std::endl;
   std::cout << "Size of bitmap: " << f.getSize() << std::endl;
   std::cout << "Active elements: " << n << std::endl;
 
-  q.submit([&](sycl::handler &h) {
-    
-    auto bitmap = f.getDeviceBitmap();
-    h.parallel_for(sycl::range<1>{f.getNumElems()}, [=](sycl::id<1> idx) {
-      int val = idx;
-      bitmap.setOn(val);
-    });
-  }).wait();
-  std::cout << "Next step" << std::endl;
+  f.insert(5);
   
+  std::cout << "Next step" << std::endl;
   n = f.getNumActiveElements();
   std::cout << "Active elements: " << n << std::endl;
   
