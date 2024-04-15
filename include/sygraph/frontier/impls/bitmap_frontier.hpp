@@ -8,6 +8,8 @@ namespace frontier {
 namespace detail {
 
 
+template <typename type_t>
+class frontier_bitmap_t;
 
 
 template <typename type_t, typename bitmap_t = uint64_t>
@@ -17,11 +19,7 @@ public:
 
   bitmap_device_t(size_t num_elems) : num_elems(num_elems) {
     range = sizeof(bitmap_type) * 8;
-    size = num_elems / range + 1;
-  }
-
-  void setPtr(bitmap_type* ptr) {
-    data = ptr;
+    size = num_elems / range + (num_elems % range != 0);
   }
 
   /**
@@ -158,30 +156,10 @@ public:
     return count;
   }
 
+  friend class frontier_bitmap_t<type_t>;
 private:
-  SYCL_EXTERNAL size_t countSetBits(bitmap_type N) const {
-    uint count = 0;
-    uint k=findk(N);
-    uint val, x;
-  
-    for (int i = k; i >= 0; i--) {
-      val=sycl::pow<float>(2,i);
-      x=val & N; 
-      
-      if(x > 0){ count++;}
-    }
-    return count;
-  }
-
-  SYCL_EXTERNAL size_t findk(bitmap_type n) const { 
-    int k; 
-    int i=0; 
-    int val=sycl::pow<float>(2,i);
-    while(val<=n) { 
-      k=i; i++;
-      val=sycl::pow<float>(2,i);
-    }
-    return k;
+  void setPtr(bitmap_type* ptr) {
+    data = ptr;
   }
 
   size_t range;            ///< The range of the bitmap.
@@ -190,7 +168,7 @@ private:
   bitmap_type* data;     ///< Pointer to the bitmap.
 };
 
-template <typename type_t, typename bitmap_t = uint64_t>
+template <typename type_t>
 /**
  * @class frontier_bitmap_t
  * @brief Represents a bitmap frontier used in SYgraph.
@@ -209,18 +187,23 @@ template <typename type_t, typename bitmap_t = uint64_t>
  */
 class frontier_bitmap_t {
 public:
-  using bitmap_type = bitmap_t;
-
   /**
    * @brief Constructs a frontier_bitmap_t object.
    * 
    * @param q The SYCL queue to use for memory allocation.
+   * @todo tune on bitmap size
    * @param num_elems The number of elements in the bitmap.
    */
-  frontier_bitmap_t(sycl::queue& q, size_t num_elems) : q(q), bitmap(num_elems) {
+  frontier_bitmap_t(sycl::queue& q, size_t num_elems) : q(q), num_elems(num_elems), bitmap(num_elems) {
+    using bitmap_type = typename bitmap_device_t<type_t>::bitmap_type;
     bitmap_type* ptr = sygraph::memory::detail::memory_alloc<bitmap_type, memory::space::device>(bitmap.getSize(), q);
+    range = bitmap.getBitmapRange();
+    size = bitmap.getSize();
+    q.memset(ptr, static_cast<bitmap_type>(0), size).wait();
     bitmap.setPtr(ptr);
   }
+
+  using bitmap_type = typename bitmap_device_t<type_t>::bitmap_type;
 
   /**
    * @brief Destroys the frontier_bitmap_t object and frees the allocated memory.
@@ -230,24 +213,19 @@ public:
   }
 
   inline size_t getSize() const {
-    return bitmap.getSize();
+    return this->size;
   }
 
   inline size_t getNumElems() const {
-    return bitmap.getNumElems();
+    return this->num_elems;
   }
 
   inline size_t getBitmapRange() const {
-    return bitmap.getBitmapRange();
+    return this->range;
   }
 
   size_t getNumActiveElements() {
-    auto ptr = bitmap.getData();
-    size_t size = bitmap.getSize();
-    size_t range = bitmap.getBitmapRange();
-    auto data = memory::detail::memory_alloc<bitmap_type, memory::space::host>(size, q);
-
-    q.copy<bitmap_type>(ptr, data, size).wait();
+    auto data = alloc_host();
     
     size_t count = 0;
     for (int i = 0; i < size; i++) {
@@ -258,7 +236,7 @@ public:
       }
     }
 
-    sycl::free(data, q);
+
     return count;
   }
 
@@ -283,7 +261,33 @@ public:
   }
 
 private:
+  struct bitmap_host_t {
+    sycl::queue& q;
+    bitmap_type* data;
 
+    bitmap_host_t (sycl::queue& q, bitmap_type* ptr) : q(q), data(ptr) {}
+
+    bitmap_type operator[](size_t idx) const {
+      return data[idx];
+    }
+
+    ~bitmap_host_t() {
+      sycl::free(data, q);
+    }
+  };
+
+  bitmap_host_t alloc_host() {
+    auto ptr = bitmap.getData();
+    size_t size = bitmap.getSize();
+    size_t range = bitmap.getBitmapRange();
+    auto data = memory::detail::memory_alloc<bitmap_type, memory::space::host>(size, q);
+
+    q.copy<bitmap_type>(ptr, data, size).wait();
+
+    return bitmap_host_t{q, data};
+  }
+
+  size_t size, range, num_elems;
   sycl::queue& q;          ///< The SYCL queue used for memory allocation.
   bitmap_device_t<type_t, bitmap_type> bitmap; ///< The bitmap.
 };

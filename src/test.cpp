@@ -42,7 +42,7 @@ int main() {
   q.submit([&](sycl::handler &h) {
     
     auto bitmap = f.getDeviceBitmap();
-    h.parallel_for(sycl::range<1>{128}, [=](sycl::id<1> idx) {
+    h.parallel_for(sycl::range<1>{f.getNumElems()}, [=](sycl::id<1> idx) {
       int val = idx;
       bitmap.setOn(val);
     });
