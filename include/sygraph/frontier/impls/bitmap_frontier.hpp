@@ -93,6 +93,7 @@ public:
 
   /**
    * @brief Resets the bitmap by setting all bits to 0.
+   * @note This function should be executed by a single work-item.
    */
   SYCL_EXTERNAL inline void reset() const {
     for (size_t i = 0; i < size; i++) {
@@ -102,9 +103,10 @@ public:
 
   /**
    * @brief Resets the bit at the specified index to 0.
+   * @details All the bits from [bitmap[id], bitmap[id + 1]) are set to 0.
    * 
    * @tparam idx_t The type of the index.
-   * @param id The index of the bit to reset.
+   * @param id The index of the bitmap to reset.
    */
   template<typename idx_t>
   SYCL_EXTERNAL inline void reset(idx_t id) const {
