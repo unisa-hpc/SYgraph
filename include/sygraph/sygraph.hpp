@@ -7,3 +7,5 @@
 #include <sygraph/graph/properties.hpp>
 #include <sygraph/utils/memory.hpp>
 #include <sygraph/graph/build.hpp>
+#include <sygraph/io/matrices.hpp>
+#include <sygraph/io/read_csr.hpp>

@@ -22,9 +22,13 @@ public:
   
   ~Graph() = default;
 
-  const Properties& getProperties() const {
+  const Properties& get_properties() const {
     return properties;
   }
+
+  virtual inline size_t get_vertex_count() const = 0;
+
+  virtual inline size_t get_edge_count() const = 0;
 
 private:
 

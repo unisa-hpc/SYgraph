@@ -39,7 +39,7 @@ public:
   graph_csr_t(sycl::queue& q, formats::CSR<value_t, index_t, offset_t>& csr, Properties properties)
     : Graph<index_t, offset_t, value_t>(properties), q(q)
   {
-    this->n_rows = csr.get_offsets_size();
+    this->n_rows = csr.get_row_offsets_size() - 1;
     this->n_nonzeros = csr.get_num_nonzeros();
     this->row_offsets = memory::detail::memory_alloc<offset_t, space>(n_rows + 1, q);
     this->column_indices = memory::detail::memory_alloc<index_t, space>(n_nonzeros, q);
@@ -62,7 +62,25 @@ public:
 
   /* Methods */
 
-  /* Getters and Setters */
+  /* Override superclass methods */
+
+  /**
+   * @brief Returns the number of vertices in the graph.
+   * @return The number of vertices.
+   */
+  inline size_t get_vertex_count() const override {
+    return n_rows;
+  }
+
+  /**
+   * @brief Returns the number of edges in the graph.
+   * @return The number of edges.
+   */
+  inline size_t get_edge_count() const override {
+    return n_nonzeros;
+  }
+
+  /* Getters and Setters for CSR Graph */
 
   /**
    * @brief Returns the number of rows in the graph.

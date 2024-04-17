@@ -18,13 +18,27 @@ class frontier_impl_t<type_t, FrontierType::bitmap> : public frontier_bitmap_t<t
 } // namespace detail
 
 template <typename type_t, 
-          FrontierType type = FrontierType::bitmap,
-          FrontierView view = FrontierView::vertex>
+          FrontierView view = FrontierView::vertex,
+          FrontierType type = FrontierType::bitmap>
 class Frontier : public detail::frontier_impl_t<type_t, type> {
   using detail::frontier_impl_t<type_t, type>::frontier_impl_t;
 
   
 };
+
+template <FrontierView view,
+          FrontierType type,
+          typename GraphType>
+auto make_frontier(sycl::queue& q, const GraphType& graph) {
+  size_t frontier_size = 0;
+  if constexpr (view == FrontierView::vertex) {
+    frontier_size = graph.get_vertex_count();
+    return Frontier<typename GraphType::vertex_t, FrontierView::vertex, type>(q, frontier_size);
+  } else {
+    frontier_size = graph.get_edge_count();
+    return Frontier<typename GraphType::edge_t, FrontierView::edge, type>(q, frontier_size);
+  }
+}
 
 } // namespace frontier
 } // namespace v0

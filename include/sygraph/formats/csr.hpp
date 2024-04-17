@@ -16,6 +16,13 @@ template <typename value_t,
           typename offset_t = types::offset_t>
 class CSR {
 public:
+  CSR(std::vector<offset_t> row_offsets,
+      std::vector<index_t> column_indices,
+      std::vector<value_t> nnz_values) : 
+    row_offsets(row_offsets),
+    column_indices(column_indices),
+    nnz_values(nnz_values) { }
+
   CSR(index_t n_rows, offset_t n_nonzeros) {
     row_offsets.resize(n_rows + 1);
     column_indices.resize(n_nonzeros);
@@ -26,7 +33,7 @@ public:
 
   // Getters
   index_t get_row_offsets_size() const {
-    return row_offsets.size() - 1;
+    return row_offsets.size();
   }
 
   offset_t get_num_nonzeros() const {
