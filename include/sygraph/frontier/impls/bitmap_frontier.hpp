@@ -27,7 +27,7 @@ public:
    * 
    * @return The size of the bitmap.
    */
-  SYCL_EXTERNAL inline size_t getSize() const {
+  SYCL_EXTERNAL inline size_t get_bitmap_size() const {
     return size;
   }
 
@@ -36,7 +36,7 @@ public:
    * 
    * @return The number of elements in the bitmap.
    */
-  SYCL_EXTERNAL inline size_t getNumElems() const {
+  SYCL_EXTERNAL inline size_t get_num_elems() const {
     return num_elems;
   }
 
@@ -45,7 +45,7 @@ public:
    * 
    * @return The range of the bitmap.
    */
-  SYCL_EXTERNAL inline const size_t getBitmapRange() const {
+  SYCL_EXTERNAL inline const size_t get_bitmap_range() const {
     return range;
   }
 
@@ -54,38 +54,41 @@ public:
    * 
    * @return A pointer to the bitmap.
    */
-  SYCL_EXTERNAL bitmap_type* getData() const {
+  SYCL_EXTERNAL bitmap_type* get_data() const {
     return data;
   }
 
   /**
-   * @brief Prepares the bitmap for use.
+   * @brief Sets the bit at the specified index to the specified value.
    * 
-   * @tparam t The types of the elements to prepare.
+   * @param idx The index of the bit to set.
+   * @param val The value to set the bit to.
    */
-  // void prepare(type_t... t) {
-
-  // }
+  SYCL_EXTERNAL inline void set(type_t idx, bool val) const {
+    if (val) {
+      set_on(idx);
+    } else {
+      set_off(idx);
+    }
+  }
 
   /**
    * @brief Sets the bit at the specified index to 1.
    * 
-   * @tparam idx_t The type of the index.
    * @param idx The index of the bit to set.
    */
-  SYCL_EXTERNAL inline void setOn(type_t idx) const {
-    sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::work_group> ref(data[getBitmapIndex(idx)]);
+  SYCL_EXTERNAL inline void set_on(type_t idx) const {
+    sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::work_group> ref(data[get_bitmap_index(idx)]);
     ref |= 1 << (idx % range);
   }
 
   /**
    * @brief Sets the bit at the specified index to 0.
    * 
-   * @tparam idx_t The type of the index.
    * @param idx The index of the bit to set.
    */
-  SYCL_EXTERNAL inline void setOff(type_t idx) const {
-    sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::work_group> ref(data[getBitmapIndex(idx)]);
+  SYCL_EXTERNAL inline void set_off(type_t idx) const {
+    sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::work_group> ref(data[get_bitmap_index(idx)]);
     ref &= ~(1 << (idx % range));
   }
 
@@ -103,7 +106,6 @@ public:
    * @brief Resets the bit at the specified index to 0.
    * @details All the bits from [bitmap[id], bitmap[id + 1]) are set to 0.
    * 
-   * @tparam idx_t The type of the index.
    * @param id The index of the bitmap to reset.
    */
   SYCL_EXTERNAL inline void reset(type_t id) const {
@@ -113,22 +115,20 @@ public:
   /**
    * @brief Checks if the bit at the specified index is set.
    * 
-   * @tparam idx_t The type of the index.
    * @param idx The index of the bit to check.
    * @return True if the bit is set, false otherwise.
    */
   SYCL_EXTERNAL inline bool check(type_t idx) const {
-    return data[getBitmapIndex(idx)] & (1 << (idx % range));
+    return data[get_bitmap_index(idx)] & (1 << (idx % range));
   }
 
   /**
    * @brief Retrieves the bitmap index for the specified index.
    * 
-   * @tparam idx_t The type of the index.
    * @param idx The index.
    * @return The bitmap index.
    */
-  SYCL_EXTERNAL inline const type_t getBitmapIndex(type_t idx) const {
+  SYCL_EXTERNAL inline const type_t get_bitmap_index(type_t idx) const {
     return idx / range;
   }
 
@@ -138,7 +138,7 @@ public:
    * @todo Implement a more efficient version of this function.
    * @return The number of active elements in the bitmap.
    */
-  SYCL_EXTERNAL size_t getNumActiveElements() const {
+  SYCL_EXTERNAL size_t get_num_active_elements() const {
 
     size_t count = 0;
 
@@ -153,17 +153,9 @@ public:
     return count;
   }
 
-  /** 
-   * @brief Retrieves the number of active elements in the bitmap.
-   * @details This function is used to retrieve the number of active elements in the bitmap, by using a reduction operation.
-   * 
-   * @tparam idx_t The type of the index.
-   * @param id The work-item index.
-   * @return The number of active elements in the bitmap.
-   * @todo Try to use multiple work-item on the same element.
-   */
+
   template<int Dim, typename group_t>
-  SYCL_EXTERNAL size_t getNumActiveElements(sycl::nd_item<Dim> item, group_t group) const {
+  SYCL_EXTERNAL size_t get_num_active_elements(sycl::nd_item<Dim> item, group_t group) const {
     size_t count = 0;
     auto id = item.get_local_linear_id();
     auto range = item.get_local_range(0);
@@ -181,7 +173,7 @@ public:
 
   friend class frontier_bitmap_t<type_t>;
 private:
-  void setPtr(bitmap_type* ptr) {
+  void set_ptr(bitmap_type* ptr) {
     data = ptr;
   }
 
@@ -219,11 +211,11 @@ public:
    */
   frontier_bitmap_t(sycl::queue& q, size_t num_elems) : q(q), num_elems(num_elems), bitmap(num_elems) {
     using bitmap_type = typename bitmap_device_t<type_t>::bitmap_type;
-    bitmap_type* ptr = sygraph::memory::detail::memory_alloc<bitmap_type, memory::space::device>(bitmap.getSize(), q);
-    range = bitmap.getBitmapRange();
-    size = bitmap.getSize();
+    bitmap_type* ptr = sygraph::memory::detail::memory_alloc<bitmap_type, memory::space::device>(bitmap.get_bitmap_size(), q);
+    range = bitmap.get_bitmap_range();
+    size = bitmap.get_bitmap_size();
     q.memset(ptr, static_cast<bitmap_type>(0), size).wait();
-    bitmap.setPtr(ptr);
+    bitmap.set_ptr(ptr);
   }
 
   using bitmap_type = typename bitmap_device_t<type_t>::bitmap_type;
@@ -232,28 +224,28 @@ public:
    * @brief Destroys the frontier_bitmap_t object and frees the allocated memory.
    */
   ~frontier_bitmap_t() {
-    sycl::free(bitmap.getData(), q);
+    sycl::free(bitmap.get_data(), q);
   }
 
-  inline size_t getSize() const {
+  inline size_t get_bitmap_size() const {
     return this->size;
   }
 
-  inline size_t getNumElems() const {
+  inline size_t get_num_elems() const {
     return this->num_elems;
   }
 
-  inline size_t getBitmapRange() const {
+  inline size_t get_bitmap_range() const {
     return this->range;
   }
 
-  size_t getNumActiveElements() {
+  size_t get_num_active_elements() {
     bitmap_type* count = memory::detail::memory_alloc<bitmap_type, memory::space::shared>(1, q);
 
     q.submit([&](sycl::handler& h) {
-      auto bitmap = this->getDeviceBitmap();
+      auto bitmap = this->get_device_frontier();
       h.single_task([=]() {
-        *count = bitmap.getNumActiveElements();
+        *count = bitmap.get_num_active_elements();
       });
     }).wait();
 
@@ -264,18 +256,18 @@ public:
 
   void insert(type_t idx) {
     q.submit([&](sycl::handler& cgh) {
-      auto bitmap = this->getDeviceBitmap();
+      auto bitmap = this->get_device_frontier();
       cgh.single_task([=]() {
-        bitmap.setOn(idx);
+        bitmap.set_on(idx);
       });
     }).wait();
   }
 
   void remove(type_t idx) {
     q.submit([&](sycl::handler& cgh) {
-      auto bitmap = this->getDeviceBitmap();
+      auto bitmap = this->get_device_frontier();
       cgh.single_task([=]() {
-        bitmap.setOff(idx);
+        bitmap.set_off(idx);
       });
     }).wait();
   }
@@ -285,10 +277,10 @@ public:
    * @note This function should be called only on the host-side.
    */
   inline void clear() {
-    q.memset(bitmap.getData(), static_cast<bitmap_type>(0), bitmap.getSize()).wait();
+    q.memset(bitmap.get_data(), static_cast<bitmap_type>(0), bitmap.get_bitmap_size()).wait();
   }
 
-  bitmap_device_t<type_t, bitmap_type>& getDeviceBitmap() {
+  bitmap_device_t<type_t, bitmap_type>& get_device_frontier() {
     return bitmap;
   }
 
@@ -309,7 +301,7 @@ private:
   };
 
   bitmap_host_t alloc_host() {
-    auto ptr = bitmap.getData();
+    auto ptr = bitmap.get_data();
     auto data = memory::detail::memory_alloc<bitmap_type, memory::space::host>(size, q);
 
     q.copy<bitmap_type>(ptr, data, size).wait();
