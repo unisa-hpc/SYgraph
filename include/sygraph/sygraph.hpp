@@ -7,5 +7,7 @@
 #include <sygraph/graph/properties.hpp>
 #include <sygraph/utils/memory.hpp>
 #include <sygraph/graph/build.hpp>
+#ifdef GENERATE_SAMPLE_DATA
 #include <sygraph/io/matrices.hpp>
+#endif
 #include <sygraph/io/read_csr.hpp>

@@ -1,3 +1,4 @@
+#ifdef GENERATE_SAMPLE_DATA
 #include <iostream>
 
 namespace sygraph {
@@ -21,3 +22,4 @@ constexpr std::string_view symmetric_small =
 } // namespace io
 } // namespace v0
 } // namespace sygraph
+#endif

@@ -74,6 +74,52 @@ sygraph::formats::CSR<value_t, index_t, offset_t> from_matrix(const std::string&
   return from_matrix<value_t, index_t, offset_t>(ifs);
 }
 
+template <typename value_t, typename index_t, typename offset_t>
+sygraph::formats::CSR<value_t, index_t, offset_t> from_csr(std::istream& iss) {
+  size_t n_rows = 0;
+  size_t n_nonzeros = 0;
+  std::vector<offset_t> row_offsets;
+  std::vector<index_t> column_indices;
+  std::vector<value_t> nnz_values;
+
+  // Read number of rows
+  iss >> n_rows;
+
+  row_offsets.push_back(0);
+
+  // Read row offsets
+  for (int i = 0; i < n_rows + 1; ++i) {
+    offset_t offset;
+    iss >> offset;
+    row_offsets.push_back(offset);
+  }
+
+  // Read column indices
+  for (int i = 0; i < row_offsets.back(); ++i) {
+    index_t index;
+    iss >> index;
+    column_indices.push_back(index);
+  }
+
+  // Read non-zero values
+  for (int i = 0; i < row_offsets.back(); ++i) {
+    value_t value;
+    iss >> value;
+    nnz_values.push_back(value);
+  }
+
+  return sygraph::formats::CSR<value_t, index_t, offset_t>(row_offsets, column_indices, nnz_values);
+}
+
+template<typename value_t, typename index_t, typename offset_t>
+sygraph::formats::CSR<value_t, index_t, offset_t> from_csr(const std::string& fname) {
+  std::ifstream ifs(fname);
+  if (!ifs.is_open()) {
+    throw std::runtime_error("Failed to open file: " + fname);
+  }
+  return from_csr<value_t, index_t, offset_t>(ifs);
+}
+
 } // namespace csr
 } // namespace io
 } // namespace v0
