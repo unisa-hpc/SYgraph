@@ -7,8 +7,14 @@ namespace io {
 namespace storage {
 namespace matrices {
 
-
-constexpr std::string_view symmetric_small =
+/**
+  o
+  |\
+  o-o-o-o
+  |
+  o
+*/
+constexpr std::string_view symmetric_6nodes =
   "6\n"
   "0 1 1 0 0 0\n"
   "1 0 1 0 0 0\n"

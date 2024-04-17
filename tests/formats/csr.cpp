@@ -4,7 +4,7 @@
 int main() {
   sycl::queue q {sycl::gpu_selector_v};
 
-  auto mat = sygraph::io::storage::matrices::symmetric_small;
+  auto mat = sygraph::io::storage::matrices::symmetric_6nodes;
   std::istringstream iss(mat.data());
   auto csr = sygraph::io::csr::from_matrix<uint, uint, uint>(iss);
   auto G = sygraph::graph::build::from_csr<sygraph::memory::space::shared>(q, csr);
