@@ -10,7 +10,14 @@ add_library(sygraph INTERFACE)
 
 target_include_directories(sygraph INTERFACE include)
 
-option(SYGRAPH_BUILD_TESTS "Build tests" ON)
+option(SYGRAPH_BUILD_TESTS "Build tests" OFF)
+option(SYGRAPH_SAMPLE_DATA "Generate samples data" OFF)
+
 if (SYGRAPH_BUILD_TESTS)
   add_subdirectory(tests)
+  set(SYGRAPH_SAMPLE_DATA ON)
+endif()
+
+if (SYGRAPH_SAMPLE_DATA)
+  target_compile_definitions(sygraph INTERFACE "GENERATE_SAMPLE_DATA")
 endif()
