@@ -39,15 +39,15 @@ public:
   graph_csr_t(sycl::queue& q, formats::CSR<value_t, index_t, offset_t>& csr, Properties properties)
     : Graph<index_t, offset_t, value_t>(properties), q(q)
   {
-    this->n_rows = csr.getNumRows();
-    this->n_nonzeros = csr.getNumNonzeros();
+    this->n_rows = csr.get_offsets_size();
+    this->n_nonzeros = csr.get_num_nonzeros();
     this->row_offsets = memory::detail::memory_alloc<offset_t, space>(n_rows + 1, q);
     this->column_indices = memory::detail::memory_alloc<index_t, space>(n_nonzeros, q);
     this->nnz_values = memory::detail::memory_alloc<value_t, space>(n_nonzeros, q);
 
-    auto e1 = q.copy(csr.getRowOffsets().data(), this->row_offsets, n_rows + 1);
-    auto e2 = q.copy(csr.getColumnIndices().data(), this->column_indices, n_nonzeros);
-    auto e3 = q.copy(csr.getNnzValues().data(), this->nnz_values, n_nonzeros);
+    auto e1 = q.copy(csr.get_row_offsets().data(), this->row_offsets, n_rows + 1);
+    auto e2 = q.copy(csr.get_column_indices().data(), this->column_indices, n_nonzeros);
+    auto e3 = q.copy(csr.get_values().data(), this->nnz_values, n_nonzeros);
     e1.wait(); e2.wait(); e3.wait();
   }
 
@@ -68,7 +68,7 @@ public:
    * @brief Returns the number of rows in the graph.
    * @return The number of rows.
    */
-  const index_t getNumRows() const  {
+  const index_t get_offsets_size() const  {
     return n_rows;
   }
 
@@ -76,7 +76,7 @@ public:
    * @brief Returns the number of non-zero values in the graph.
    * @return The number of non-zero values.
    */
-  const offset_t getNumVals() const {
+  const offset_t get_values_size() const {
     return n_nonzeros;
   }
 
@@ -84,7 +84,7 @@ public:
    * @brief Returns a pointer to the column indices of the graph.
    * @return A pointer to the column indices.
    */
-  index_t* getColumnIndices() {
+  index_t* get_column_indices() {
     return column_indices;
   }
 
@@ -92,7 +92,7 @@ public:
    * @brief Returns a constant pointer to the column indices of the graph.
    * @return A constant pointer to the column indices.
    */
-  const index_t* getColumnIndices() const {
+  const index_t* get_column_indices() const {
     return column_indices;
   }
 
@@ -100,7 +100,7 @@ public:
    * @brief Returns a pointer to the row offsets of the graph.
    * @return A pointer to the row offsets.
    */
-  offset_t* getRowOffsets() {
+  offset_t* get_row_offsets() {
     return row_offsets;
   }
   
@@ -108,7 +108,7 @@ public:
    * @brief Returns a constant pointer to the row offsets of the graph.
    * @return A constant pointer to the row offsets.
    */
-  const offset_t* getRowOffsets() const {
+  const offset_t* get_row_offsets() const {
     return row_offsets;
   }
 
@@ -116,7 +116,7 @@ public:
    * @brief Returns a pointer to the non-zero values of the graph.
    * @return A pointer to the non-zero values.
    */
-  value_t* getNnzValues() {
+  value_t* get_values() {
     return nnz_values;
   }
 
@@ -124,7 +124,7 @@ public:
    * @brief Returns a constant pointer to the non-zero values of the graph.
    * @return A constant pointer to the non-zero values.
    */
-  const value_t* getNnzValues() const {
+  const value_t* get_values() const {
     return nnz_values;
   }
 
@@ -132,7 +132,7 @@ public:
    * @brief Returns the SYCL queue associated with the graph.
    * @return The SYCL queue.
    */
-  sycl::queue& getQueue() const {
+  sycl::queue& get_queue() const {
     return q;
   }
 

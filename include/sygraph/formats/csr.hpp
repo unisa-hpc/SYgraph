@@ -25,32 +25,32 @@ public:
   ~CSR() = default;
 
   // Getters
-  index_t getNumRows() const {
+  index_t get_row_offsets_size() const {
     return row_offsets.size() - 1;
   }
 
-  offset_t getNumNonzeros() const {
+  offset_t get_num_nonzeros() const {
     return column_indices.size();
   }
 
-  const std::vector<offset_t>& getRowOffsets() const {
+  const std::vector<offset_t>& get_row_offsets() const {
     return row_offsets;
   }
-  std::vector<offset_t>& getRowOffsets() {
+  std::vector<offset_t>& get_row_offsets() {
     return row_offsets;
   }
 
-  const std::vector<index_t>& getColumnIndices() const {
+  const std::vector<index_t>& get_column_indices() const {
     return column_indices;
   }
-  std::vector<index_t>& getColumnIndices() {
+  std::vector<index_t>& get_column_indices() {
     return column_indices;
   }
 
-  const std::vector<value_t>& getNnzValues() const {
+  const std::vector<value_t>& get_values() const {
     return nnz_values;
   }
-  std::vector<value_t>& getNnzValues() {
+  std::vector<value_t>& get_values() {
     return nnz_values;
   }
 
