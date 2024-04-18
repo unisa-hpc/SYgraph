@@ -67,9 +67,9 @@ public:
    */
   SYCL_EXTERNAL inline void set(type_t idx, bool val) const {
     if (val) {
-      set_on(idx);
+      insert(idx);
     } else {
-      set_off(idx);
+      remove(idx);
     }
   }
 
@@ -78,7 +78,7 @@ public:
    * 
    * @param idx The index of the bit to set.
    */
-  SYCL_EXTERNAL inline void set_on(type_t idx) const {
+  SYCL_EXTERNAL inline void insert(type_t idx) const {
     sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::work_group> ref(data[get_bitmap_index(idx)]);
     ref |= 1 << (idx % range);
   }
@@ -88,7 +88,7 @@ public:
    * 
    * @param idx The index of the bit to set.
    */
-  SYCL_EXTERNAL inline void set_off(type_t idx) const {
+  SYCL_EXTERNAL inline void remove(type_t idx) const {
     sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::work_group> ref(data[get_bitmap_index(idx)]);
     ref &= ~(1 << (idx % range));
   }
@@ -259,7 +259,7 @@ public:
     q.submit([&](sycl::handler& cgh) {
       auto bitmap = this->get_device_frontier();
       cgh.single_task([=]() {
-        bitmap.set_on(idx);
+        bitmap.insert(idx);
       });
     }).wait();
   }
@@ -268,7 +268,7 @@ public:
     q.submit([&](sycl::handler& cgh) {
       auto bitmap = this->get_device_frontier();
       cgh.single_task([=]() {
-        bitmap.set_off(idx);
+        bitmap.remove(idx);
       });
     }).wait();
   }

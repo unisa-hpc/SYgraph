@@ -16,7 +16,7 @@ int main() {
   q.submit([&](sycl::handler& cgh) {
     auto bitmap = f.get_device_frontier();
     cgh.parallel_for(sycl::range<1>{f.get_num_elems()}, [=](sycl::id<1> idx) {
-      bitmap.set_on(idx);
+      bitmap.insert(idx);
     });
   }).wait();
   
