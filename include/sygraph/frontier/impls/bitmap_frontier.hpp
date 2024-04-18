@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sygraph/utils/memory.hpp>
+#include <sygraph/utils/types.hpp>
 
 namespace sygraph {
 inline namespace v0 {
@@ -17,11 +18,11 @@ class bitmap_device_t {
 public:
   using bitmap_type = bitmap_t;
 
-  bitmap_device_t(size_t num_elems) : num_elems(num_elems) {
-    range = sizeof(bitmap_type) * 8;
+  bitmap_device_t(size_t num_elems) : num_elems(num_elems)  {
+    range = sizeof(bitmap_type) * sygraph::types::detail::byte_size;
     size = num_elems / range + (num_elems % range != 0);
   }
-
+  
   /**
    * @brief Retrieves the size of the bitmap.
    * 

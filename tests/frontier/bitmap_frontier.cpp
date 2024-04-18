@@ -10,7 +10,7 @@ int main() {
   auto n = f.get_num_active_elements();
   using type = typename sygraph::frontier::Frontier<size_t>::bitmap_type;
   assert(n == 0);
-  assert(sizeof(type) * 8 == f.get_bitmap_range());
+  assert(sizeof(type) * sygraph::types::detail::byte_size == f.get_bitmap_range());
   assert(f.get_num_elems() == NUM_ELEMS);
 
   q.submit([&](sycl::handler& cgh) {
