@@ -8,6 +8,57 @@ inline namespace v0 {
 namespace graph {
 namespace detail {
 
+template <typename index_t,
+          typename offset_t,
+          typename value_t>
+class graph_csr_device_t {
+  using vertex_t = index_t; ///< The type used to represent vertices of the graph.
+  using edge_t = offset_t; ///< The type used to represent edges of the graph.
+  using weight_t = offset_t; ///< The type used to represent weights of the graph.
+public:
+
+  index_t n_rows; ///< The number of rows in the graph.
+  offset_t n_nonzeros; ///< The number of non-zero values in the graph.
+
+  index_t* column_indices; ///< Pointer to the column indices of the graph.
+  offset_t* row_offsets; ///< Pointer to the row offsets of the graph.
+  value_t* nnz_values; ///< Pointer to the non-zero values of the graph.
+
+  /**
+   * @brief Returns the number of vertices in the graph.
+   * @return The number of vertices.
+   */
+  inline size_t get_vertex_count() const {
+    return n_rows;
+  }
+
+  /**
+   * @brief Returns the number of edges in the graph.
+   * @return The number of edges.
+   */
+  inline size_t get_edge_count() const {
+    return n_nonzeros;
+  }
+
+  /**
+   * @brief Returns the number of neighbours of a vertex in the graph.
+   * @param vertex The vertex.
+   * @return The number of neighbours.
+   */
+  inline size_t get_neighbour_count(vertex_t vertex) const {
+    return row_offsets[vertex + 1] - row_offsets[vertex];
+  }
+
+  /**
+   * @brief Returns the index of the first neighbour of a vertex in the graph.
+   * @param vertex The vertex.
+   * @return The index of the first neighbour.
+   */
+  inline vertex_t get_first_neighbour_idx(vertex_t vertex) const {
+    return row_offsets[vertex];
+  }
+};
+
 template <memory::space space,
           typename index_t,
           typename offset_t,
@@ -39,28 +90,37 @@ public:
   graph_csr_t(sycl::queue& q, formats::CSR<value_t, index_t, offset_t>& csr, Properties properties)
     : Graph<index_t, offset_t, value_t>(properties), q(q)
   {
-    this->n_rows = csr.get_row_offsets_size() - 1;
-    this->n_nonzeros = csr.get_num_nonzeros();
-    this->row_offsets = memory::detail::memory_alloc<offset_t, space>(n_rows + 1, q);
-    this->column_indices = memory::detail::memory_alloc<index_t, space>(n_nonzeros, q);
-    this->nnz_values = memory::detail::memory_alloc<value_t, space>(n_nonzeros, q);
 
-    auto e1 = q.copy(csr.get_row_offsets().data(), this->row_offsets, n_rows + 1);
-    auto e2 = q.copy(csr.get_column_indices().data(), this->column_indices, n_nonzeros);
-    auto e3 = q.copy(csr.get_values().data(), this->nnz_values, n_nonzeros);
+    index_t n_rows = csr.get_row_offsets_size() - 1;
+    offset_t n_nonzeros = csr.get_num_nonzeros();
+    index_t* row_offsets = memory::detail::memory_alloc<offset_t, space>(n_rows + 1, q);
+    offset_t* column_indices = memory::detail::memory_alloc<index_t, space>(n_nonzeros, q);
+    value_t* nnz_values = memory::detail::memory_alloc<value_t, space>(n_nonzeros, q);
+
+    auto e1 = q.copy(csr.get_row_offsets().data(), row_offsets, n_rows + 1);
+    auto e2 = q.copy(csr.get_column_indices().data(), column_indices, n_nonzeros);
+    auto e3 = q.copy(csr.get_values().data(), nnz_values, n_nonzeros);
     e1.wait(); e2.wait(); e3.wait();
+
+    this->device_graph = {
+      n_rows, n_nonzeros, column_indices, row_offsets, nnz_values
+    };
   }
 
   /**
    * @brief Destroys the graph_csr_t object and frees the allocated memory.
    */
   ~graph_csr_t() {
-    sycl::free(row_offsets, q);
-    sycl::free(column_indices, q);
-    sycl::free(nnz_values, q);
+    sycl::free(device_graph.row_offsets, q);
+    sycl::free(device_graph.column_indices, q);
+    sycl::free(device_graph.nnz_values, q);
   }
 
   /* Methods */
+
+  auto& get_device_graph() {
+    return device_graph;
+  }
 
   /* Override superclass methods */
 
@@ -69,7 +129,7 @@ public:
    * @return The number of vertices.
    */
   inline size_t get_vertex_count() const override {
-    return n_rows;
+    return device_graph.get_vertex_count();
   }
 
   /**
@@ -77,7 +137,25 @@ public:
    * @return The number of edges.
    */
   inline size_t get_edge_count() const override {
-    return n_nonzeros;
+    return device_graph.get_edge_count();
+  }
+
+  /**
+   * @brief Returns the number of neighbours of a vertex in the graph.
+   * @param vertex The vertex.
+   * @return The number of neighbours.
+   */
+  inline size_t get_neighbour_count(vertex_t vertex) const override {
+    return device_graph.get_neighbour_count(vertex);
+  }
+
+  /**
+   * @brief Returns the index of the first neighbour of a vertex in the graph.
+   * @param vertex The vertex.
+   * @return The index of the first neighbour.
+   */
+  inline vertex_t get_first_neighbour_idx(vertex_t vertex) const override {
+    return device_graph.get_first_neighbour_idx(vertex);
   }
 
   /* Getters and Setters for CSR Graph */
@@ -87,7 +165,7 @@ public:
    * @return The number of rows.
    */
   const index_t get_offsets_size() const  {
-    return n_rows;
+    return device_graph.n_rows;
   }
 
   /**
@@ -95,7 +173,7 @@ public:
    * @return The number of non-zero values.
    */
   const offset_t get_values_size() const {
-    return n_nonzeros;
+    return device_graph.n_nonzeros;
   }
 
   /**
@@ -103,7 +181,7 @@ public:
    * @return A pointer to the column indices.
    */
   index_t* get_column_indices() {
-    return column_indices;
+    return device_graph.column_indices;
   }
 
   /**
@@ -111,7 +189,7 @@ public:
    * @return A constant pointer to the column indices.
    */
   const index_t* get_column_indices() const {
-    return column_indices;
+    return device_graph.column_indices;
   }
 
   /**
@@ -119,7 +197,7 @@ public:
    * @return A pointer to the row offsets.
    */
   offset_t* get_row_offsets() {
-    return row_offsets;
+    return device_graph.row_offsets;
   }
   
   /**
@@ -127,7 +205,7 @@ public:
    * @return A constant pointer to the row offsets.
    */
   const offset_t* get_row_offsets() const {
-    return row_offsets;
+    return device_graph.row_offsets;
   }
 
   /**
@@ -135,7 +213,7 @@ public:
    * @return A pointer to the non-zero values.
    */
   value_t* get_values() {
-    return nnz_values;
+    return device_graph.nnz_values;
   }
 
   /**
@@ -143,7 +221,7 @@ public:
    * @return A constant pointer to the non-zero values.
    */
   const value_t* get_values() const {
-    return nnz_values;
+    return device_graph.nnz_values;
   }
 
   /**
@@ -157,12 +235,7 @@ public:
 private:
   sycl::queue& q; ///< The SYCL queue associated with the graph.
 
-  index_t n_rows; ///< The number of rows in the graph.
-  offset_t n_nonzeros; ///< The number of non-zero values in the graph.
-
-  index_t* column_indices; ///< Pointer to the column indices of the graph.
-  offset_t* row_offsets; ///< Pointer to the row offsets of the graph.
-  value_t* nnz_values; ///< Pointer to the non-zero values of the graph.
+  graph_csr_device_t<index_t, offset_t, value_t> device_graph;
 };
 } // namespace detail
 } // namespace graph

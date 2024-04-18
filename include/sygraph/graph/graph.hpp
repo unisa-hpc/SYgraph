@@ -30,6 +30,11 @@ public:
 
   virtual inline size_t get_edge_count() const = 0;
 
+  virtual inline size_t get_neighbour_count(vertex_t vertex) const = 0;
+
+  virtual inline vertex_t get_first_neighbour_idx(vertex_t vertex) const = 0;
+
+
 private:
 
   graph::Properties properties;
