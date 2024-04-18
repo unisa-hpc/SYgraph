@@ -13,12 +13,15 @@ int main() {
   assert(G.get_edge_count() == csr.get_num_nonzeros());
   
   using type_t = decltype(G)::vertex_t;
-  type_t* nighbours_count = sycl::malloc_shared<type_t>(G.get_vertex_count(), q);
-  type_t* first_neighbours = sycl::malloc_shared<type_t>(G.get_vertex_count(), q);
+  sycl::buffer<type_t> nighbours_count_buf(G.get_vertex_count());
+  sycl::buffer<type_t> first_neighbours_buf(G.get_vertex_count());
 
   q.submit([&](sycl::handler &h) {
     auto v = G.get_values();
     auto dG = G.get_device_graph();
+    sycl::accessor nighbours_count {nighbours_count_buf, h, sycl::write_only};
+    sycl::accessor first_neighbours {first_neighbours_buf, h, sycl::write_only};
+
     h.parallel_for(sycl::range<1>{G.get_vertex_count()}, [=](sycl::id<1> idx) {
       auto id = idx[0];
       nighbours_count[id] = dG.get_neighbour_count(id);
@@ -26,6 +29,9 @@ int main() {
     });
   });
   q.wait();
+
+  sycl::host_accessor nighbours_count {nighbours_count_buf};
+  sycl::host_accessor first_neighbours {first_neighbours_buf};
 
   for (type_t i = 0; i < G.get_vertex_count(); i++) {
     assert(nighbours_count[i] == csr.get_row_offsets()[i + 1] - csr.get_row_offsets()[i]);
