@@ -7,6 +7,9 @@
 namespace sygraph {
 inline namespace v0 {
 
+/**
+ * @todo Remove it, it might be not necessary.
+*/
 template<typename T>
 class Vector {
 public:
