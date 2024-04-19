@@ -1,7 +1,7 @@
 #pragma once
 
 #include <sygraph/frontier/frontier.hpp>
-#include <sygraph/operators/load_balancing/load_balancing.hpp>
+#include <sygraph/operators/config.hpp>
 
 namespace sygraph {
 inline namespace v0 {

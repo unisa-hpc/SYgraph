@@ -33,10 +33,10 @@ auto make_frontier(sycl::queue& q, const GraphType& graph) {
   size_t frontier_size = 0;
   if constexpr (view == FrontierView::vertex) {
     frontier_size = graph.get_vertex_count();
-    return Frontier<typename GraphType::vertex_t, FrontierView::vertex, type>(q, frontier_size);
+    return Frontier<typename GraphType::vertex_t, view, type>(q, frontier_size);
   } else {
     frontier_size = graph.get_edge_count();
-    return Frontier<typename GraphType::edge_t, FrontierView::edge, type>(q, frontier_size);
+    return Frontier<typename GraphType::edge_t, view, type>(q, frontier_size);
   }
 }
 

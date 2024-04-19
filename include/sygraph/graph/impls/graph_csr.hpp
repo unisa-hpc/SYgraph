@@ -28,7 +28,7 @@ public:
    * @brief Returns the number of vertices in the graph.
    * @return The number of vertices.
    */
-  inline size_t get_vertex_count() const {
+  SYCL_EXTERNAL inline size_t get_vertex_count() const {
     return n_rows;
   }
 
@@ -36,7 +36,7 @@ public:
    * @brief Returns the number of edges in the graph.
    * @return The number of edges.
    */
-  inline size_t get_edge_count() const {
+  SYCL_EXTERNAL inline size_t get_edge_count() const {
     return n_nonzeros;
   }
 
@@ -45,7 +45,7 @@ public:
    * @param vertex The vertex.
    * @return The number of neighbours.
    */
-  inline size_t get_neighbour_count(vertex_t vertex) const {
+  SYCL_EXTERNAL inline size_t get_neighbour_count(vertex_t vertex) const {
     return row_offsets[vertex + 1] - row_offsets[vertex];
   }
 
@@ -54,8 +54,21 @@ public:
    * @param vertex The vertex.
    * @return The index of the first neighbour.
    */
-  inline vertex_t get_first_neighbour_idx(vertex_t vertex) const {
+  SYCL_EXTERNAL inline vertex_t get_first_neighbour_idx(vertex_t vertex) const {
     return row_offsets[vertex];
+  }
+
+  // getters
+  SYCL_EXTERNAL index_t* get_column_indices() const {
+    return column_indices;
+  }
+
+  SYCL_EXTERNAL offset_t* get_row_offsets() const {
+    return row_offsets;
+  }
+
+  SYCL_EXTERNAL value_t* get_values() const {
+    return nnz_values;
   }
 };
 

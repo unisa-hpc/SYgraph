@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sygraph/utils/memory.hpp>
+#include <sygraph/utils/vector.hpp>
 #include <sygraph/utils/types.hpp>
 
 namespace sygraph {
@@ -253,6 +254,33 @@ public:
     size_t ret = *count;
     sycl::free(count, q);
     return ret;
+  }
+
+  /**
+   * @todo try to implement this operation with a gather in SYCL
+   * @note now it is inefficient since it happens on the host
+  */
+  std::vector<type_t> get_active_elements() {
+    std::vector<type_t> ret;
+    for (type_t i = 0; i < num_elems; i++) {
+      if (check(i)) {
+        ret.push_back(i);
+      }
+    }
+    return ret;
+  }
+
+  bool check(type_t idx) {
+    sycl::buffer<bool, 1> ret(1);
+    q.submit([&](sycl::handler& cgh) {
+      auto bitmap = this->get_device_frontier();
+      sycl::accessor ret_acc(ret, cgh, sycl::write_only);
+      cgh.single_task([=]() {
+        ret_acc[0] = bitmap.check(idx);
+      });
+    }).wait();
+    sycl::host_accessor ret_acc(ret, sycl::read_only);
+    return ret_acc[0];
   }
 
   void insert(type_t idx) {

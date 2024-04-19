@@ -3,6 +3,7 @@ link_libraries(sygraph)
 add_executable(bitmap_frontier frontier/bitmap_frontier.cpp)
 add_executable(csr formats/csr.cpp)
 add_executable(graph_build graph/graph.cpp)
+add_executable(advance operators/advance.cpp)
 
 get_directory_property(all_targets BUILDSYSTEM_TARGETS)
 
@@ -25,5 +26,11 @@ add_test(
 add_test(
   NAME graph_build
   COMMAND graph_build
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+add_test(
+  NAME advance_operator
+  COMMAND advance
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )

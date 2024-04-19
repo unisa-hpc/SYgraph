@@ -1,17 +1,19 @@
 #pragma once
 
+#include <sycl/sycl.hpp>
+#include <memory>
+
+#include <sygraph/graph/graph.hpp>
+#include <sygraph/operators/config.hpp>
+
 namespace sygraph {
 inline namespace v0 {
 namespace operators {
-namespace load_balancing {
 
-enum class LoadBalancer {
-  Static,
-  Dynamic,
-  MergeBased,
+class Params {
+
 };
 
-} // namespace load_balancing
 } // namespace operators
 } // namespace v0
 } // namespace sygraph
