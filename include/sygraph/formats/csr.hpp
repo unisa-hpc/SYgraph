@@ -33,7 +33,7 @@ public:
 
   // Getters
   index_t get_row_offsets_size() const {
-    return row_offsets.size();
+    return row_offsets.size() - 1;
   }
 
   offset_t get_num_nonzeros() const {

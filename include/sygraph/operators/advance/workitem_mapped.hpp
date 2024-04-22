@@ -47,6 +47,7 @@ sygraph::event push(graph_t& graph, const in_frontier_t& in, out_frontier_t& out
       auto start = graphDev.begin(element);
       auto end = graphDev.end(element);
 
+      // each work item takes care of all the neighbours of the vertex he is responsible for
       for (auto i = start; i != end; ++i) {
         auto neighbour = *i;
         if (functor(element, neighbour)) {
