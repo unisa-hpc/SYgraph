@@ -2,6 +2,7 @@ link_libraries(sygraph)
 
 add_executable(bitmap_frontier frontier/bitmap_frontier.cpp)
 add_executable(csr formats/csr.cpp)
+add_executable(coo2csr formats/coo2csr.cpp)
 add_executable(graph_build graph/graph.cpp)
 add_executable(advance operators/advance.cpp)
 
@@ -20,6 +21,12 @@ add_test(
 add_test(
   NAME test_csr_format
   COMMAND csr
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+add_test(
+  NAME coo2csr
+  COMMAND coo2csr
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

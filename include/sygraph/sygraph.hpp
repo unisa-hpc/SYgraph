@@ -2,6 +2,7 @@
 
 // Include formats
 #include <sygraph/formats/csr.hpp>
+#include <sygraph/formats/coo.hpp>
 
 // Include Frontier
 #include <sygraph/frontier/frontier.hpp>
@@ -17,6 +18,7 @@
 #include <sygraph/io/matrices.hpp>
 #endif
 #include <sygraph/io/read_csr.hpp>
+#include <sygraph/io/read_coo.hpp>
 
 // Include utils
 #include <sygraph/utils/memory.hpp>
