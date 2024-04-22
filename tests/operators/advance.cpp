@@ -21,7 +21,7 @@ int main() {
   using frontier_impl_t = sygraph::frontier::FrontierType;
 
   auto inFrontier = sygraph::frontier::make_frontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(q, G);
-  auto outFrontier = sygraph::frontier::make_frontier<frontier_view_t::edge, frontier_impl_t::bitmap>(q, G);
+  auto outFrontier = sygraph::frontier::make_frontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(q, G);
 
   bool* visited = sycl::malloc_shared<bool>(G.get_vertex_count(), q);
   size_t* distances = sycl::malloc_shared<size_t>(G.get_vertex_count(), q);
