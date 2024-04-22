@@ -124,6 +124,14 @@ public:
     return data[get_bitmap_index(idx)] & (1 << (idx % range));
   }
 
+  SYCL_EXTERNAL inline bool empty() const {
+    type_t count = static_cast<type_t>(0);
+    for (auto i = 0; i < size; i++) {
+      count += data[i];
+    }
+    return count == static_cast<type_t>(0);
+  }
+
   /**
    * @brief Retrieves the bitmap index for the specified index.
    * 
@@ -211,11 +219,10 @@ public:
    * @todo tune on bitmap size
    * @param num_elems The number of elements in the bitmap.
    */
-  frontier_bitmap_t(sycl::queue& q, size_t num_elems) : q(q), num_elems(num_elems), bitmap(num_elems) {
+  frontier_bitmap_t(sycl::queue& q, size_t num_elems) : q(q), bitmap(num_elems) {
     using bitmap_type = typename bitmap_device_t<type_t>::bitmap_type;
-    bitmap_type* ptr = sygraph::memory::detail::memory_alloc<bitmap_type, memory::space::device>(bitmap.get_bitmap_size(), q);
-    range = bitmap.get_bitmap_range();
-    size = bitmap.get_bitmap_size();
+    bitmap_type* ptr = sygraph::memory::detail::memory_alloc<bitmap_type, memory::space::shared>(bitmap.get_bitmap_size(), q);
+    auto size = bitmap.get_bitmap_size();
     q.memset(ptr, static_cast<bitmap_type>(0), size).wait();
     bitmap.set_ptr(ptr);
   }
@@ -230,18 +237,18 @@ public:
   }
 
   inline size_t get_bitmap_size() const {
-    return this->size;
+    return bitmap.size;
   }
 
   inline size_t get_num_elems() const {
-    return this->num_elems;
+    return bitmap.num_elems;
   }
 
   inline size_t get_bitmap_range() const {
-    return this->range;
+    return bitmap.range;
   }
 
-  size_t get_num_active_elements() {
+  size_t get_num_active_elements() const {
     bitmap_type* count = memory::detail::memory_alloc<bitmap_type, memory::space::shared>(1, q);
 
     q.submit([&](sycl::handler& h) {
@@ -260,9 +267,9 @@ public:
    * @todo try to implement this operation with a gather in SYCL
    * @note now it is inefficient since it happens on the host
   */
-  std::vector<type_t> get_active_elements() {
+  std::vector<type_t> get_active_elements() const {
     std::vector<type_t> ret;
-    for (type_t i = 0; i < num_elems; i++) {
+    for (type_t i = 0; i < bitmap.num_elems; i++) {
       if (check(i)) {
         ret.push_back(i);
       }
@@ -270,7 +277,11 @@ public:
     return ret;
   }
 
-  bool check(type_t idx) {
+  inline bool empty() const {
+    return bitmap.empty();
+  }
+
+  bool check(type_t idx) const {
     sycl::buffer<bool, 1> ret(1);
     q.submit([&](sycl::handler& cgh) {
       auto bitmap = this->get_device_frontier();
@@ -301,6 +312,13 @@ public:
     }).wait();
   }
 
+  void swap_and_clear(frontier_bitmap_t<type_t>& out) {
+    auto tmp = this->bitmap;
+    this->bitmap = out.bitmap;
+    out.bitmap = tmp;
+    out.clear();
+  }
+
   /**
    * @brief Clears the bitmap by setting all bits to 0. It performs only a single memory operation.
    * @note This function should be called only on the host-side.
@@ -309,36 +327,11 @@ public:
     q.memset(bitmap.get_data(), static_cast<bitmap_type>(0), bitmap.get_bitmap_size()).wait();
   }
 
-  bitmap_device_t<type_t, bitmap_type>& get_device_frontier() {
+  const bitmap_device_t<type_t, bitmap_type>& get_device_frontier() const {
     return bitmap;
   }
 
 private:
-  struct bitmap_host_t {
-    sycl::queue& q;
-    bitmap_type* data;
-
-    bitmap_host_t (sycl::queue& q, bitmap_type* ptr) : q(q), data(ptr) {}
-
-    bitmap_type operator[](size_t idx) const {
-      return data[idx];
-    }
-
-    ~bitmap_host_t() {
-      sycl::free(data, q);
-    }
-  };
-
-  bitmap_host_t alloc_host() {
-    auto ptr = bitmap.get_data();
-    auto data = memory::detail::memory_alloc<bitmap_type, memory::space::host>(size, q);
-
-    q.copy<bitmap_type>(ptr, data, size).wait();
-
-    return bitmap_host_t{q, data};
-  }
-
-  size_t size, range, num_elems;
   sycl::queue& q;          ///< The SYCL queue used for memory allocation.
   bitmap_device_t<type_t, bitmap_type> bitmap; ///< The bitmap.
 };

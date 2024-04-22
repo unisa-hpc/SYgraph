@@ -1,5 +1,6 @@
 #include <sycl/sycl.hpp>
 #include <sygraph/sygraph.hpp>
+#include <chrono>
 
 int main() {
   sycl::queue q {sycl::gpu_selector_v};
@@ -28,25 +29,30 @@ int main() {
   auto device_graph = G.get_device_graph();
 
   inFrontier.insert(0);
-  distances[0] = 0;
+  distances[0] = 0; 
   visited[0] = true;
 
-  sygraph::operators::advance::push<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto id) {
-    auto start_idx = device_graph.get_first_neighbour_idx(id);
-    auto end_idx = start_idx + device_graph.get_neighbour_count(id);
+  auto start = std::chrono::high_resolution_clock::now();
 
-    for (auto i = start_idx; i < end_idx; i++) {
-      auto neighbour = device_graph.get_column_indices()[i];
-      if (!visited[neighbour]) {
-        visited[neighbour] = true;
-        distances[neighbour] = distances[id] + 1;
+  while (!inFrontier.empty()) {
+    sygraph::operators::advance::push<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=, visit=visited](auto u, auto v) -> bool {
+      if (!(visit[v])) {
+        visited[v] = true;
+        distances[v] = distances[u] + 1;
+        return true;
       }
-    }
-  });
+      return false;
+    });
+    inFrontier.swap_and_clear(outFrontier);
+  }
+
+  auto end = std::chrono::high_resolution_clock::now();
 
   for (size_t i = 0; i < G.get_vertex_count(); i++) {
     std::cout << "Vertex " << i << " has distance " << distances[i] << std::endl;
   }
+
+  std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms" << std::endl;
 
   sycl::free(visited, q);
   sycl::free(distances, q);

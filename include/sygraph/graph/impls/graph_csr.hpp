@@ -16,13 +16,28 @@ class graph_csr_device_t {
   using edge_t = offset_t; ///< The type used to represent edges of the graph.
   using weight_t = offset_t; ///< The type used to represent weights of the graph.
 public:
+  struct NeighbourIterator {
+    NeighbourIterator(index_t* ptr) : ptr(ptr) {}
 
-  index_t n_rows; ///< The number of rows in the graph.
-  offset_t n_nonzeros; ///< The number of non-zero values in the graph.
+    SYCL_EXTERNAL inline index_t operator*() const {
+      return *ptr;
+    }
 
-  index_t* column_indices; ///< Pointer to the column indices of the graph.
-  offset_t* row_offsets; ///< Pointer to the row offsets of the graph.
-  value_t* nnz_values; ///< Pointer to the non-zero values of the graph.
+    SYCL_EXTERNAL inline NeighbourIterator& operator++() {
+      ++ptr;
+      return *this;
+    }
+
+    SYCL_EXTERNAL inline bool operator==(const NeighbourIterator& other) const {
+      return ptr == other.ptr;
+    }
+
+    SYCL_EXTERNAL inline bool operator!=(const NeighbourIterator& other) const {
+      return ptr != other.ptr;
+    }
+
+    index_t* ptr;
+  };
 
   /**
    * @brief Returns the number of vertices in the graph.
@@ -70,6 +85,21 @@ public:
   SYCL_EXTERNAL value_t* get_values() const {
     return nnz_values;
   }
+
+  SYCL_EXTERNAL inline graph_csr_device_t::NeighbourIterator begin(vertex_t vertex) const {
+    return NeighbourIterator(column_indices + row_offsets[vertex]);
+  }
+
+  SYCL_EXTERNAL inline graph_csr_device_t::NeighbourIterator end(vertex_t vertex) const {
+    return NeighbourIterator(column_indices + row_offsets[vertex + 1]);
+  }
+
+  index_t n_rows; ///< The number of rows in the graph.
+  offset_t n_nonzeros; ///< The number of non-zero values in the graph.
+
+  index_t* column_indices; ///< Pointer to the column indices of the graph.
+  offset_t* row_offsets; ///< Pointer to the row offsets of the graph.
+  value_t* nnz_values; ///< Pointer to the non-zero values of the graph.
 };
 
 template <memory::space space,

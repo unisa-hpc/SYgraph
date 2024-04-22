@@ -17,13 +17,13 @@ class frontier_impl_t<type_t, FrontierType::bitmap> : public frontier_bitmap_t<t
 };
 } // namespace detail
 
-template <typename type_t, 
+template <typename T, 
           FrontierView view = FrontierView::vertex,
           FrontierType type = FrontierType::bitmap>
-class Frontier : public detail::frontier_impl_t<type_t, type> {
-  using detail::frontier_impl_t<type_t, type>::frontier_impl_t;
-
-  
+class Frontier : public detail::frontier_impl_t<T, type> {
+public:
+  using detail::frontier_impl_t<T, type>::frontier_impl_t;
+  using type_t = T;
 };
 
 template <FrontierView view,
