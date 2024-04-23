@@ -134,7 +134,7 @@ public:
     : Graph<index_t, offset_t, value_t>(properties), q(q)
   {
 
-    index_t n_rows = csr.get_row_offsets_size() - 1;
+    index_t n_rows = csr.get_row_offsets_size();
     offset_t n_nonzeros = csr.get_num_nonzeros();
     index_t* row_offsets = memory::detail::memory_alloc<offset_t, space>(n_rows + 1, q);
     offset_t* column_indices = memory::detail::memory_alloc<index_t, space>(n_nonzeros, q);
