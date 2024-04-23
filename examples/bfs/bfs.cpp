@@ -50,7 +50,9 @@ int main(int argc, char** argv) {
   auto start = std::chrono::high_resolution_clock::now();
 
   std::cout << "[*] Running... " << std::endl;
+  int iter = 0;
   while (!inFrontier.empty()) {
+    std::cout << "Iteration: " << (iter++) << std::endl;
     sygraph::operators::advance::push<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto u, auto v) -> bool {
       if (!(visited[v])) {
         visited[v] = true;
