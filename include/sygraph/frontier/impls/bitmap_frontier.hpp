@@ -138,7 +138,7 @@ public:
    * @param idx The index.
    * @return The bitmap index.
    */
-  SYCL_EXTERNAL inline const type_t get_bitmap_index(type_t idx) const {
+  SYCL_EXTERNAL inline const size_t get_bitmap_index(type_t idx) const {
     return idx / range;
   }
 
