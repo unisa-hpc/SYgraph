@@ -5,11 +5,12 @@
 
 int main(int argc, char** argv) {
 
-  if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " <path-to-graph>" << std::endl;
+  if (argc != 3) {
+    std::cerr << "Usage: " << argv[0] << " <path-to-graph> <source>" << std::endl;
     return 1;
   }
   std::string path = argv[1];
+  uint source = std::stoi(argv[2]);
 
   std::ifstream file(path);
   if (!file.is_open()) {
@@ -43,16 +44,16 @@ int main(int argc, char** argv) {
 
   auto device_graph = G.get_device_graph();
 
-  inFrontier.insert(0); // Start from vertex 0
-  distances[0] = 0; 
-  visited[0] = true;
+  inFrontier.insert(source); // Start from vertex 0
+  distances[source] = 0; 
+  visited[source] = true;
 
   auto start = std::chrono::high_resolution_clock::now();
 
-  std::cout << "[*] Running... " << std::endl;
+  std::cerr << "[*] Running... " << std::endl;
   int iter = 0;
   while (!inFrontier.empty()) {
-    std::cout << "Iteration: " << (iter++) << std::endl;
+    std::cerr << "Iteration: " << (iter++) << std::endl;
     sygraph::operators::advance::push<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto u, auto v) -> bool {
       if (!(visited[v])) {
         visited[v] = true;
@@ -61,17 +62,18 @@ int main(int argc, char** argv) {
       }
       return false;
     });
+    std::cerr << "GPU Computation..." << std::endl;
     inFrontier.swap_and_clear(outFrontier);
   }
 
   auto end = std::chrono::high_resolution_clock::now();
-  std::cout << "[*] Done" << std::endl;
+  std::cerr << "[*] Done" << std::endl;
 
   for (size_t i = 0; i < G.get_vertex_count(); i++) {
     std::cout << "Vertex " << i << " has distance " << distances[i] << std::endl;
   }
 
-  std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms" << std::endl;
+  std::cerr << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms" << std::endl;
 
   sycl::free(visited, q);
   sycl::free(distances, q);
