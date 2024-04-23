@@ -31,19 +31,18 @@ sygraph::event push(graph_t& graph, const in_frontier_t& in, out_frontier_t& out
   
   sycl::queue& q = graph.get_queue();
 
-  auto active_elements = in.get_active_elements();
-
   using type_t = typename in_frontier_t::type_t;
-  sycl::buffer<type_t, 1> active_elements_buffer(active_elements.data(), sycl::range<1>(active_elements.size()));
+  size_t active_elements_size = in.get_num_active_elements();
+  type_t* active_elements = sycl::malloc_shared<type_t>(active_elements_size, q);
+  in.get_active_elements(active_elements);
 
-  return {q.submit([&](sycl::handler& cgh) {
-    sycl::accessor active_elements_acc(active_elements_buffer, cgh, sycl::read_only);
+  sygraph::event ret {q.submit([&](sycl::handler& cgh) {
     auto inDevFrontier = in.get_device_frontier();
     auto outDevFrontier = out.get_device_frontier();
     auto graphDev = graph.get_device_graph();
 
-    cgh.parallel_for<class advance_kernel>(sycl::range<1>(active_elements.size()), [=](sycl::id<1> idx) {
-      auto element = active_elements_acc[idx];
+    cgh.parallel_for<class advance_kernel>(sycl::range<1>(active_elements_size), [=](sycl::id<1> idx) {
+      auto element = active_elements[idx];
       auto start = graphDev.begin(element);
       auto end = graphDev.end(element);
 
@@ -56,6 +55,9 @@ sygraph::event push(graph_t& graph, const in_frontier_t& in, out_frontier_t& out
       }
     });
   })};
+
+  sycl::free(active_elements, q);
+  return ret;
 }
 
 } // namespace detail  

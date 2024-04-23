@@ -171,7 +171,7 @@ public:
     auto range = item.get_local_range(0);
 
     for (size_t i = id; i < size; i += range) {
-      for (size_t j = 0; j < range; j++) {
+      for (bitmap_type j = 0; j < range; j++) {
         if (data[i] & (static_cast<bitmap_type>(1) << j)) {
           count++;
         }
@@ -249,32 +249,86 @@ public:
   }
 
   size_t get_num_active_elements() const {
-    bitmap_type* count = memory::detail::memory_alloc<bitmap_type, memory::space::shared>(1, q);
+    size_t* count = memory::detail::memory_alloc<size_t, memory::space::shared>(1, q);
+
+    sycl::nd_range<1> nd_range(32, 32); // TODO: tune on these value
 
     q.submit([&](sycl::handler& h) {
       auto bitmap = this->get_device_frontier();
-      h.single_task([=]() {
-        *count = bitmap.get_num_active_elements();
+      sycl::stream out(1024, 256, h);
+      h.parallel_for(nd_range, [=](sycl::nd_item<1> item) {
+        auto group = item.get_group();
+        auto lcount = bitmap.get_num_active_elements(item, group);
+        if (item.get_global_linear_id() == 0) {
+          *count = lcount;
+        }
       });
     }).wait();
-
     size_t ret = *count;
     sycl::free(count, q);
+    std::cout << "num active elements: " << ret << std::endl;
     return ret;
   }
 
   /**
    * @todo try to implement this operation with a gather in SYCL
    * @note now it is inefficient since it happens on the host
+   * 
+   * @param elems The array to store the active elements. It must be pre-allocated with shared-access.
   */
-  std::vector<type_t> get_active_elements() const {
-    std::vector<type_t> ret;
-    for (type_t i = 0; i < bitmap.num_elems; i++) {
-      if (check(i)) {
-        ret.push_back(i);
-      }
-    }
-    return ret;
+  void get_active_elements(type_t* elems) const {
+
+    sycl::range<1> local_size {128}; // TODO: tuning on this value
+    sycl::range<1> global_size {bitmap.size + local_size - (bitmap.size % local_size)};
+
+    sycl::nd_range<1> nd_range(global_size, local_size);
+
+    size_t bitmap_range = this->bitmap.get_bitmap_range();
+
+    sycl::buffer<type_t, 1> active_elems(sycl::range<1>(1));
+
+    q.submit([&](sycl::handler& cgh) {
+      auto bitmap = this->get_device_frontier();
+
+      sycl::local_accessor<type_t, 1> local_elems(bitmap_range * local_size, cgh);
+      sycl::local_accessor<size_t, 1> local_count(1, cgh);
+      sycl::accessor global_count(active_elems, cgh, sycl::read_write);
+
+      sycl::stream out(1024, 256, cgh);
+
+      cgh.parallel_for(nd_range, [=, bitmap_range=bitmap_range, bitmap_size=bitmap.size, data=bitmap.data](sycl::nd_item<1> item) {
+        sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> lcount(local_count[0]); // TODO: check if it works
+        sycl::atomic_ref<type_t, sycl::memory_order::relaxed, sycl::memory_scope::device> gcount(global_count[0]); // TODO: check if it works
+        if (item.get_global_id(0) == 0) {
+          gcount = 0;
+        }
+        auto lid = item.get_local_linear_id();
+        auto gid = item.get_global_linear_id();
+        auto global_size = item.get_global_range(0);
+        auto group = item.get_group();
+        auto group_id = item.get_group_linear_id();
+        auto group_size = item.get_local_range(0);
+
+        if (gid < bitmap_size) {
+          auto elem = data[gid];
+
+          for (type_t i = 0; i < bitmap_range; i++) {
+            if (elem & (static_cast<bitmap_type>(1) << i)) {
+              local_elems[lcount++] = i + gid * bitmap.range;
+            }
+          }
+        }
+
+        sycl::group_barrier(group);
+
+        if (lid == 0) { // TODO: It might be done in a more efficient way. In this way there is a lot of pressure on the gcount and elems array.
+          for (size_t i = 0; i < lcount; i++) {
+            elems[gcount++] = local_elems[i];
+          }
+          lcount = 0;
+        }
+      });
+    }).wait();
   }
 
   inline bool empty() const {
