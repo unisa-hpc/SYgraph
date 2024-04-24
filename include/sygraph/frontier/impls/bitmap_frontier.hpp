@@ -266,7 +266,6 @@ public:
     }).wait();
     size_t ret = *count;
     sycl::free(count, q);
-    std::cout << "num active elements: " << ret << std::endl;
     return ret;
   }
 
