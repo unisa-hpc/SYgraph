@@ -365,11 +365,17 @@ public:
     }).wait();
   }
 
-  void swap_and_clear(frontier_bitmap_t<type_t>& out) {
-    auto tmp = this->bitmap;
-    this->bitmap = out.bitmap;
-    out.bitmap = tmp;
-    out.clear();
+
+  /**
+   * Swaps the contents of the current bitmap frontier with the specified frontier and clears the current frontier.
+   *
+   * @param out The frontier to swap and clear with.
+   */
+  inline void swap_and_clear(frontier_bitmap_t<type_t>& out) {
+    // check if this and out are the same object
+    if (this == &out) {return;}
+    q.memcpy(out.bitmap.data, bitmap.data, bitmap.size).wait();
+    this->clear();
   }
 
   /**
