@@ -41,36 +41,40 @@ int main(int argc, char** argv) {
 
   bool* visited = sycl::malloc_shared<bool>(G.get_vertex_count(), q);
   size_t* distances = sycl::malloc_shared<size_t>(G.get_vertex_count(), q);
+  uint* parents = sycl::malloc_shared<uint>(G.get_vertex_count(), q);
 
   auto device_graph = G.get_device_graph();
 
   inFrontier.insert(source); // Start from vertex 0
   distances[source] = 0; 
+  parents[source] = source; 
   visited[source] = true;
 
   auto start = std::chrono::high_resolution_clock::now();
-
-  std::cerr << "[*] Running... " << std::endl;
   int iter = 0;
   while (!inFrontier.empty()) {
-    std::cerr << "Iteration: " << (iter++) << std::endl;
+    // std::cerr << "Iteration: " << (iter++) << std::endl;
     sygraph::operators::advance::push<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto u, auto v) -> bool {
       if (!(visited[v])) {
         visited[v] = true;
         distances[v] = distances[u] + 1;
+        parents[v] = u;
         return true;
       }
       return false;
     });
-    std::cerr << "GPU Computation..." << std::endl;
-    inFrontier.swap_and_clear(outFrontier);
+    // std::cerr << "GPU Computation..." << std::endl;
+    outFrontier.swap_and_clear(inFrontier);
   }
-
   auto end = std::chrono::high_resolution_clock::now();
   std::cerr << "[*] Done" << std::endl;
 
   for (size_t i = 0; i < G.get_vertex_count(); i++) {
-    std::cout << "Vertex " << i << " has distance " << distances[i] << std::endl;
+    if (i == source) {
+      std::cout << "[" << i << "] SOURCE" << std::endl;
+    } else {
+      std::cout << "[" << i << "] D: " << distances[i] << " | P: " << parents[i] << std::endl;
+    }
   }
 
   std::cerr << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms" << std::endl;
