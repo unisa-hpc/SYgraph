@@ -270,12 +270,14 @@ public:
   }
 
   /**
-   * @todo try to implement this operation with a gather in SYCL
-   * @note now it is inefficient since it happens on the host
+   * @brief Retrieves the active elements in the bitmap.
+   * @todo TODO: try with specialization constants
+   * @todo TODO: !!! Fix when active=false (Maybe too many values are being stored in the local memory)
    * 
    * @param elems The array to store the active elements. It must be pre-allocated with shared-access.
+   * @param active If true, it retrieves the active elements, otherwise the inactive elements.
   */
-  void get_active_elements(type_t* elems) const {
+  void get_active_elements(type_t* elems, bool active = true) const {
 
     sycl::range<1> local_size {128}; // TODO: tuning on this value
     sycl::range<1> global_size {bitmap.size + local_size - (bitmap.size % local_size)};
@@ -295,7 +297,7 @@ public:
 
       sycl::stream out(1024, 256, cgh);
 
-      cgh.parallel_for(nd_range, [=, bitmap_range=bitmap_range, bitmap_size=bitmap.size, data=bitmap.data](sycl::nd_item<1> item) {
+      cgh.parallel_for(nd_range, [=, bitmap_range=bitmap_range, bitmap_size=bitmap.size, data=bitmap.data, cond=active](sycl::nd_item<1> item) {
         sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> lcount(local_count[0]); // TODO: check if it works
         sycl::atomic_ref<type_t, sycl::memory_order::relaxed, sycl::memory_scope::device> gcount(global_count[0]); // TODO: check if it works
         if (item.get_global_id(0) == 0) {
@@ -312,7 +314,7 @@ public:
           auto elem = data[gid];
 
           for (type_t i = 0; i < bitmap_range; i++) {
-            if (elem & (static_cast<bitmap_type>(1) << i)) {
+            if (bitmap.check(i + gid * bitmap_range) == cond) {
               local_elems[lcount++] = i + gid * bitmap.range;
             }
           }

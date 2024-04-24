@@ -30,6 +30,19 @@ void push(graph_t& graph, in_frontier_t& in, out_frontier_t& out, lambda_t&& fun
   }
 }
 
+template <sygraph::operators::LoadBalancer lb,
+          typename graph_t,
+          typename in_frontier_t,
+          typename out_frontier_t,
+          typename lambda_t>
+void pull(graph_t& graph, in_frontier_t& in, out_frontier_t& out, lambda_t&& functor) {
+  if constexpr (lb == sygraph::operators::LoadBalancer::workitem_mapped) {
+    sygraph::operators::advance::detail::pull(graph, in, out, std::forward<lambda_t>(functor)).wait_and_throw();
+  } else {
+    throw std::runtime_error("Load balancer not implemented");
+  }
+}
+
 } // namespace advance
 } // namespace operators
 } // namespace v0

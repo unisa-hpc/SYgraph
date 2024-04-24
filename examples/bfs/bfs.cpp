@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
   int iter = 0;
   while (!inFrontier.empty()) {
     // std::cerr << "Iteration: " << (iter++) << std::endl;
-    sygraph::operators::advance::push<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto u, auto v) -> bool {
+    sygraph::operators::advance::pull<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto u, auto v) -> bool {
       if (!(visited[v])) {
         visited[v] = true;
         distances[v] = distances[u] + 1;
