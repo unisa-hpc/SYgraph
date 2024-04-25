@@ -39,8 +39,10 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
 
       // each work item takes care of all the neighbours of the vertex he is responsible for
       for (auto i = start; i != end; ++i) {
+        auto edge = i.get_index();
+        auto weight = graphDev.get_edge_weight(edge);
         auto neighbour = *i;
-        if (functor(element, neighbour)) {
+        if (functor(element, neighbour, edge, weight)) {
           outDevFrontier.insert(neighbour);
         }
       }
@@ -73,11 +75,11 @@ sygraph::event edge(graph_t& graph, const in_frontier_t& in, out_frontier_t& out
       auto element = active_elements[idx];
       auto start = graphDev.begin(element);
       auto end = graphDev.end(element);
-      auto edge = i.get_index();
-      auto weight = graphDev.get_weight(element, edge);
 
       // each work item takes care of all the neighbours of the vertex he is responsible for
       for (auto i = start; i != end; ++i) {
+        auto edge = i.get_index();
+        auto weight = graphDev.get_edge_weight(element, edge);
         auto neighbour = *i;
         if (functor(element, neighbour, edge, weight)) {
           outDevFrontier.insert(edge);

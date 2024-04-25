@@ -45,40 +45,33 @@ int main(int argc, char** argv) {
 
   auto device_graph = G.get_device_graph();
 
+  q.parallel_for(sycl::range<1>(G.get_vertex_count()), [=, size=G.get_vertex_count()](sycl::id<1> idx) {
+    distances[idx] = size + 1;
+  }).wait();
+
   inFrontier.insert(source); // Start from vertex 0
-  distances[source] = 0; 
-  parents[source] = source; 
-  visited[source] = true;
+  distances[source] = 0;
 
   auto start = std::chrono::high_resolution_clock::now();
   int iter = 0;
   while (!inFrontier.empty()) {
-    // std::cerr << "Iteration: " << (iter++) << std::endl;
-    sygraph::operators::advance::vertex<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto src, auto dst) -> bool {
-      if (!(visited[dst])) {
-        visited[dst] = true;
-        distances[dst] = distances[src] + 1;
-        parents[dst] = src;
-        return true;
-      }
-      return false;
+    sygraph::operators::advance::vertex<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
+      return iter + 1 < distances[dst];
     });
-    // std::cerr << "GPU Computation..." << std::endl;
+    sygraph::operators::parallel_for::execute(G, outFrontier, [=](auto v) {
+      distances[v] = iter + 1;
+    });
     outFrontier.swap_and_clear(inFrontier);
+    iter++;
   }
   auto end = std::chrono::high_resolution_clock::now();
   std::cerr << "[*] Done" << std::endl;
 
   for (size_t i = 0; i < G.get_vertex_count(); i++) {
-    if (i == source) {
-      std::cout << "[" << i << "] SOURCE" << std::endl;
-    } else {
-      std::cout << "[" << i << "] D: " << distances[i] << " | P: " << parents[i] << std::endl;
-    }
+    std::cout << "[" << i << "] Distance: " << distances[i] << std::endl;
   }
 
   std::cerr << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms" << std::endl;
 
-  sycl::free(visited, q);
   sycl::free(distances, q);
 }

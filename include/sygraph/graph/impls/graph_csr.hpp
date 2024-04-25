@@ -105,6 +105,7 @@ public:
         low = mid + 1;
       }
     }
+    return n_rows;
   }
 
   SYCL_EXTERNAL vertex_t get_destination_vertex(edge_t edge) const {

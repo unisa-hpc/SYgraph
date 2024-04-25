@@ -27,4 +27,5 @@
 // Include operators
 #include <sygraph/operators/config.hpp>
 #include <sygraph/operators/advance/advance.hpp>
+#include <sygraph/operators/for/for.hpp>
 
