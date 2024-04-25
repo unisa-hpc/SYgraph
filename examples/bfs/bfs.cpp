@@ -54,11 +54,11 @@ int main(int argc, char** argv) {
   int iter = 0;
   while (!inFrontier.empty()) {
     // std::cerr << "Iteration: " << (iter++) << std::endl;
-    sygraph::operators::advance::pull<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto u, auto v) -> bool {
-      if (!(visited[v])) {
-        visited[v] = true;
-        distances[v] = distances[u] + 1;
-        parents[v] = u;
+    sygraph::operators::advance::vertex<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto src, auto dst) -> bool {
+      if (!(visited[dst])) {
+        visited[dst] = true;
+        distances[dst] = distances[src] + 1;
+        parents[dst] = src;
         return true;
       }
       return false;

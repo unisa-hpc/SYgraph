@@ -29,13 +29,13 @@ int main() {
   auto device_graph = G.get_device_graph();
 
   inFrontier.insert(0); // Start from vertex 0
-  distances[0] = 0; 
+  distances[0] = 0;
   visited[0] = true;
 
   auto start = std::chrono::high_resolution_clock::now();
 
   while (!inFrontier.empty()) {
-    sygraph::operators::advance::push<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto u, auto v) -> bool {
+    sygraph::operators::advance::vertex<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto u, auto v) -> bool {
       if (!(visited[v])) {
         visited[v] = true;
         distances[v] = distances[u] + 1;

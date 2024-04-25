@@ -271,13 +271,11 @@ public:
 
   /**
    * @brief Retrieves the active elements in the bitmap.
-   * @todo TODO: try with specialization constants
-   * @todo TODO: !!! Fix when active=false (Maybe too many values are being stored in the local memory)
    * 
    * @param elems The array to store the active elements. It must be pre-allocated with shared-access.
    * @param active If true, it retrieves the active elements, otherwise the inactive elements.
   */
-  void get_active_elements(type_t* elems, bool active = true) const {
+  void get_active_elements(type_t* elems) const {
 
     sycl::range<1> local_size {128}; // TODO: tuning on this value
     sycl::range<1> global_size {bitmap.size + local_size - (bitmap.size % local_size)};
@@ -295,9 +293,7 @@ public:
       sycl::local_accessor<size_t, 1> local_count(1, cgh);
       sycl::accessor global_count(active_elems, cgh, sycl::read_write);
 
-      sycl::stream out(1024, 256, cgh);
-
-      cgh.parallel_for(nd_range, [=, bitmap_range=bitmap_range, bitmap_size=bitmap.size, data=bitmap.data, cond=active](sycl::nd_item<1> item) {
+      cgh.parallel_for(nd_range, [=, bitmap_range=bitmap_range, bitmap_size=bitmap.size, data=bitmap.data](sycl::nd_item<1> item) {
         sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> lcount(local_count[0]); // TODO: check if it works
         sycl::atomic_ref<type_t, sycl::memory_order::relaxed, sycl::memory_scope::device> gcount(global_count[0]); // TODO: check if it works
         if (item.get_global_id(0) == 0) {
@@ -314,7 +310,7 @@ public:
           auto elem = data[gid];
 
           for (type_t i = 0; i < bitmap_range; i++) {
-            if (bitmap.check(i + gid * bitmap_range) == cond) {
+            if (bitmap.check(i + gid * bitmap_range)) {
               local_elems[lcount++] = i + gid * bitmap.range;
             }
           }
@@ -371,13 +367,30 @@ public:
   /**
    * Swaps the contents of the current bitmap frontier with the specified frontier and clears the current frontier.
    *
-   * @param out The frontier to swap and clear with.
+   * @post The specified frontier contains the contents of the current frontier. The current frontier is then cleared.
+   * @param other The frontier to swap with.
    */
-  inline void swap_and_clear(frontier_bitmap_t<type_t>& out) {
-    // check if this and out are the same object
-    if (this == &out) {return;}
-    q.memcpy(out.bitmap.data, bitmap.data, bitmap.size).wait();
+  inline void swap_and_clear(frontier_bitmap_t<type_t>& other) {
+    // check if this and other are the same object
+    if (this == &other) {return;}
+    q.memcpy(other.bitmap.data, bitmap.data, bitmap.size).wait();
     this->clear();
+  }
+
+  /**
+   * Merges the contents of the current bitmap frontier with the specified frontier.
+   * 
+   * @param other The frontier to merge with.
+   * @post The current frontier contains the union of the current frontier and the specified frontier. The specified frontier is not modified.
+  */
+  inline void merge(frontier_bitmap_t<type_t>& other) {
+    q.submit([&](sycl::handler& cgh) {
+      auto bitmap = this->get_device_frontier();
+      auto other_bitmap = other.get_device_frontier();
+      cgh.parallel_for(sycl::range<1>(bitmap.size), [=](sycl::id<1> idx) {
+        bitmap.data[idx] |= other_bitmap.data[idx];
+      });
+    }).wait();
   }
 
   /**

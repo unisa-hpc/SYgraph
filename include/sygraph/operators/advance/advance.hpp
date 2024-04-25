@@ -22,9 +22,9 @@ template <sygraph::operators::LoadBalancer lb,
           typename in_frontier_t,
           typename out_frontier_t,
           typename lambda_t>
-void push(graph_t& graph, in_frontier_t& in, out_frontier_t& out, lambda_t&& functor) {
+void vertex(graph_t& graph, in_frontier_t& in, out_frontier_t& out, lambda_t&& functor) {
   if constexpr (lb == sygraph::operators::LoadBalancer::workitem_mapped) {
-    sygraph::operators::advance::detail::push(graph, in, out, std::forward<lambda_t>(functor)).wait_and_throw();
+    sygraph::operators::advance::detail::vertex(graph, in, out, std::forward<lambda_t>(functor)).wait_and_throw();
   } else {
     throw std::runtime_error("Load balancer not implemented");
   }
@@ -35,9 +35,9 @@ template <sygraph::operators::LoadBalancer lb,
           typename in_frontier_t,
           typename out_frontier_t,
           typename lambda_t>
-void pull(graph_t& graph, in_frontier_t& in, out_frontier_t& out, lambda_t&& functor) {
+void edge(graph_t& graph, in_frontier_t& in, out_frontier_t& out, lambda_t&& functor) {
   if constexpr (lb == sygraph::operators::LoadBalancer::workitem_mapped) {
-    sygraph::operators::advance::detail::pull(graph, in, out, std::forward<lambda_t>(functor)).wait_and_throw();
+    sygraph::operators::advance::detail::edge(graph, in, out, std::forward<lambda_t>(functor)).wait_and_throw();
   } else {
     throw std::runtime_error("Load balancer not implemented");
   }
