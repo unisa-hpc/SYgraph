@@ -3,6 +3,18 @@
 #include <sygraph/sygraph.hpp>
 #include <chrono>
 
+template<typename T>
+void PRINT_FRONTIER(T& f, std::string prefix = "") {
+  using type_t = typename T::type_t;
+  auto size = f.get_bitmap_size() * f.get_bitmap_range();
+  std::cout << prefix;
+  for (int i = size - 1; i >= 0; --i) {
+    std::cout << (f.check(static_cast<type_t>(i)) ? "1" : "0");
+  }
+  std::cout << " [" << f.get_device_frontier().get_data()[0] << "]" << std::endl; 
+  std::cout << std::endl;
+}
+
 int main(int argc, char** argv) {
 
   if (argc != 3) {
@@ -39,13 +51,12 @@ int main(int argc, char** argv) {
   auto inFrontier = sygraph::frontier::make_frontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(q, G);
   auto outFrontier = sygraph::frontier::make_frontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(q, G);
 
-  bool* visited = sycl::malloc_shared<bool>(G.get_vertex_count(), q);
   size_t* distances = sycl::malloc_shared<size_t>(G.get_vertex_count(), q);
-  uint* parents = sycl::malloc_shared<uint>(G.get_vertex_count(), q);
+  size_t size = G.get_vertex_count();
 
   auto device_graph = G.get_device_graph();
 
-  q.parallel_for(sycl::range<1>(G.get_vertex_count()), [=, size=G.get_vertex_count()](sycl::id<1> idx) {
+  q.parallel_for(sycl::range<1>(G.get_vertex_count()), [distances, size](sycl::id<1> idx) {
     distances[idx] = size + 1;
   }).wait();
 
@@ -55,13 +66,17 @@ int main(int argc, char** argv) {
   auto start = std::chrono::high_resolution_clock::now();
   int iter = 0;
   while (!inFrontier.empty()) {
+    PRINT_FRONTIER(inFrontier, " IN: ");
     sygraph::operators::advance::vertex<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
-      return iter + 1 < distances[dst];
+      return (iter + 1) < distances[dst];
     }).wait();
+    PRINT_FRONTIER(outFrontier, "OUT: ");
     sygraph::operators::parallel_for::execute(G, outFrontier, [=](auto v) {
       distances[v] = iter + 1;
     }).wait();
-    outFrontier.swap_and_clear(inFrontier);
+
+    inFrontier = outFrontier;
+    outFrontier.clear();
     iter++;
   }
   auto end = std::chrono::high_resolution_clock::now();

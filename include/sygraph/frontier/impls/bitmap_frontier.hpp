@@ -66,7 +66,7 @@ public:
    * @param idx The index of the bit to set.
    * @param val The value to set the bit to.
    */
-  SYCL_EXTERNAL inline void set(type_t idx, bool val) const {
+  SYCL_EXTERNAL inline void set(size_t idx, bool val) const {
     if (val) {
       insert(idx);
     } else {
@@ -79,9 +79,9 @@ public:
    * 
    * @param idx The index of the bit to set.
    */
-  SYCL_EXTERNAL inline void insert(type_t idx) const {
+  SYCL_EXTERNAL inline void insert(size_t idx) const {
     sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::work_group> ref(data[get_bitmap_index(idx)]);
-    ref |= 1 << (idx % range);
+    ref |= static_cast<bitmap_type>(static_cast<bitmap_type>(1) << (idx % range));
   }
 
   /**
@@ -89,9 +89,9 @@ public:
    * 
    * @param idx The index of the bit to set.
    */
-  SYCL_EXTERNAL inline void remove(type_t idx) const {
+  SYCL_EXTERNAL inline void remove(size_t idx) const {
     sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::work_group> ref(data[get_bitmap_index(idx)]);
-    ref &= ~(1 << (idx % range));
+    ref &= ~(static_cast<bitmap_type>(static_cast<bitmap_type>(1) << (idx % range)));
   }
 
   /**
@@ -100,7 +100,7 @@ public:
    */
   SYCL_EXTERNAL inline void reset() const {
     for (size_t i = 0; i < size; i++) {
-      data[i] = 0;
+      data[i] = static_cast<bitmap_type>(0);
     }
   }
 
@@ -110,8 +110,8 @@ public:
    * 
    * @param id The index of the bitmap to reset.
    */
-  SYCL_EXTERNAL inline void reset(type_t id) const {
-    data[id] = 0;
+  SYCL_EXTERNAL inline void reset(size_t id) const {
+    data[id] = static_cast<bitmap_type>(0);
   }
 
   /**
@@ -120,16 +120,17 @@ public:
    * @param idx The index of the bit to check.
    * @return True if the bit is set, false otherwise.
    */
-  SYCL_EXTERNAL inline bool check(type_t idx) const {
-    return data[get_bitmap_index(idx)] & (1 << (idx % range));
+  SYCL_EXTERNAL inline bool check(size_t idx) const {
+
+    return data[idx / range] & (static_cast<bitmap_type>(1) << (idx % range));
   }
 
   SYCL_EXTERNAL inline bool empty() const {
-    type_t count = static_cast<type_t>(0);
+    bitmap_type count = static_cast<bitmap_type>(0);
     for (auto i = 0; i < size; i++) {
       count += data[i];
     }
-    return count == static_cast<type_t>(0);
+    return count == static_cast<bitmap_type>(0);
   }
 
   /**
@@ -138,39 +139,17 @@ public:
    * @param idx The index.
    * @return The bitmap index.
    */
-  SYCL_EXTERNAL inline const size_t get_bitmap_index(type_t idx) const {
+  SYCL_EXTERNAL inline const size_t get_bitmap_index(size_t idx) const {
     return idx / range;
   }
-
-  /**
-   * @brief Retrieves the number of active elements in the bitmap.
-   * @note This function should be called only on the host-side.
-   * @todo Implement a more efficient version of this function.
-   * @return The number of active elements in the bitmap.
-   */
-  SYCL_EXTERNAL size_t get_num_active_elements() const {
-
-    size_t count = 0;
-
-    for (size_t i = 0; i < size; i ++) {
-      for (size_t j = 0; j < range; j++) {
-        if (data[i] & (static_cast<bitmap_type>(1) << j)) {
-          count++;
-        }
-      }
-    }
-
-    return count;
-  }
-
 
   template<int Dim, typename group_t>
   SYCL_EXTERNAL size_t get_num_active_elements(sycl::nd_item<Dim> item, group_t group) const {
     size_t count = 0;
     auto id = item.get_local_linear_id();
-    auto range = item.get_local_range(0);
+    auto local_range = item.get_local_range(0);
 
-    for (size_t i = id; i < size; i += range) {
+    for (size_t i = id; i < size; i += local_range) {
       for (bitmap_type j = 0; j < range; j++) {
         if (data[i] & (static_cast<bitmap_type>(1) << j)) {
           count++;
@@ -276,9 +255,9 @@ public:
    * @param active If true, it retrieves the active elements, otherwise the inactive elements.
   */
   void get_active_elements(type_t* elems) const {
-
-    sycl::range<1> local_size {128}; // TODO: tuning on this value
-    sycl::range<1> global_size {bitmap.size + local_size - (bitmap.size % local_size)};
+    constexpr size_t local = 32;
+    sycl::range<1> local_size {local}; // TODO: tuning on this value
+    sycl::range<1> global_size {(bitmap.size > local ? bitmap.size + local - (bitmap.size % local) : local)};
 
     sycl::nd_range<1> nd_range(global_size, local_size);
 
@@ -310,8 +289,8 @@ public:
           auto elem = data[gid];
 
           for (type_t i = 0; i < bitmap_range; i++) {
-            if (bitmap.check(i + gid * bitmap_range)) {
-              local_elems[lcount++] = i + gid * bitmap.range;
+            if (elem & (static_cast<bitmap_type>(1) << i)) {
+              local_elems[lcount++] = i + gid * bitmap_range;
             }
           }
         }
@@ -332,20 +311,11 @@ public:
     return bitmap.empty();
   }
 
-  bool check(type_t idx) const {
-    sycl::buffer<bool, 1> ret(1);
-    q.submit([&](sycl::handler& cgh) {
-      auto bitmap = this->get_device_frontier();
-      sycl::accessor ret_acc(ret, cgh, sycl::write_only);
-      cgh.single_task([=]() {
-        ret_acc[0] = bitmap.check(idx);
-      });
-    }).wait();
-    sycl::host_accessor ret_acc(ret, sycl::read_only);
-    return ret_acc[0];
+  bool check(size_t idx) const {
+    return bitmap.check(idx);
   }
 
-  void insert(type_t idx) {
+  void insert(size_t idx) {
     q.submit([&](sycl::handler& cgh) {
       auto bitmap = this->get_device_frontier();
       cgh.single_task([=]() {
@@ -354,7 +324,7 @@ public:
     }).wait();
   }
 
-  void remove(type_t idx) {
+  void remove(size_t idx) {
     q.submit([&](sycl::handler& cgh) {
       auto bitmap = this->get_device_frontier();
       cgh.single_task([=]() {
@@ -363,18 +333,13 @@ public:
     }).wait();
   }
 
-
-  /**
-   * Swaps the contents of the current bitmap frontier with the specified frontier and clears the current frontier.
-   *
-   * @post The specified frontier contains the contents of the current frontier. The current frontier is then cleared.
-   * @param other The frontier to swap with.
-   */
-  inline void swap_and_clear(frontier_bitmap_t<type_t>& other) {
-    // check if this and other are the same object
-    if (this == &other) {return;}
-    q.memcpy(other.bitmap.data, bitmap.data, bitmap.size).wait();
-    this->clear();
+  //operator =
+  frontier_bitmap_t& operator=(const frontier_bitmap_t& other) {
+    if (this == &other) {
+      return *this;
+    }
+    q.copy(other.bitmap.data, this->bitmap.data, bitmap.size).wait();
+    return *this;
   }
 
   /**
@@ -398,7 +363,7 @@ public:
    * @note This function should be called only on the host-side.
    */
   inline void clear() {
-    q.memset(bitmap.get_data(), static_cast<bitmap_type>(0), bitmap.get_bitmap_size()).wait();
+    q.fill(bitmap.data, static_cast<bitmap_type>(0), bitmap.size).wait();
   }
 
   const bitmap_device_t<type_t, bitmap_type>& get_device_frontier() const {
