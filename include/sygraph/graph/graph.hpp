@@ -34,6 +34,11 @@ public:
 
   virtual inline vertex_t get_first_neighbour_idx(vertex_t vertex) const = 0;
 
+  virtual inline vertex_t get_source_vertex(edge_t edge) const = 0;
+
+  virtual inline vertex_t get_destination_vertex(edge_t edge) const = 0;
+
+  virtual inline weight_t get_edge_weight(edge_t edge) const = 0;
 
 private:
 

@@ -14,10 +14,10 @@ template <typename index_t,
 class graph_csr_device_t {
   using vertex_t = index_t; ///< The type used to represent vertices of the graph.
   using edge_t = offset_t; ///< The type used to represent edges of the graph.
-  using weight_t = offset_t; ///< The type used to represent weights of the graph.
+  using weight_t = value_t; ///< The type used to represent weights of the graph.
 public:
   struct NeighbourIterator {
-    NeighbourIterator(index_t* ptr) : ptr(ptr) {}
+    NeighbourIterator(index_t* start_ptr, index_t* ptr) : start_ptr(start_ptr), ptr(ptr) {}
 
     SYCL_EXTERNAL inline index_t operator*() const {
       return *ptr;
@@ -36,7 +36,12 @@ public:
       return ptr != other.ptr;
     }
 
+    SYCL_EXTERNAL inline edge_t get_index() const {
+      return static_cast<edge_t>(ptr - start_ptr);
+    }
+
     index_t* ptr;
+    index_t* start_ptr;
   };
 
   /**
@@ -86,12 +91,36 @@ public:
     return nnz_values;
   }
 
+  SYCL_EXTERNAL vertex_t get_source_vertex(edge_t edge) const {
+    // binary search
+    vertex_t low = 0;
+    vertex_t high = n_rows - 1;
+    while (low <= high) {
+      vertex_t mid = low + (high - low) / 2;
+      if (row_offsets[mid] <= edge && edge < row_offsets[mid + 1]) {
+        return mid;
+      } else if (row_offsets[mid] > edge) {
+        high = mid - 1;
+      } else {
+        low = mid + 1;
+      }
+    }
+  }
+
+  SYCL_EXTERNAL vertex_t get_destination_vertex(edge_t edge) const {
+    return column_indices[edge];
+  }
+
+  SYCL_EXTERNAL weight_t get_edge_weight(edge_t edge) const {
+    return nnz_values[edge];
+  }
+
   SYCL_EXTERNAL inline graph_csr_device_t::NeighbourIterator begin(vertex_t vertex) const {
-    return NeighbourIterator(column_indices + row_offsets[vertex]);
+    return NeighbourIterator(column_indices, column_indices + row_offsets[vertex]);
   }
 
   SYCL_EXTERNAL inline graph_csr_device_t::NeighbourIterator end(vertex_t vertex) const {
-    return NeighbourIterator(column_indices + row_offsets[vertex + 1]);
+    return NeighbourIterator(column_indices, column_indices + row_offsets[vertex + 1]);
   }
 
   index_t n_rows; ///< The number of rows in the graph.
@@ -199,6 +228,18 @@ public:
    */
   inline vertex_t get_first_neighbour_idx(vertex_t vertex) const override {
     return device_graph.get_first_neighbour_idx(vertex);
+  }
+
+  inline vertex_t get_source_vertex(edge_t edge) const override {
+    return device_graph.get_source_vertex(edge);
+  }
+
+  inline vertex_t get_destination_vertex(edge_t edge) const override {
+    return device_graph.get_destination_vertex(edge);
+  }
+
+  inline weight_t get_edge_weight(edge_t edge) const override {
+    return device_graph.get_edge_weight(edge);
   }
 
   /* Getters and Setters for CSR Graph */
