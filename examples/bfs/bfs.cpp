@@ -57,10 +57,10 @@ int main(int argc, char** argv) {
   while (!inFrontier.empty()) {
     sygraph::operators::advance::vertex<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
       return iter + 1 < distances[dst];
-    });
+    }).wait();
     sygraph::operators::parallel_for::execute(G, outFrontier, [=](auto v) {
       distances[v] = iter + 1;
-    });
+    }).wait();
     outFrontier.swap_and_clear(inFrontier);
     iter++;
   }
