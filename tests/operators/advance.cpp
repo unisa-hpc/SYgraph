@@ -34,17 +34,17 @@ int main() {
 
   auto start = std::chrono::high_resolution_clock::now();
 
-  while (!inFrontier.empty()) {
-    sygraph::operators::advance::vertex<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto u, auto v, auto e, auto w) -> bool {
-      if (!(visited[v])) {
-        visited[v] = true;
-        distances[v] = distances[u] + 1;
-        return true;
-      }
-      return false;
-    });
-    inFrontier.swap_and_clear(outFrontier);
-  }
+  // while (!inFrontier.empty()) { TODO: Implement this
+    // sygraph::operators::advance::vertex<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto u, auto v, auto e, auto w) -> bool {
+    //   if (!(visited[v])) {
+    //     visited[v] = true;
+    //     distances[v] = distances[u] + 1;
+    //     return true;
+    //   }
+    //   return false;
+    // });
+    // inFrontier.swap_and_clear(outFrontier);
+  // }
 
   auto end = std::chrono::high_resolution_clock::now();
 

@@ -2,6 +2,7 @@
 #include <sycl/sycl.hpp>
 #include <sygraph/sygraph.hpp>
 #include <chrono>
+#include <iomanip>
 
 template<typename T>
 void PRINT_FRONTIER(T& f, std::string prefix = "") {
@@ -32,11 +33,11 @@ int main(int argc, char** argv) {
 
   sycl::queue q {sycl::gpu_selector_v};
 
-  std::cout << "[*  ] Loading graph file" << std::endl;
+  std::cerr << "[*  ] Loading graph file" << std::endl;
   auto coo = sygraph::io::coo::from_coo<uint, uint, uint>(file);
-  std::cout << "[** ] Converting to CSR" << std::endl;
+  std::cerr << "[** ] Converting to CSR" << std::endl;
   auto csr = sygraph::io::csr::from_coo(coo);
-  std::cout << "[***] Building Graph" << std::endl;
+  std::cerr << "[***] Building Graph" << std::endl;
   auto G = sygraph::graph::build::from_csr<sygraph::memory::space::shared>(q, csr);
   
   using type_t = decltype(G)::vertex_t;
@@ -66,11 +67,9 @@ int main(int argc, char** argv) {
   auto start = std::chrono::high_resolution_clock::now();
   int iter = 0;
   while (!inFrontier.empty()) {
-    PRINT_FRONTIER(inFrontier, " IN: ");
     sygraph::operators::advance::vertex<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
       return (iter + 1) < distances[dst];
     }).wait();
-    PRINT_FRONTIER(outFrontier, "OUT: ");
     sygraph::operators::parallel_for::execute(G, outFrontier, [=](auto v) {
       distances[v] = iter + 1;
     }).wait();
@@ -82,8 +81,16 @@ int main(int argc, char** argv) {
   auto end = std::chrono::high_resolution_clock::now();
   std::cerr << "[*] Done" << std::endl;
 
+  std::cout << std::left;
+  std::cout << std::setw(10) << "Vertex" << std::setw(10) << "Distance" << std::endl;
   for (size_t i = 0; i < G.get_vertex_count(); i++) {
-    std::cout << "[" << i << "] Distance: " << distances[i] << std::endl;
+    std::cout << std::setw(10) << i;
+    if (distances[i] == size + 1) {
+      std::cout << std::setw(10) << "inf";
+    } else {
+      std::cout << std::setw(10) << distances[i];
+    }
+    std::cout << std::endl;
   }
 
   std::cerr << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms" << std::endl;

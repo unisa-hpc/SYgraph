@@ -33,15 +33,28 @@ sygraph::formats::COO<value_t, index_t, offset_t> from_coo(std::istream& iss) {
     iss.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
   }
 
+  std::string line;
+  if (std::getline(iss, line).eof()) {
+    throw std::runtime_error("Error: could not read the first line of the file.");
+  }
   size_t n_nodes1, n_nodes2, num_edges;
-  iss >> n_nodes1 >> n_nodes2 >> num_edges;
+  std::istringstream {line} >> n_nodes1 >> n_nodes2 >> num_edges;
 
   std::vector<index_t> coo_row_indices(num_edges);
   std::vector<index_t> coo_col_indices(num_edges);
   std::vector<value_t> coo_values(num_edges);
 
-  for (int i = 0; i < num_edges; ++i) {
-    iss >> coo_row_indices[i] >> coo_col_indices[i] >> coo_values[i];    
+  size_t i = 0;
+  while (std::getline(iss, line)) {
+    std::istringstream liss {line};
+    index_t u, v;
+    value_t w;
+    liss >> u >> v;
+    if (!(liss >> w)) w = 1; // if no weight is provided, set it to 1 (default weight)
+    coo_row_indices[i] = u;
+    coo_col_indices[i] = v;
+    coo_values[i] = w;
+    ++i;
   }
 
   return sygraph::formats::COO<value_t, index_t, offset_t>(coo_row_indices, coo_col_indices, coo_values);
