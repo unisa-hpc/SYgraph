@@ -29,3 +29,5 @@
 #include <sygraph/operators/advance/advance.hpp>
 #include <sygraph/operators/for/for.hpp>
 
+// Include algorithms
+#include <sygraph/algorithms/bfs.hpp>
