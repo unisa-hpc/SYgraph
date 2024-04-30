@@ -72,7 +72,6 @@ struct BFSInstance {
  *
  * @tparam GraphType The type of the graph on which the BFS algorithm will be performed.
  * @todo TODO: Implement the get_parents method. 
- * @todo TODO: Add automatic load_balancing for the type of graph. 
  */
 template<typename GraphType>
 class BFS {
@@ -107,6 +106,7 @@ public:
    *
    * @tparam enable_profiling A boolean flag to enable profiling.
    * @throws std::runtime_error if the BFS instance is not initialized.
+   * @todo TODO: Add automatic load_balancing for the type of graph. 
    */
   template <bool enable_profiling = false>
   sygraph::detail::profiling::profiling_info_t run() {
