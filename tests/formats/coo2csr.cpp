@@ -5,7 +5,7 @@
 int main() {
   sycl::queue q {sycl::gpu_selector_v};
 
-  std::string mat = "8\n"
+  std::string mat = "4 4 8\n"
     "1 2 2\n"
     "1 0 3\n"
     "0 2 1\n"

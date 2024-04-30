@@ -9,7 +9,7 @@ int main() {
   auto csr = sygraph::io::csr::from_matrix<uint, uint, uint>(iss);
   auto G = sygraph::graph::build::from_csr<sygraph::memory::space::shared>(q, csr);
   
-  assert(G.get_vertex_count() == csr.get_row_offsets_size() - 1);
+  assert(G.get_vertex_count() == csr.get_row_offsets_size());
   assert(G.get_edge_count() == csr.get_num_nonzeros());
   
   using type_t = decltype(G)::vertex_t;
