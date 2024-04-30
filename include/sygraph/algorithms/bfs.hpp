@@ -71,9 +71,8 @@ struct BFSInstance {
  * before moving to the next level.
  *
  * @tparam GraphType The type of the graph on which the BFS algorithm will be performed.
- * @todo TODO: Implement the get_parents method. 
  */
-template<typename GraphType>
+template<typename GraphType> // TODO: Implement the get_parents method. 
 class BFS {
   using vertex_t = typename GraphType::vertex_t;
   using edge_t = typename GraphType::edge_t;
@@ -106,9 +105,8 @@ public:
    *
    * @tparam enable_profiling A boolean flag to enable profiling.
    * @throws std::runtime_error if the BFS instance is not initialized.
-   * @todo TODO: Add automatic load_balancing for the type of graph. 
    */
-  template <bool enable_profiling = false>
+  template <bool enable_profiling = false> 
   sygraph::detail::profiling::profiling_info_t run() {
     if (!_instance) {
       throw std::runtime_error("BFS instance not initialized");
@@ -138,6 +136,7 @@ public:
     if constexpr (enable_profiling) {
       profiling.start = std::chrono::high_resolution_clock::now();
     }
+    // TODO: Add automatic load_balancing for the type of graph. 
     while (!inFrontier.empty()) {
       sygraph::operators::advance::vertex<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
         return (iter + 1) < distances[dst];

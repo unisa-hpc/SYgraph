@@ -195,9 +195,9 @@ public:
    * @brief Constructs a frontier_bitmap_t object.
    * 
    * @param q The SYCL queue to use for memory allocation.
-   * @todo tune on bitmap size
    * @param num_elems The number of elements in the bitmap.
    */
+  // TODO: tune on bitmap size
   frontier_bitmap_t(sycl::queue& q, size_t num_elems) : q(q), bitmap(num_elems) {
     using bitmap_type = typename bitmap_device_t<type_t>::bitmap_type;
     bitmap_type* ptr = sygraph::memory::detail::memory_alloc<bitmap_type, memory::space::shared>(bitmap.get_bitmap_size(), q);
