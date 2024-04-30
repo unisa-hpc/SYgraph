@@ -71,6 +71,8 @@ struct BFSInstance {
  * before moving to the next level.
  *
  * @tparam GraphType The type of the graph on which the BFS algorithm will be performed.
+ * @todo TODO: Implement the get_parents method. 
+ * @todo TODO: Add automatic load_balancing for the type of graph. 
  */
 template<typename GraphType>
 class BFS {
