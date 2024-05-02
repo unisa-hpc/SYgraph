@@ -25,18 +25,24 @@ sygraph::event execute(graph_t& graph, frontier_t& frontier, lambda_t&& functor)
 
   using type_t = typename frontier_t::type_t;
   size_t active_elements_size = frontier.get_num_active_elements();
-  type_t* active_elements = sycl::malloc_shared<type_t>(active_elements_size, q);
+  type_t* active_elements;
+  if (!frontier.self_allocated()) {
+    active_elements = sycl::malloc_shared<type_t>(active_elements_size, q);
+  }
   frontier.get_active_elements(active_elements);
 
-  return {q.submit([&](sycl::handler& cgh) {
-    auto devFrontier = frontier.get_device_frontier();
-    auto devGraph = graph.get_device_graph();
-
+  sygraph::event e = q.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<class for_kernel>(sycl::range<1>{active_elements_size}, [=](sycl::id<1> idx) {
       auto element = active_elements[idx];
       functor(element);
     });
-  })};
+  });
+
+  if (!frontier.self_allocated()) {
+    sycl::free(active_elements, q);
+  }
+
+  return e;
 }
 
 } // namespace advance

@@ -2,6 +2,7 @@
 
 #include <sygraph/frontier/frontier_settings.hpp>
 #include <sygraph/frontier/impls/bitmap_frontier.hpp>
+#include <sygraph/frontier/impls/vector_frontier.hpp>
 
 namespace sygraph {
 inline namespace v0 {
@@ -14,6 +15,11 @@ class frontier_impl_t;
 template <typename type_t>
 class frontier_impl_t<type_t, FrontierType::bitmap> : public frontier_bitmap_t<type_t> {
   using frontier_bitmap_t<type_t>::frontier_bitmap_t;
+};
+
+template <typename type_t>
+class frontier_impl_t<type_t, FrontierType::vector> : public frontier_vector_t<type_t> {
+  using frontier_vector_t<type_t>::frontier_vector_t;
 };
 } // namespace detail
 
@@ -37,6 +43,17 @@ auto make_frontier(sycl::queue& q, const GraphType& graph) {
   } else {
     frontier_size = graph.get_edge_count();
     return Frontier<typename GraphType::edge_t, view, type>(q, frontier_size);
+  }
+}
+
+template <typename type_t,
+          FrontierView view,
+          FrontierType type>
+void swap(Frontier<type_t, view, type>& a, Frontier<type_t, view, type>& b) {
+  if constexpr (type == FrontierType::bitmap) {
+    std::swap(a.bitmap, b.bitmap);
+  } else if (type == FrontierType::vector) {
+    detail::frontier_vector_t<type_t>::swap(a, b);
   }
 }
 

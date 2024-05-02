@@ -79,9 +79,19 @@ public:
    * 
    * @param idx The index of the bit to set.
    */
-  SYCL_EXTERNAL inline void insert(size_t idx) const {
+  SYCL_EXTERNAL inline bool insert(type_t idx) const {
     sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::work_group> ref(data[get_bitmap_index(idx)]);
     ref |= static_cast<bitmap_type>(static_cast<bitmap_type>(1) << (idx % range));
+    return true;
+  }
+
+  /**
+   * @brief Sets the bit at the specified index to 1.
+   * 
+   * @param idx The index of the bit to set.
+   */
+  SYCL_EXTERNAL inline bool insert(type_t val, size_t idx) const {
+    return insert(val);
   }
 
   /**
@@ -89,9 +99,10 @@ public:
    * 
    * @param idx The index of the bit to set.
    */
-  SYCL_EXTERNAL inline void remove(size_t idx) const {
+  SYCL_EXTERNAL inline bool remove(size_t idx) const {
     sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::work_group> ref(data[get_bitmap_index(idx)]);
     ref &= ~(static_cast<bitmap_type>(static_cast<bitmap_type>(1) << (idx % range)));
+    return true;
   }
 
   /**
@@ -227,6 +238,8 @@ public:
     return bitmap.range;
   }
 
+  inline bool self_allocated() const { return false; }
+
   size_t get_num_active_elements() const {
     size_t* count = memory::detail::memory_alloc<size_t, memory::space::shared>(1, q);
 
@@ -234,7 +247,7 @@ public:
 
     q.submit([&](sycl::handler& h) {
       auto bitmap = this->get_device_frontier();
-      sycl::stream out(1024, 256, h);
+
       h.parallel_for(nd_range, [=](sycl::nd_item<1> item) {
         auto group = item.get_group();
         auto lcount = bitmap.get_num_active_elements(item, group);
@@ -254,7 +267,7 @@ public:
    * @param elems The array to store the active elements. It must be pre-allocated with shared-access.
    * @param active If true, it retrieves the active elements, otherwise the inactive elements.
   */
-  void get_active_elements(type_t* elems) const {
+  void get_active_elements(type_t*& elems) const {
     constexpr size_t local = 32;
     sycl::range<1> local_size {local}; // TODO: tuning on this value
     sycl::range<1> global_size {(bitmap.size > local ? bitmap.size + local - (bitmap.size % local) : local)};
@@ -315,22 +328,24 @@ public:
     return bitmap.check(idx);
   }
 
-  void insert(size_t idx) {
+  bool insert(size_t idx) {
     q.submit([&](sycl::handler& cgh) {
       auto bitmap = this->get_device_frontier();
       cgh.single_task([=]() {
         bitmap.insert(idx);
       });
     }).wait();
+    return true;
   }
 
-  void remove(size_t idx) {
+  bool remove(size_t idx) {
     q.submit([&](sycl::handler& cgh) {
       auto bitmap = this->get_device_frontier();
       cgh.single_task([=]() {
         bitmap.remove(idx);
       });
     }).wait();
+    return true;
   }
 
   //operator =

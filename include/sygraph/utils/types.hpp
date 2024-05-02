@@ -12,6 +12,7 @@ typedef size_t offset_t;
 namespace detail {
 
 constexpr uint byte_size = 8;
+constexpr size_t MAX_LOCAL_MEM_SIZE = 512;
 
 }
 
