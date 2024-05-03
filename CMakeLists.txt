@@ -6,6 +6,8 @@ project(SYgraph VERSION 0.1)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+# set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -DDEBUG -fno-omit-frame-pointer" CACHE STRING "Flags used by the compiler during debug builds." FORCE)
+
 add_library(sygraph INTERFACE)
 
 target_include_directories(sygraph INTERFACE include)

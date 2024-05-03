@@ -94,6 +94,10 @@ public:
     return insert(val);
   }
 
+  SYCL_EXTERNAL inline size_t prealloc(size_t num_elems) const {
+    return 0;
+  }
+
   /**
    * @brief Sets the bit at the specified index to 0.
    * 

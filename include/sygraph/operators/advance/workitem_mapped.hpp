@@ -25,10 +25,8 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
 
   using type_t = typename in_frontier_t::type_t;
   size_t active_elements_size = in.get_num_active_elements();
-  type_t* active_elements;
-  if (!in.self_allocated()) {
-    type_t* active_elements = sycl::malloc_shared<type_t>(active_elements_size, q);
-  }
+
+  type_t* active_elements = sycl::malloc_shared<type_t>(active_elements_size, q);
   in.get_active_elements(active_elements);
   
   // TODO: we must tune on a certain value to avoid offloading computation when the frontier is too small
@@ -55,9 +53,7 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
     });
   })};
 
-  if (!in.self_allocated()) {
-    sycl::free(active_elements, q);
-  }
+  sycl::free(active_elements, q);
   return ret;
 }
 
@@ -74,7 +70,6 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
 //   std::cout << "active_elements_size: " << active_elements_size << std::endl;
 //   type_t* active_elements;
 //   in.get_active_elements(active_elements);
-
   
 //   if (active_elements_size == 1) { // TODO: we must tune on a certain value to avoid offloading computation when the frontier is too small
 //     auto deviceGraph = graph.get_device_graph();
@@ -108,7 +103,7 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
 //       size_t gid = item.get_global_linear_id();
 //       size_t lid = item.get_local_linear_id();
 
-//       auto state = local_pad.init(item);
+//       local_pad.init(item);
 
 //       if (gid < active_elements_size) {
 //         auto element = active_elements[gid];
@@ -121,17 +116,18 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
 //           auto weight = graphDev.get_edge_weight(edge);
 //           auto neighbour = *i;
 //           if (functor(element, neighbour, edge, weight)) {
-//             if (!local_pad.insert(neighbour, state)) { // if the local memory is full, write to global memory
+//             if (!local_pad.insert(neighbour)) { // if the local memory is full, write to global memory
 //               outDevFrontier.insert(neighbour);
 //             }
 //           }
 //         }
 //       }
-//       local_pad.copy_to_global(item, state, outDevFrontier);
+//       local_pad.copy_to_global(os, item, outDevFrontier);
 //       if (lid == 0) {
-//         os << "group: " << item.get_group_linear_id() << " local_pad.tail: " << local_pad.tail.template get_multi_ptr<sycl::access::decorated::no>();
-//         os << " local_pad.data: " << local_pad.data.template get_multi_ptr<sycl::access::decorated::no>();
-//         os << sycl::endl;
+//         // os << "group: " << item.get_group_linear_id() << " local_pad.tail: " << local_pad.tail.template get_multi_ptr<sycl::access::decorated::no>();
+//         // os << " local_pad.data: " << local_pad.data.template get_multi_ptr<sycl::access::decorated::no>();
+//         // os << sycl::endl;
+//         os << "local_tail: " << local_pad.tail[0] << sycl::endl;
 //       }
 //     });
 //   })};
@@ -155,8 +151,8 @@ sygraph::event vertex_local_mem(graph_t& graph, const in_frontier_t& in, out_fro
   type_t* active_elements;
   in.get_active_elements(active_elements);
 
-  constexpr size_t threshold = 1; // TODO: we must tune on a certain value to avoid offloading computation when the frontier is too small
-  if (active_elements_size <= threshold) {
+  constexpr size_t THRESHOLD = 1; // TODO: we must tune on a certain value to avoid offloading computation when the frontier is too small
+  if (active_elements_size <= THRESHOLD) {
     for (size_t k = 0; k < active_elements_size; k++) {
       auto deviceGraph = graph.get_device_graph();
       auto element = active_elements[k];
