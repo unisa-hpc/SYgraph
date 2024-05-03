@@ -62,11 +62,11 @@ bool validate(const GraphT& graph, BFS_T& bfs, uint source) {
 
 int main(int argc, char** argv) {
   bool print_output = false;
-  if (argc != 3) {
+  if (argc < 3) {
     std::cerr << "Usage: " << argv[0] << " <path-to-graph> <source>" << std::endl;
     return 1;
   }
-  if (argc == 4) {
+  if (argc <= 4) {
     if (std::string(argv[3]) == "-p") {
       print_output = true;
     }
