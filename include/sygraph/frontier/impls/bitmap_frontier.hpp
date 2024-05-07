@@ -280,45 +280,55 @@ public:
 
     size_t bitmap_range = this->bitmap.get_bitmap_range();
 
-    sycl::buffer<type_t, 1> active_elems(sycl::range<1>(1));
+    sycl::buffer<size_t, 1> g_tail_buffer(sycl::range<1>(1));
 
     q.submit([&](sycl::handler& cgh) {
+      sycl::stream os(1024, 1024, cgh);
       auto bitmap = this->get_device_frontier();
 
       sycl::local_accessor<type_t, 1> local_elems(bitmap_range * local_size, cgh);
-      sycl::local_accessor<size_t, 1> local_count(1, cgh);
-      sycl::accessor global_count(active_elems, cgh, sycl::read_write);
+      sycl::local_accessor<size_t, 1> l_tail(1, cgh);
+      sycl::accessor tail_acc(g_tail_buffer, cgh, sycl::read_write);
 
       cgh.parallel_for(nd_range, [=, bitmap_range=bitmap_range, bitmap_size=bitmap.size, data=bitmap.data](sycl::nd_item<1> item) {
-        sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> lcount(local_count[0]); // TODO: check if it works
-        sycl::atomic_ref<type_t, sycl::memory_order::relaxed, sycl::memory_scope::device> gcount(global_count[0]); // TODO: check if it works
-        if (item.get_global_id(0) == 0) {
-          gcount = 0;
-        }
+        sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::work_group> l_tail_ref(l_tail[0]); // TODO: check if it works
+        sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::device> g_tail_ref(tail_acc[0]); // TODO: check if it works
+
         auto lid = item.get_local_linear_id();
         auto gid = item.get_global_linear_id();
         auto global_size = item.get_global_range(0);
         auto group = item.get_group();
         auto group_id = item.get_group_linear_id();
         auto group_size = item.get_local_range(0);
+        
+        if (lid == 0) {
+          l_tail_ref = 0;
+          if (gid == 0) {
+            g_tail_ref = 0;
+          }
+        }
+        
+        sycl::group_barrier(item.get_group());
 
         if (gid < bitmap_size) {
           auto elem = data[gid];
 
           for (type_t i = 0; i < bitmap_range; i++) {
             if (elem & (static_cast<bitmap_type>(1) << i)) {
-              local_elems[lcount++] = i + gid * bitmap_range;
+              local_elems[l_tail_ref++] = i + gid * bitmap_range;
             }
           }
         }
 
         sycl::group_barrier(group);
 
-        if (lid == 0) { // TODO: It might be done in a more efficient way. In this way there is a lot of pressure on the gcount and elems array.
-          for (size_t i = 0; i < lcount; i++) {
-            elems[gcount++] = local_elems[i];
-          }
-          lcount = 0;
+        size_t our_slice = 0;
+        if (lid == 0) {
+          our_slice = g_tail_ref.fetch_add(l_tail_ref.load());
+        }
+        our_slice = sycl::group_broadcast(group, our_slice, 0);
+        for (size_t i = lid; i < l_tail_ref.load(); i += group_size) {
+          elems[our_slice + i] = local_elems[i];
         }
       });
     }).wait();
