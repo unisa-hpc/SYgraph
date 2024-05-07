@@ -16,6 +16,8 @@ template <typename value_t,
           typename offset_t = types::offset_t>
 class CSR {
 public:
+  CSR() = default;
+  
   CSR(std::vector<offset_t> row_offsets,
       std::vector<index_t> column_indices,
       std::vector<value_t> nnz_values) : 

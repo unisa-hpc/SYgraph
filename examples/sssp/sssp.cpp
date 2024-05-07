@@ -15,19 +15,12 @@ bool validate(const GraphT& graph, BenchT& bfs, uint source) {
 int main(int argc, char** argv) {
   args_t args {argc, argv};
 
-  std::ifstream file(args.path);
-  if (!file.is_open()) {
-    std::cerr << "Error: could not open file " << args.path << std::endl;
-    return 1;
-  }
+  std::cerr << "[*  ] Reading CSR" << std::endl;
+  auto csr = read_csr<uint, uint, uint>(args);
 
   sycl::queue q {sycl::gpu_selector_v};
-
-  std::cerr << "[*   ] Loading graph file" << std::endl;
-  auto coo = sygraph::io::coo::from_coo<uint, uint, uint>(file);
-  std::cerr << "[**  ] Converting to CSR" << std::endl;
-  auto csr = sygraph::io::csr::from_coo(coo);
-  std::cerr << "[*** ] Building Graph" << std::endl;
+  
+  std::cerr << "[** ] Building Graph" << std::endl;
   auto G = sygraph::graph::build::from_csr<sygraph::memory::space::shared>(q, csr);
   size_t size = G.get_vertex_count();
   

@@ -1,5 +1,6 @@
 link_libraries(sygraph)
 
+add_executable(csr_to_binary csr_to_binary.cpp)
 add_executable(bfs bfs/bfs.cpp)
 add_executable(sssp sssp/sssp.cpp)
 

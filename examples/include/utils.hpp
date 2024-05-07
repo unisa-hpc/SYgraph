@@ -2,20 +2,28 @@
 #include <iostream>
 #include <random>
 
+#include <sygraph/sygraph.hpp>
+
 
 struct args_t {
   bool print_output = false;
   bool validate = false;
-  std::string path;
+  bool binary_format = false;
   bool random_source = true;
+  std::string path;
   uint source;
 
   args_t(int argc, char** argv) {
     if (argc < 2) {
-      std::cerr << "Usage: " << argv[0] << " <path-to-graph>" << std::endl;
+      std::cerr << "Usage: " << argv[0] << " [-b] <path-to-graph>" << std::endl;
       exit(1);
     } else {
-      path = argv[1];
+      if (std::string(argv[1]) == "-b") {
+        binary_format = true;
+        path = argv[2];
+      } else {
+        path = argv[1];
+      }
     }
     for (int i = 2; i < argc; i++) {
       if (std::string(argv[i]) == "-p") {
@@ -52,4 +60,32 @@ uint get_random_source(size_t size) {
   std::mt19937 gen(rd());
   std::uniform_int_distribution<> dis(0, size - 1);
   return dis(gen);
+}
+
+template<typename value_t, typename index_t, typename offset_t>
+sygraph::formats::CSR<value_t, index_t, offset_t> read_csr(const args_t& args) {
+  sygraph::formats::CSR<uint, uint, uint> csr;
+  if (args.binary_format) {
+    std::ifstream file(args.path, std::ios::binary);
+    if (!file.is_open()) {
+      std::cerr << "Error: could not open file " << args.path << std::endl;
+      exit(1);
+    }
+    csr = sygraph::io::csr::from_binary<value_t, index_t, offset_t>(file);
+  } else {
+    std::ifstream file(args.path);
+    if (!file.is_open()) {
+      std::cerr << "Error: could not open file " << args.path << std::endl;
+      exit(1);
+    }
+    auto coo = sygraph::io::coo::from_coo<value_t, index_t, offset_t>(file);
+    csr = sygraph::io::csr::from_binary<value_t, index_t, offset_t>(file);
+  }
+  
+  std::ifstream file(args.path);
+  if (!file.is_open()) {
+    std::cerr << "Error: could not open file " << args.path << std::endl;
+    exit(1);
+  }
+  return csr;
 }

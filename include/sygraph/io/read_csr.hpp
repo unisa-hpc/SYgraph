@@ -148,6 +148,49 @@ sygraph::formats::CSR<value_t, index_t, offset_t> from_coo(const sygraph::format
   return {csr_row_offsets, csr_column_indices, csr_values};
 }
 
+template <typename value_t, typename index_t, typename offset_t>
+void to_binary(const sygraph::formats::CSR<value_t, index_t, offset_t>& csr, std::ostream& oss) {
+  if (!oss) {
+    throw std::runtime_error("Failed to write binary CSR matrix");
+  }
+
+  auto& row_offsets = csr.get_row_offsets();
+  auto& column_indices = csr.get_column_indices();
+  auto& values = csr.get_values();
+
+  size_t num_rows = row_offsets.size();
+  size_t num_nonzero = column_indices.size();
+
+  oss.write(reinterpret_cast<const char*>(&num_rows), sizeof(size_t));
+  oss.write(reinterpret_cast<const char*>(&num_nonzero), sizeof(size_t));
+
+  oss.write(reinterpret_cast<const char*>(&row_offsets[0]), row_offsets.size() * sizeof(offset_t));
+  oss.write(reinterpret_cast<const char*>(&column_indices[0]), column_indices.size() * sizeof(index_t));
+  oss.write(reinterpret_cast<const char*>(&values[0]), values.size() * sizeof(value_t));
+}
+
+template <typename value_t, typename index_t, typename offset_t>
+sygraph::formats::CSR<value_t, index_t, offset_t> from_binary(std::istream& iss) {
+  if (!iss) {
+    throw std::runtime_error("Failed to read binary CSR matrix");
+  }
+
+  size_t num_rows;
+  size_t num_nonzero;
+
+  iss.read(reinterpret_cast<char*>(&num_rows), sizeof(size_t));
+  iss.read(reinterpret_cast<char*>(&num_nonzero), sizeof(size_t));
+
+  std::vector<offset_t> row_ptr(num_rows);
+  std::vector<index_t> col_indices(num_nonzero);
+  std::vector<value_t> values(num_nonzero);
+
+  iss.read(reinterpret_cast<char*>(&row_ptr[0]), row_ptr.size() * sizeof(offset_t));
+  iss.read(reinterpret_cast<char*>(&col_indices[0]), col_indices.size() * sizeof(index_t));
+  iss.read(reinterpret_cast<char*>(&values[0]), values.size() * sizeof(value_t));
+
+  return {row_ptr, col_indices, values};
+}
 } // namespace csr
 } // namespace io
 } // namespace v0
