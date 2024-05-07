@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
   }
   bfs.init(args.source);
 
-  std::cerr << "[***] Running SSSP on source " << args.source << std::endl;
+  std::cerr << "[***] Running BFS on source " << args.source << std::endl;
   auto info = bfs.run<true>();
   
   std::cerr << "[!] Done" << std::endl;
