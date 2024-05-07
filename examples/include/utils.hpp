@@ -89,3 +89,13 @@ sygraph::formats::CSR<value_t, index_t, offset_t> read_csr(const args_t& args) {
   }
   return csr;
 }
+
+template<typename GraphT>
+void print_graph_info(const GraphT& g) {
+  std::cerr << "-----------------------------------" << std::endl;
+  std::cerr << std::left;
+  std::cerr << std::setw(17) << "Vertex count:" << std::setw(10) << g.get_vertex_count()<< std::endl;
+  std::cerr << std::setw(17) << "Edge count:" << std::setw(10) << g.get_edge_count() << std::endl;
+  std::cerr << std::setw(17) << "Average degree:" << std::setw(10) << g.get_edge_count() / g.get_vertex_count() << std::endl;
+  std::cerr << "-----------------------------------" << std::endl;
+}

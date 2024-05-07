@@ -59,6 +59,7 @@ int main(int argc, char** argv) {
   
   std::cerr << "[** ] Building Graph" << std::endl;
   auto G = sygraph::graph::build::from_csr<sygraph::memory::space::shared>(q, csr);
+  print_graph_info(G);
   size_t size = G.get_vertex_count();
   
   sygraph::algorithms::BFS bfs {G};
