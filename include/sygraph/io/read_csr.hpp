@@ -160,6 +160,7 @@ void to_binary(const sygraph::formats::CSR<value_t, index_t, offset_t>& csr, std
 
   size_t num_rows = row_offsets.size();
   size_t num_nonzero = column_indices.size();
+  std::cout << "WRITING: num_rows: " << num_rows << " num_nonzero: " << num_nonzero << "\n";
 
   oss.write(reinterpret_cast<const char*>(&num_rows), sizeof(size_t));
   oss.write(reinterpret_cast<const char*>(&num_nonzero), sizeof(size_t));
@@ -180,6 +181,7 @@ sygraph::formats::CSR<value_t, index_t, offset_t> from_binary(std::istream& iss)
 
   iss.read(reinterpret_cast<char*>(&num_rows), sizeof(size_t));
   iss.read(reinterpret_cast<char*>(&num_nonzero), sizeof(size_t));
+  std::cout << "READING: num_rows: " << num_rows << " num_nonzero: " << num_nonzero << "\n";
 
   std::vector<offset_t> row_ptr(num_rows);
   std::vector<index_t> col_indices(num_nonzero);
