@@ -1,6 +1,7 @@
 link_libraries(sygraph)
 
 add_executable(bfs bfs/bfs.cpp)
+add_executable(sssp sssp/sssp.cpp)
 
 get_directory_property(all_targets BUILDSYSTEM_TARGETS)
 

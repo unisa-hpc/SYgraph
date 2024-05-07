@@ -31,3 +31,7 @@
 
 // Include algorithms
 #include <sygraph/algorithms/bfs.hpp>
+#include <sygraph/algorithms/sssp.hpp>
+
+// Include sync
+#include <sygraph/sync/atomics.hpp>
