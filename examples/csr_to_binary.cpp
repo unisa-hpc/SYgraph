@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
   std::cerr << "[**] Converting to CSR" << std::endl;
   auto csr = sygraph::io::csr::from_coo(coo);
 
-  std::ofstream out_file(argv[2], std::ios::out | std::ios::binary);
+  std::ofstream out_file(argv[2], std::ios::binary);
   if (!out_file.is_open()) {
     std::cerr << "Error: could not open file " << argv[2] << std::endl;
     return 1;
