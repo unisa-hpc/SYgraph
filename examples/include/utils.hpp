@@ -79,7 +79,7 @@ sygraph::formats::CSR<value_t, index_t, offset_t> read_csr(const args_t& args) {
       exit(1);
     }
     auto coo = sygraph::io::coo::from_coo<value_t, index_t, offset_t>(file);
-    csr = sygraph::io::csr::from_binary<value_t, index_t, offset_t>(file);
+    csr = sygraph::io::csr::from_coo<value_t, index_t, offset_t>(file);
   }
   
   std::ifstream file(args.path);

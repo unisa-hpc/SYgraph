@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
   }
   sssp.init(args.source);
 
-  std::cerr << "[****] Running SSSP on source " << args.source << std::endl;
+  std::cerr << "[***] Running SSSP on source " << args.source << std::endl;
   auto info = sssp.run<true>();
   
   std::cerr << "[!] Done" << std::endl;
