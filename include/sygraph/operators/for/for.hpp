@@ -24,7 +24,7 @@ sygraph::event execute(graph_t& graph, frontier_t& frontier, lambda_t&& functor)
   auto q = graph.get_queue();
 
   using type_t = typename frontier_t::type_t;
-  size_t active_elements_size = types::detail::MAX_ACTIV_ELEMS_SIZE;
+  size_t active_elements_size = types::detail::MAX_ACTIVE_ELEMS_SIZE;
   // size_t active_elements_size = frontier.get_num_active_elements();
   type_t* active_elements;
   if (!frontier.self_allocated()) {

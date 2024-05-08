@@ -25,7 +25,7 @@ sygraph::event inplace(graph_t& graph, frontier_t& frontier, lambda_t&& functor)
 
   using type_t = typename frontier_t::type_t;
   // size_t active_elements_size = frontier.get_num_active_elements();
-  size_t active_elements_size = types::detail::MAX_ACTIV_ELEMS_SIZE;
+  size_t active_elements_size = types::detail::MAX_ACTIVE_ELEMS_SIZE;
   type_t* active_elements;
   if (!frontier.self_allocated()) {
     active_elements = sycl::malloc_shared<type_t>(active_elements_size, q);
@@ -58,7 +58,7 @@ sygraph::event external(graph_t& graph, frontier_t& in, frontier_t& out, lambda_
 
   using type_t = typename frontier_t::type_t;
   // size_t active_elements_size = in.get_num_active_elements();
-  size_t active_elements_size = types::detail::MAX_ACTIV_ELEMS_SIZE;
+  size_t active_elements_size = types::detail::MAX_ACTIVE_ELEMS_SIZE;
   type_t* active_elements;
   if (!in.self_allocated()) {
     active_elements = sycl::malloc_shared<type_t>(active_elements_size, q);

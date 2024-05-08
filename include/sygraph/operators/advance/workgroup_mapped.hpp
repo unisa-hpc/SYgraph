@@ -32,7 +32,7 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
   type_t* active_elements = sycl::malloc_shared<type_t>(active_elements_size, q);
   in.get_active_elements(active_elements);
   
-  // TODO: we must tune on a certain value to avoid offloading computation when the frontier is too small
+  // TODO: [!!!] we must tune on a certain value to avoid offloading computation when the frontier is too small
 
   sygraph::event ret {q.submit([&](sycl::handler& cgh) {
     auto inDevFrontier = in.get_device_frontier();

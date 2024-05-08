@@ -18,7 +18,7 @@ class device_vector_frontier_t;
 template <typename type_t>
 struct local_vector_frontier_t {
 
-  local_vector_frontier_t(size_t max_elems, sycl::handler& cgh) : max_elems(max_elems), data(max_elems, cgh), tail(1, cgh) {} // TODO: fix this
+  local_vector_frontier_t(size_t max_elems, sycl::handler& cgh) : max_elems(max_elems), data(max_elems, cgh), tail(1, cgh) {} // TODO: [!!] fix this
 
   SYCL_EXTERNAL inline void init(sycl::nd_item<1>& item) const {
     sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group, sycl::access::address_space::local_space> ref (tail[0]);
@@ -97,7 +97,7 @@ public:
     ref = 0;
   }
 
-  SYCL_EXTERNAL inline size_t prealloc(size_t num_elems) const { // TODO: check for max size
+  SYCL_EXTERNAL inline size_t prealloc(size_t num_elems) const { // TODO: [!] check for max size
     sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::device> ref(tail[0]);
     return ref.fetch_add(num_elems);
   }

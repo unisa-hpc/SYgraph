@@ -8,7 +8,7 @@
 
 template<typename GraphT, typename BenchT>
 bool validate(const GraphT& graph, BenchT& bfs, uint source) {
-  // TODO implement
+  // TODO: implement validation
   return true;
 }
 

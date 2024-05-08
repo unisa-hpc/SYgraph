@@ -212,8 +212,7 @@ public:
    * @param q The SYCL queue to use for memory allocation.
    * @param num_elems The number of elements in the bitmap.
    */
-  // TODO: tune on bitmap size
-  frontier_bitmap_t(sycl::queue& q, size_t num_elems) : q(q), bitmap(num_elems) {
+  frontier_bitmap_t(sycl::queue& q, size_t num_elems) : q(q), bitmap(num_elems) { // TODO: [!] tune on bitmap size
     using bitmap_type = typename bitmap_device_t<type_t>::bitmap_type;
     bitmap_type* ptr = sygraph::memory::detail::memory_alloc<bitmap_type, memory::space::shared>(bitmap.get_bitmap_size(), q);
     auto size = bitmap.get_bitmap_size();
@@ -244,10 +243,10 @@ public:
 
   inline bool self_allocated() const { return false; }
 
-  size_t get_num_active_elements() const {
+  size_t get_num_active_elements() const { // TODO: [!!!] this kernel is too slow, we need a better way to count the number of active elements
     size_t* count = memory::detail::memory_alloc<size_t, memory::space::shared>(1, q);
 
-    sycl::nd_range<1> nd_range(128, 128); // TODO: tune on these value
+    sycl::nd_range<1> nd_range(128, 128); // TODO: [!] tune on these value
 
     q.submit([&](sycl::handler& h) {
       auto bitmap = this->get_device_frontier();
@@ -273,7 +272,7 @@ public:
   */
   void get_active_elements(type_t*& elems, size_t& size) const {
     constexpr size_t local = 32;
-    sycl::range<1> local_size {local}; // TODO: tuning on this value
+    sycl::range<1> local_size {local}; // TODO: [!] tuning on this value
     sycl::range<1> global_size {(bitmap.size > local ? bitmap.size + local - (bitmap.size % local) : local)};
 
     sycl::nd_range<1> nd_range(global_size, local_size);
@@ -291,8 +290,8 @@ public:
       sycl::accessor tail_acc(g_tail_buffer, cgh, sycl::read_write);
 
       cgh.parallel_for<class get_active_elements_kernel>(nd_range, [=, bitmap_range=bitmap_range, bitmap_size=bitmap.size, data=bitmap.data](sycl::nd_item<1> item) {
-        sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::work_group> l_tail_ref(l_tail[0]); // TODO: check if it works
-        sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::device> g_tail_ref(tail_acc[0]); // TODO: check if it works
+        sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::work_group> l_tail_ref(l_tail[0]); // TODO: check if acq_rel works
+        sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::device> g_tail_ref(tail_acc[0]);
 
         auto lid = item.get_local_linear_id();
         auto gid = item.get_global_linear_id();
