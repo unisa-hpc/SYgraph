@@ -15,6 +15,8 @@ namespace advance {
 
 namespace detail {
 
+namespace workitem_mapped {
+
 template <typename graph_t,
           typename in_frontier_t,
           typename out_frontier_t,
@@ -270,9 +272,9 @@ sygraph::event edge(graph_t& graph, const in_frontier_t& in, out_frontier_t& out
   return ret;
 }
 
+} // namespace workitem_mapped
 } // namespace detail  
 } // namespace advance
 } // namespace operators
 } // namespace v0
-
 } // namespace sygraph
