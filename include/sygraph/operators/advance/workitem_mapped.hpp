@@ -31,25 +31,26 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
   type_t* active_elements = sycl::malloc_shared<type_t>(active_elements_size, q);
   in.get_active_elements(active_elements, active_elements_size);
   
-  constexpr size_t THRESHOLD = 1; // TODO: we must tune on a certain value to avoid offloading computation when the frontier is too small
-  if (active_elements_size <= THRESHOLD) {
-    for (size_t k = 0; k < active_elements_size; k++) {
-      auto deviceGraph = graph.get_device_graph();
-      auto element = active_elements[k];
-      auto start = deviceGraph.begin(element);
-      auto end = deviceGraph.end(element);
+  // TODO: [!!] for some reason is way slower so we need to investigate
+  // constexpr size_t THRESHOLD = 1; // TODO: we must tune on a certain value to avoid offloading computation when the frontier is too small
+  // if (active_elements_size <= THRESHOLD) {
+  //   for (size_t k = 0; k < active_elements_size; k++) {
+  //     auto deviceGraph = graph.get_device_graph();
+  //     auto element = active_elements[k];
+  //     auto start = deviceGraph.begin(element);
+  //     auto end = deviceGraph.end(element);
 
-      for (auto i = start; i != end; ++i) {
-        auto edge = i.get_index();
-        auto weight = graph.get_edge_weight(edge);
-        auto neighbour = *i;
-        if (functor(element, neighbour, edge, weight)) {
-          out.insert(neighbour);
-        }
-      }
-    }
-    return sygraph::event{};
-  }
+  //     for (auto i = start; i != end; ++i) {
+  //       auto edge = i.get_index();
+  //       auto weight = graph.get_edge_weight(edge);
+  //       auto neighbour = *i;
+  //       if (functor(element, neighbour, edge, weight)) {
+  //         out.insert(neighbour);
+  //       }
+  //     }
+  //   }
+  //   return sygraph::event{};
+  // }
 
   sygraph::event ret {q.submit([&](sycl::handler& cgh) {
     auto inDevFrontier = in.get_device_frontier();
