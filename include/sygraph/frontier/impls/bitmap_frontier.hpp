@@ -14,7 +14,7 @@ template <typename type_t>
 class frontier_bitmap_t;
 
 
-template <typename type_t, typename bitmap_t = uint64_t>
+template <typename type_t, typename bitmap_t = uint64_t> //TODO [!!!] There are too many copies from host to device that degrade the performance
 class bitmap_device_t {
 public:
   using bitmap_type = bitmap_t;
@@ -184,7 +184,8 @@ private:
   size_t range;            ///< The range of the bitmap.
   size_t num_elems;        ///< The number of elements in the bitmap.
   size_t size;             ///< The size of the bitmap.
-  bitmap_type* data;     ///< Pointer to the bitmap.
+  size_t insert_ops;       ///< The number of insert operations.
+  bitmap_type* data;       ///< Pointer to the bitmap.
 };
 
 template <typename type_t>
