@@ -247,7 +247,7 @@ public:
   size_t get_num_active_elements() const {
     size_t* count = memory::detail::memory_alloc<size_t, memory::space::shared>(1, q);
 
-    sycl::nd_range<1> nd_range(32, 32); // TODO: tune on these value
+    sycl::nd_range<1> nd_range(128, 128); // TODO: tune on these value
 
     q.submit([&](sycl::handler& h) {
       auto bitmap = this->get_device_frontier();
@@ -271,7 +271,7 @@ public:
    * @param elems The array to store the active elements. It must be pre-allocated with shared-access.
    * @param active If true, it retrieves the active elements, otherwise the inactive elements.
   */
-  void get_active_elements(type_t*& elems) const {
+  void get_active_elements(type_t*& elems, size_t& size) const {
     constexpr size_t local = 32;
     sycl::range<1> local_size {local}; // TODO: tuning on this value
     sycl::range<1> global_size {(bitmap.size > local ? bitmap.size + local - (bitmap.size % local) : local)};
@@ -332,6 +332,7 @@ public:
         }
       });
     }).wait();
+    size = g_tail_buffer.get_host_access()[0];
   }
 
   inline bool empty() const {

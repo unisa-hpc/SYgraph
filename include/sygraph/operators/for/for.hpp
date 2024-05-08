@@ -24,12 +24,13 @@ sygraph::event execute(graph_t& graph, frontier_t& frontier, lambda_t&& functor)
   auto q = graph.get_queue();
 
   using type_t = typename frontier_t::type_t;
-  size_t active_elements_size = frontier.get_num_active_elements();
+  size_t active_elements_size = types::detail::MAX_ACTIV_ELEMS_SIZE;
+  // size_t active_elements_size = frontier.get_num_active_elements();
   type_t* active_elements;
   if (!frontier.self_allocated()) {
     active_elements = sycl::malloc_shared<type_t>(active_elements_size, q);
   }
-  frontier.get_active_elements(active_elements);
+  frontier.get_active_elements(active_elements, active_elements_size);
 
   sygraph::event e = q.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<class for_kernel>(sycl::range<1>{active_elements_size}, [=](sycl::id<1> idx) {
