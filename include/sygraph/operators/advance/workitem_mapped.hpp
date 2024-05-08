@@ -36,7 +36,7 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
     auto outDevFrontier = out.get_device_frontier();
     auto graphDev = graph.get_device_graph();
 
-    cgh.parallel_for<class advance_kernel>(sycl::range<1>(active_elements_size), [=](sycl::id<1> idx) {
+    cgh.parallel_for<class vertex_workitem_advance_kernel>(sycl::range<1>(active_elements_size), [=](sycl::id<1> idx) {
       auto element = active_elements[idx];
       auto start = graphDev.begin(element);
       auto end = graphDev.end(element);
@@ -183,7 +183,7 @@ sygraph::event vertex_local_mem(graph_t& graph, const in_frontier_t& in, out_fro
     sycl::local_accessor<type_t, 1> l_frontier(LOCAL_MEM_SIZE, cgh);
     sycl::local_accessor<size_t, 1> l_frontier_tail(1, cgh);
 
-    cgh.parallel_for<class advance_kernel>(sycl::nd_range<1>{global_size, local_size}, [=](sycl::nd_item<1> item) {
+    cgh.parallel_for<class vertex_local_mem_advance_kernel>(sycl::nd_range<1>{global_size, local_size}, [=](sycl::nd_item<1> item) {
       size_t gid = item.get_global_linear_id();
       size_t lid = item.get_local_linear_id();
       sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::work_group> l_frontier_tail_ref(l_frontier_tail[0]);
@@ -249,7 +249,7 @@ sygraph::event edge(graph_t& graph, const in_frontier_t& in, out_frontier_t& out
     auto outDevFrontier = out.get_device_frontier();
     auto graphDev = graph.get_device_graph();
 
-    cgh.parallel_for<class advance_kernel>(sycl::range<1>(active_elements_size), [=](sycl::id<1> idx) {
+    cgh.parallel_for<class edge_advance_kernel>(sycl::range<1>(active_elements_size), [=](sycl::id<1> idx) {
       auto element = active_elements[idx];
       auto start = graphDev.begin(element);
       auto end = graphDev.end(element);

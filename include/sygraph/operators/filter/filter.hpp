@@ -33,7 +33,7 @@ sygraph::event inplace(graph_t& graph, frontier_t& frontier, lambda_t&& functor)
   auto outDev = frontier.get_device_frontier();
 
   sygraph::event e = q.submit([&](sycl::handler& cgh) {
-    cgh.parallel_for<class for_kernel>(sycl::range<1>{active_elements_size}, [=](sycl::id<1> idx) {
+    cgh.parallel_for<class inplace_filter_kernel>(sycl::range<1>{active_elements_size}, [=](sycl::id<1> idx) {
       auto element = active_elements[idx];
       if (!functor(element)) {
         outDev.remove(element);
@@ -64,7 +64,7 @@ sygraph::event external(graph_t& graph, frontier_t& in, frontier_t& out, lambda_
   in.get_active_elements(active_elements);
 
   sygraph::event e = q.submit([&](sycl::handler& cgh) {
-    cgh.parallel_for<class for_kernel>(sycl::range<1>{active_elements_size}, [=](sycl::id<1> idx) {
+    cgh.parallel_for<class external_filter_kernel>(sycl::range<1>{active_elements_size}, [=](sycl::id<1> idx) {
       auto element = active_elements[idx];
       if (functor(element)) {
         out.insert(element);

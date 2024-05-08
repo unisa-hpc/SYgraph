@@ -252,7 +252,7 @@ public:
     q.submit([&](sycl::handler& h) {
       auto bitmap = this->get_device_frontier();
 
-      h.parallel_for(nd_range, [=](sycl::nd_item<1> item) {
+      h.parallel_for<class get_num_active_elements_kernel>(nd_range, [=](sycl::nd_item<1> item) {
         auto group = item.get_group();
         auto lcount = bitmap.get_num_active_elements(item, group);
         if (item.get_global_linear_id() == 0) {
@@ -290,7 +290,7 @@ public:
       sycl::local_accessor<size_t, 1> l_tail(1, cgh);
       sycl::accessor tail_acc(g_tail_buffer, cgh, sycl::read_write);
 
-      cgh.parallel_for(nd_range, [=, bitmap_range=bitmap_range, bitmap_size=bitmap.size, data=bitmap.data](sycl::nd_item<1> item) {
+      cgh.parallel_for<class get_active_elements_kernel>(nd_range, [=, bitmap_range=bitmap_range, bitmap_size=bitmap.size, data=bitmap.data](sycl::nd_item<1> item) {
         sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::work_group> l_tail_ref(l_tail[0]); // TODO: check if it works
         sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::device> g_tail_ref(tail_acc[0]); // TODO: check if it works
 
@@ -381,7 +381,7 @@ public:
     q.submit([&](sycl::handler& cgh) {
       auto bitmap = this->get_device_frontier();
       auto other_bitmap = other.get_device_frontier();
-      cgh.parallel_for(sycl::range<1>(bitmap.size), [=](sycl::id<1> idx) {
+      cgh.parallel_for<class merge_bitmap_frontier_kernel>(sycl::range<1>(bitmap.size), [=](sycl::id<1> idx) {
         bitmap.data[idx] |= other_bitmap.data[idx];
       });
     }).wait();
