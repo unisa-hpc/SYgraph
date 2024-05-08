@@ -80,7 +80,7 @@ public:
    * @param idx The index of the bit to set.
    */
   SYCL_EXTERNAL inline bool insert(type_t idx) const {
-    sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::work_group> ref(data[get_bitmap_index(idx)]);
+    sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(data[get_bitmap_index(idx)]);
     ref |= static_cast<bitmap_type>(static_cast<bitmap_type>(1) << (idx % range));
     return true;
   }
@@ -104,7 +104,7 @@ public:
    * @param idx The index of the bit to set.
    */
   SYCL_EXTERNAL inline bool remove(size_t idx) const {
-    sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::work_group> ref(data[get_bitmap_index(idx)]);
+    sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(data[get_bitmap_index(idx)]);
     ref &= ~(static_cast<bitmap_type>(static_cast<bitmap_type>(1) << (idx % range)));
     return true;
   }
@@ -140,14 +140,14 @@ public:
     return data[idx / range] & (static_cast<bitmap_type>(1) << (idx % range));
   }
 
-  SYCL_EXTERNAL inline bool empty() const {
+  SYCL_EXTERNAL inline bool empty() const { // TODO it might be here the problem of the performance (too many copies from host to device)
     bitmap_type count = static_cast<bitmap_type>(0);
     for (auto i = 0; i < size; i++) {
       count += data[i];
     }
     return count == static_cast<bitmap_type>(0);
+  
   }
-
   /**
    * @brief Retrieves the bitmap index for the specified index.
    * 
@@ -184,7 +184,6 @@ private:
   size_t range;            ///< The range of the bitmap.
   size_t num_elems;        ///< The number of elements in the bitmap.
   size_t size;             ///< The size of the bitmap.
-  size_t insert_ops;       ///< The number of insert operations.
   bitmap_type* data;       ///< Pointer to the bitmap.
 };
 

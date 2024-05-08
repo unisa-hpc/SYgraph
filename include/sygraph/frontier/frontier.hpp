@@ -51,7 +51,7 @@ template <typename type_t,
           FrontierType type>
 void swap(Frontier<type_t, view, type>& a, Frontier<type_t, view, type>& b) {
   if constexpr (type == FrontierType::bitmap) {
-    a = b;
+    a = b; // TODO: [!] this is not correct but works so far
   } else if (type == FrontierType::vector) {
     detail::frontier_vector_t<type_t>::swap(a, b);
   }
