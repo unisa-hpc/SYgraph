@@ -28,6 +28,12 @@ public:
       return *this;
     }
 
+    SYCL_EXTERNAL inline NeighborIterator operator+(int n) const {
+      NeighborIterator tmp = *this;
+      tmp.ptr += n;
+      return tmp;
+    }
+
     SYCL_EXTERNAL inline bool operator==(const NeighborIterator& other) const {
       return ptr == other.ptr;
     }

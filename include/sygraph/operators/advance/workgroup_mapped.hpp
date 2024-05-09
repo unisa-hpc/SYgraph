@@ -30,34 +30,115 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
   size_t active_elements_size = in.get_num_active_elements();
 
   type_t* active_elements = sycl::malloc_shared<type_t>(active_elements_size, q);
-  in.get_active_elements(active_elements);
-  
-  // TODO: [!!!] we must tune on a certain value to avoid offloading computation when the frontier is too small
+  in.get_active_elements(active_elements, active_elements_size);
 
-  sygraph::event ret {q.submit([&](sycl::handler& cgh) {
+  auto e = q.submit([&](sycl::handler& cgh) {
+
+    sycl::range<1> local_range{64}; // TODO: [!] Tune on this value, or compute it dynamically
+    sycl::range<1> global_range{active_elements_size > local_range[0] ? active_elements_size + (local_range[0] - (active_elements_size % local_range[0])) : local_range[0]};
+
     auto inDevFrontier = in.get_device_frontier();
     auto outDevFrontier = out.get_device_frontier();
     auto graphDev = graph.get_device_graph();
 
-    cgh.parallel_for<class vertex_workitem_advance_kernel>(sycl::range<1>(active_elements_size), [=](sycl::id<1> idx) {
-      auto element = active_elements[idx];
-      auto start = graphDev.begin(element);
-      auto end = graphDev.end(element);
+    sycl::local_accessor<size_t, 1> n_edges_local {local_range, cgh};
+    sycl::local_accessor<bool, 1> visited {local_range, cgh};
+    sycl::local_accessor<type_t, 1> active_elements_local {local_range, cgh};
+    
+    cgh.parallel_for<class workgroup_mapped_advance_kernel>(sycl::nd_range<1>{global_range, local_range}, [=](sycl::nd_item<1> item) {
+      // 0. retrieve global and local ids
+      size_t gid = item.get_global_linear_id();
+      size_t lid = item.get_local_linear_id();
+      size_t local_range = item.get_local_range(0);
+      auto group = item.get_group();
+      auto group_id = item.get_group_linear_id();
+      auto subgroup = item.get_sub_group();
+      auto subgroup_id = subgroup.get_group_id();
+      size_t subgroup_size = subgroup.get_local_range()[0];
+      size_t sgid = subgroup.get_local_linear_id();
 
-      // each work item takes care of all the neighbours of the vertex he is responsible for
-      for (auto i = start; i != end; ++i) {
-        auto edge = i.get_index();
-        auto weight = graphDev.get_edge_weight(edge);
-        auto neighbour = *i;
-        if (functor(element, neighbour, edge, weight)) {
-          outDevFrontier.insert(neighbour);
+      // 1. load number of edges in local memory
+      if (gid < active_elements_size) {
+        type_t element = active_elements[gid];
+        n_edges_local[lid] = graphDev.get_neighbors_count(element);
+        active_elements_local[lid] = element;
+        visited[lid] = false;
+      } else {
+        n_edges_local[lid] = 0;
+        visited[lid] = true;
+      }
+      sycl::group_barrier(group); // synchronize
+
+      // 2. process elements with more than local_range edges
+      for (size_t i = 0; i < local_range; i++) {
+        if (!visited[i] && n_edges_local[i] >= local_range) {
+          auto vertex = active_elements_local[i];
+          size_t n_edges = n_edges_local[i];
+          size_t private_slice = n_edges / local_range;
+          auto start = graphDev.begin(vertex) + (private_slice * lid);
+          auto end = lid == local_range - 1 ? graphDev.end(vertex) : start + private_slice;
+          // each work item takes care of all the neighbors of the vertex he is responsible for 
+          for (auto n = start; n != end; ++n) {
+            auto edge = n.get_index();
+            auto weight = graphDev.get_edge_weight(edge);
+            auto neighbor = *n;
+            if (functor(vertex, neighbor, edge, weight)) {
+              outDevFrontier.insert(neighbor);
+            }
+          }
+          if (i == lid) {
+            visited[i] = true;
+          }
+        }
+        sycl::group_barrier(group);
+      }
+
+      // 3. process elements with less than local_range edges but more than one subgroup size edges
+      // TODO: implement this part
+      for (size_t i = 0; i < subgroup_size; i++) {
+        size_t vertex_id = subgroup_id * subgroup_size + i;
+        if (!visited[vertex_id] && n_edges_local[vertex_id] < local_range && n_edges_local[vertex_id] >= subgroup_size) {
+          auto vertex = active_elements_local[vertex_id];
+          size_t n_edges = n_edges_local[vertex_id];
+          size_t private_slice = n_edges / subgroup_size;
+          auto start = graphDev.begin(vertex) + (private_slice * sgid);
+          auto end = sgid == subgroup_size - 1 ? graphDev.end(vertex) : start + private_slice;
+          // each work item takes care of all the neighbors of the vertex he is responsible for 
+          for (auto n = start; n != end; ++n) {
+            auto edge = n.get_index();
+            auto weight = graphDev.get_edge_weight(edge);
+            auto neighbor = *n;
+            if (functor(vertex, neighbor, edge, weight)) {
+              outDevFrontier.insert(neighbor);
+            }
+          }
+          if (sgid == i) {
+            visited[vertex_id] = true;
+          }
+        }
+        sycl::group_barrier(subgroup);
+      }
+
+      // 4. process the rest
+      if (!visited[lid]) {
+        auto vertex = active_elements_local[lid];
+        auto start = graphDev.begin(vertex);
+        auto end = graphDev.end(vertex);
+        // each work item takes care of all the neighbors of the vertex he is responsible for 
+        for (auto n = start; n != end; ++n) {
+          auto edge = n.get_index();
+          auto weight = graphDev.get_edge_weight(edge);
+          auto neighbor = *n;
+          if (functor(vertex, neighbor, edge, weight)) {
+            outDevFrontier.insert(neighbor);
+          }
         }
       }
     });
-  })};
+  });
 
   sycl::free(active_elements, q);
-  return ret;
+  return {e};
 }
 
 } // namespace workitem_mapped
