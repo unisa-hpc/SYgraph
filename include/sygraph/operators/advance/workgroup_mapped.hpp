@@ -34,7 +34,7 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
 
   auto e = q.submit([&](sycl::handler& cgh) {
 
-    sycl::range<1> local_range{64}; // TODO: [!] Tune on this value, or compute it dynamically
+    sycl::range<1> local_range{256}; // TODO: [!] Tune on this value, or compute it dynamically
     sycl::range<1> global_range{active_elements_size > local_range[0] ? active_elements_size + (local_range[0] - (active_elements_size % local_range[0])) : local_range[0]};
 
     auto inDevFrontier = in.get_device_frontier();
@@ -70,40 +70,39 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
       sycl::group_barrier(group); // synchronize
 
       // 2. process elements with more than local_range edges
-      for (size_t i = 0; i < local_range; i++) {
-        if (!visited[i] && n_edges_local[i] >= local_range) {
-          auto vertex = active_elements_local[i];
-          size_t n_edges = n_edges_local[i];
-          size_t private_slice = n_edges / local_range;
-          auto start = graphDev.begin(vertex) + (private_slice * lid);
-          auto end = lid == local_range - 1 ? graphDev.end(vertex) : start + private_slice;
-          // each work item takes care of all the neighbors of the vertex he is responsible for 
-          for (auto n = start; n != end; ++n) {
-            auto edge = n.get_index();
-            auto weight = graphDev.get_edge_weight(edge);
-            auto neighbor = *n;
-            if (functor(vertex, neighbor, edge, weight)) {
-              outDevFrontier.insert(neighbor);
-            }
-          }
-          if (i == lid) {
-            visited[i] = true;
-          }
-        }
-        sycl::group_barrier(group);
-      }
+      // for (size_t i = 0; i < local_range; i++) { // TODO: [!!!!] for some reason this slows a lot the performances
+      //   if (!visited[i] && n_edges_local[i] >= local_range) {
+      //     auto vertex = active_elements_local[i];
+      //     size_t n_edges = n_edges_local[i];
+      //     size_t private_slice = n_edges / local_range;
+      //     auto start = graphDev.begin(vertex) + (private_slice * lid);
+      //     auto end = lid == local_range - 1 ? graphDev.end(vertex) : start + private_slice;
+
+      //     for (auto n = start; n != end; ++n) {
+      //       auto edge = n.get_index();
+      //       auto weight = graphDev.get_edge_weight(edge);
+      //       auto neighbor = *n;
+      //       if (functor(vertex, neighbor, edge, weight)) {
+      //         outDevFrontier.insert(neighbor);
+      //       }
+      //     }
+      //     sycl::group_barrier(group);
+      //     if (i == lid) {
+      //       visited[i] = true;
+      //     }
+      //   }
+      // }
 
       // 3. process elements with less than local_range edges but more than one subgroup size edges
-      // TODO: implement this part
       for (size_t i = 0; i < subgroup_size; i++) {
         size_t vertex_id = subgroup_id * subgroup_size + i;
-        if (!visited[vertex_id] && n_edges_local[vertex_id] < local_range && n_edges_local[vertex_id] >= subgroup_size) {
+        if (!visited[vertex_id] &&  n_edges_local[vertex_id] >= subgroup_size) {
           auto vertex = active_elements_local[vertex_id];
           size_t n_edges = n_edges_local[vertex_id];
           size_t private_slice = n_edges / subgroup_size;
           auto start = graphDev.begin(vertex) + (private_slice * sgid);
           auto end = sgid == subgroup_size - 1 ? graphDev.end(vertex) : start + private_slice;
-          // each work item takes care of all the neighbors of the vertex he is responsible for 
+
           for (auto n = start; n != end; ++n) {
             auto edge = n.get_index();
             auto weight = graphDev.get_edge_weight(edge);
@@ -112,11 +111,11 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
               outDevFrontier.insert(neighbor);
             }
           }
+          sycl::group_barrier(subgroup);
           if (sgid == i) {
             visited[vertex_id] = true;
           }
         }
-        sycl::group_barrier(subgroup);
       }
 
       // 4. process the rest
@@ -124,7 +123,7 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
         auto vertex = active_elements_local[lid];
         auto start = graphDev.begin(vertex);
         auto end = graphDev.end(vertex);
-        // each work item takes care of all the neighbors of the vertex he is responsible for 
+
         for (auto n = start; n != end; ++n) {
           auto edge = n.get_index();
           auto weight = graphDev.get_edge_weight(edge);
