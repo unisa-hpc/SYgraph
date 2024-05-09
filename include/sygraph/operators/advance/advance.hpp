@@ -6,6 +6,7 @@
 #include <sygraph/graph/graph.hpp>
 #include <sygraph/operators/config.hpp>
 #include <sygraph/operators/advance/workitem_mapped.hpp>
+#include <sygraph/operators/advance/workgroup_mapped.hpp>
 #include <sygraph/frontier/frontier.hpp>
 #include <sygraph/frontier/frontier_settings.hpp>
 #include <sygraph/sycl/event.hpp>
@@ -26,6 +27,8 @@ sygraph::event vertex(graph_t& graph, in_frontier_t& in, out_frontier_t& out, la
   if constexpr (lb == sygraph::operators::LoadBalancer::workitem_mapped) {
     return sygraph::operators::advance::detail::workitem_mapped::vertex(graph, in, out, std::forward<lambda_t>(functor));
     // return sygraph::operators::advance::detail::vertex_local_mem(graph, in, out, std::forward<lambda_t>(functor));
+  } else if (lb == sygraph::operators::LoadBalancer::workgroup_mapped) {
+    return sygraph::operators::advance::detail::workgroup_mapped::vertex(graph, in, out, std::forward<lambda_t>(functor));
   } else {
     throw std::runtime_error("Load balancer not implemented");
   }

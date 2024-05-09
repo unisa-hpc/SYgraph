@@ -16,23 +16,23 @@ class graph_csr_device_t {
   using edge_t = offset_t; ///< The type used to represent edges of the graph.
   using weight_t = value_t; ///< The type used to represent weights of the graph.
 public:
-  struct NeighbourIterator {
-    NeighbourIterator(index_t* start_ptr, index_t* ptr) : start_ptr(start_ptr), ptr(ptr) {}
+  struct NeighborIterator {
+    NeighborIterator(index_t* start_ptr, index_t* ptr) : start_ptr(start_ptr), ptr(ptr) {}
 
     SYCL_EXTERNAL inline index_t operator*() const {
       return *ptr;
     }
 
-    SYCL_EXTERNAL inline NeighbourIterator& operator++() {
+    SYCL_EXTERNAL inline NeighborIterator& operator++() {
       ++ptr;
       return *this;
     }
 
-    SYCL_EXTERNAL inline bool operator==(const NeighbourIterator& other) const {
+    SYCL_EXTERNAL inline bool operator==(const NeighborIterator& other) const {
       return ptr == other.ptr;
     }
 
-    SYCL_EXTERNAL inline bool operator!=(const NeighbourIterator& other) const {
+    SYCL_EXTERNAL inline bool operator!=(const NeighborIterator& other) const {
       return ptr != other.ptr;
     }
 
@@ -61,20 +61,20 @@ public:
   }
 
   /**
-   * @brief Returns the number of neighbours of a vertex in the graph.
+   * @brief Returns the number of neighbors of a vertex in the graph.
    * @param vertex The vertex.
-   * @return The number of neighbours.
+   * @return The number of neighbors.
    */
-  SYCL_EXTERNAL inline size_t get_neighbour_count(vertex_t vertex) const {
+  SYCL_EXTERNAL inline size_t get_neighbors_count(vertex_t vertex) const {
     return row_offsets[vertex + 1] - row_offsets[vertex];
   }
 
   /**
-   * @brief Returns the index of the first neighbour of a vertex in the graph.
+   * @brief Returns the index of the first neighbor of a vertex in the graph.
    * @param vertex The vertex.
-   * @return The index of the first neighbour.
+   * @return The index of the first neighbor.
    */
-  SYCL_EXTERNAL inline vertex_t get_first_neighbour_idx(vertex_t vertex) const {
+  SYCL_EXTERNAL inline vertex_t get_first_neighbor_idx(vertex_t vertex) const {
     return row_offsets[vertex];
   }
 
@@ -116,12 +116,12 @@ public:
     return nnz_values[edge];
   }
 
-  SYCL_EXTERNAL inline graph_csr_device_t::NeighbourIterator begin(vertex_t vertex) const {
-    return NeighbourIterator(column_indices, column_indices + row_offsets[vertex]);
+  SYCL_EXTERNAL inline graph_csr_device_t::NeighborIterator begin(vertex_t vertex) const {
+    return NeighborIterator(column_indices, column_indices + row_offsets[vertex]);
   }
 
-  SYCL_EXTERNAL inline graph_csr_device_t::NeighbourIterator end(vertex_t vertex) const {
-    return NeighbourIterator(column_indices, column_indices + row_offsets[vertex + 1]);
+  SYCL_EXTERNAL inline graph_csr_device_t::NeighborIterator end(vertex_t vertex) const {
+    return NeighborIterator(column_indices, column_indices + row_offsets[vertex + 1]);
   }
 
   index_t n_rows; ///< The number of rows in the graph.
@@ -214,21 +214,21 @@ public:
   }
 
   /**
-   * @brief Returns the number of neighbours of a vertex in the graph.
+   * @brief Returns the number of neighbors of a vertex in the graph.
    * @param vertex The vertex.
-   * @return The number of neighbours.
+   * @return The number of neighbors.
    */
-  inline size_t get_neighbour_count(vertex_t vertex) const override {
-    return device_graph.get_neighbour_count(vertex);
+  inline size_t get_neighbors_count(vertex_t vertex) const override {
+    return device_graph.get_neighbors_count(vertex);
   }
 
   /**
-   * @brief Returns the index of the first neighbour of a vertex in the graph.
+   * @brief Returns the index of the first neighbor of a vertex in the graph.
    * @param vertex The vertex.
-   * @return The index of the first neighbour.
+   * @return The index of the first neighbor.
    */
-  inline vertex_t get_first_neighbour_idx(vertex_t vertex) const override {
-    return device_graph.get_first_neighbour_idx(vertex);
+  inline vertex_t get_first_neighbor_idx(vertex_t vertex) const override {
+    return device_graph.get_first_neighbor_idx(vertex);
   }
 
   inline vertex_t get_source_vertex(edge_t edge) const override {

@@ -12,7 +12,7 @@ int main() {
   
   using type_t = decltype(G)::vertex_t;
   sycl::buffer<type_t> nighbours_count_buf(G.get_vertex_count());
-  sycl::buffer<type_t> first_neighbours_buf(G.get_vertex_count());
+  sycl::buffer<type_t> first_neighbors_buf(G.get_vertex_count());
 
 
   using load_balance_t = sygraph::operators::LoadBalancer;

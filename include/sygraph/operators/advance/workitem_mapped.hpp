@@ -43,9 +43,9 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
   //     for (auto i = start; i != end; ++i) {
   //       auto edge = i.get_index();
   //       auto weight = graph.get_edge_weight(edge);
-  //       auto neighbour = *i;
-  //       if (functor(element, neighbour, edge, weight)) {
-  //         out.insert(neighbour);
+  //       auto neighbor = *i;
+  //       if (functor(element, neighbor, edge, weight)) {
+  //         out.insert(neighbor);
   //       }
   //     }
   //   }
@@ -62,13 +62,13 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
       auto start = graphDev.begin(element);
       auto end = graphDev.end(element);
 
-      // each work item takes care of all the neighbours of the vertex he is responsible for
+      // each work item takes care of all the neighbors of the vertex he is responsible for
       for (auto i = start; i != end; ++i) {
         auto edge = i.get_index();
         auto weight = graphDev.get_edge_weight(edge);
-        auto neighbour = *i;
-        if (functor(element, neighbour, edge, weight)) {
-          outDevFrontier.insert(neighbour);
+        auto neighbor = *i;
+        if (functor(element, neighbor, edge, weight)) {
+          outDevFrontier.insert(neighbor);
         }
       }
     });
@@ -102,9 +102,9 @@ sygraph::event vertex_local_mem(graph_t& graph, const in_frontier_t& in, out_fro
       for (auto i = start; i != end; ++i) {
         auto edge = i.get_index();
         auto weight = graph.get_edge_weight(edge);
-        auto neighbour = *i;
-        if (functor(element, neighbour, edge, weight)) {
-          out.insert(neighbour);
+        auto neighbor = *i;
+        if (functor(element, neighbor, edge, weight)) {
+          out.insert(neighbor);
         }
       }
     }
@@ -138,16 +138,16 @@ sygraph::event vertex_local_mem(graph_t& graph, const in_frontier_t& in, out_fro
         auto start = graphDev.begin(element);
         auto end = graphDev.end(element);
 
-        // each work item takes care of all the neighbours of the vertex he is responsible for
+        // each work item takes care of all the neighbors of the vertex he is responsible for
         for (auto i = start; i != end; ++i) {
           auto edge = i.get_index();
           auto weight = graphDev.get_edge_weight(edge);
-          auto neighbour = *i;
-          if (functor(element, neighbour, edge, weight)) {
+          auto neighbor = *i;
+          if (functor(element, neighbor, edge, weight)) {
             if (l_frontier_tail_ref < LOCAL_MEM_SIZE) { // if the local memory is not full, we can use it
-              l_frontier[l_frontier_tail_ref++] = neighbour;
+              l_frontier[l_frontier_tail_ref++] = neighbor;
             } else { // if the local memory is full, we need to use the global mem
-              outDevFrontier.insert(neighbour);
+              outDevFrontier.insert(neighbor);
             }
           }
         }
@@ -194,12 +194,12 @@ sygraph::event edge(graph_t& graph, const in_frontier_t& in, out_frontier_t& out
       auto start = graphDev.begin(element);
       auto end = graphDev.end(element);
 
-      // each work item takes care of all the neighbours of the vertex he is responsible for
+      // each work item takes care of all the neighbors of the vertex he is responsible for
       for (auto i = start; i != end; ++i) {
         auto edge = i.get_index();
         auto weight = graphDev.get_edge_weight(element, edge);
-        auto neighbour = *i;
-        if (functor(element, neighbour, edge, weight)) {
+        auto neighbor = *i;
+        if (functor(element, neighbor, edge, weight)) {
           outDevFrontier.insert(edge);
         }
       }
