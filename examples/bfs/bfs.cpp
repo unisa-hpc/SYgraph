@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
     std::cerr << "Validation: [";
     auto validation_start = std::chrono::high_resolution_clock::now();
     if (!validate(G, bfs, args.source)) {
-      std::cerr << "\033[1;32mFailed\033[0m";
+      std::cerr << "\033[1;31mFailed\033[0m";
     } else {
       std::cerr << "\033[1;32mSuccess\033[0m";
     }
