@@ -34,7 +34,7 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
 
   auto e = q.submit([&](sycl::handler& cgh) {
 
-    sycl::range<1> local_range{256}; // TODO: [!] Tune on this value, or compute it dynamically
+    sycl::range<1> local_range{64}; // TODO: [!] Tune on this value, or compute it dynamically
     sycl::range<1> global_range{active_elements_size > local_range[0] ? active_elements_size + (local_range[0] - (active_elements_size % local_range[0])) : local_range[0]};
 
     auto inDevFrontier = in.get_device_frontier();
@@ -75,7 +75,7 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
 
       // // 1.5 compute nodes to be computed by all the item in the workgroup
       // sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> tail{work_group_reduce_tail[0]};
-      // if (n_edges_local[lid] >= local_range) {
+      // if (n_edges_local[lid] >= local_range && !visited[lid]) {
       //   work_group_reduce[tail++] = lid;
       // }
 
@@ -84,27 +84,25 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
       // // 2. process elements with more than local_range edges
       // for (size_t i = 0; i < tail.load(); i++) { // TODO: [!!!!] for some reason this slows a lot the performances (6ms)
       //   size_t vertex_id = work_group_reduce[i];
-      //   if (!visited[vertex_id]) {
-      //     auto vertex = active_elements_local[vertex_id];
-      //     size_t n_edges = n_edges_local[vertex_id];
-      //     size_t private_slice = n_edges / local_range;
-      //     auto start = graphDev.begin(vertex) + (private_slice * lid);
-      //     auto end = lid == local_range - 1 ? graphDev.end(vertex) : start + private_slice;
+      //   auto vertex = active_elements_local[vertex_id];
+      //   size_t n_edges = n_edges_local[vertex_id];
+      //   size_t private_slice = n_edges / local_range;
+      //   auto start = graphDev.begin(vertex) + (private_slice * lid);
+      //   auto end = lid == local_range - 1 ? graphDev.end(vertex) : start + private_slice;
 
-      //     for (auto n = start; n != end; ++n) {
-      //       auto edge = n.get_index();
-      //       auto weight = graphDev.get_edge_weight(edge);
-      //       auto neighbor = *n;
-      //       if (functor(vertex, neighbor, edge, weight)) {
-      //         outDevFrontier.insert(neighbor); // this might be the bottleneck
-      //       }
-      //     }
-      //     if (vertex_id == lid) {
-      //       visited[i] = true;
+      //   for (auto n = start; n != end; ++n) {
+      //     auto edge = n.get_index();
+      //     auto weight = graphDev.get_edge_weight(edge);
+      //     auto neighbor = *n;
+      //     if (functor(vertex, neighbor, edge, weight)) {
+      //       outDevFrontier.insert(neighbor); // this might be the bottleneck
       //     }
       //   }
-      //   sycl::group_barrier(group);
+      //   if (lid == 0) {
+      //     visited[vertex_id] = true;
+      //   }
       // }
+      sycl::group_barrier(group);
 
       // 3. process elements with less than local_range edges but more than one subgroup size edges
       for (size_t i = 0; i < subgroup_size; i++) {

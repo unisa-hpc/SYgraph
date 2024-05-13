@@ -4,7 +4,9 @@
 #include <sygraph/frontier/frontier.hpp>
 #include <sygraph/operators/advance/advance.hpp>
 #include <sygraph/operators/for/for.hpp>
-#include <sygraph/utils/profiling.hpp>
+#ifdef ENABLE_PROFILING
+#include <sygraph/utils/profiler.hpp>
+#endif
 #include <memory>
 
 /**
@@ -107,7 +109,7 @@ public:
    * @throws std::runtime_error if the BFS instance is not initialized.
    */
   template <bool enable_profiling = false> 
-  sygraph::detail::profiling::profiling_info_t run() {
+  void run() {
     if (!_instance) {
       throw std::runtime_error("BFS instance not initialized");
     }
@@ -132,27 +134,26 @@ public:
     size_t size = G.get_vertex_count();
     int iter = 0;
 
-    sygraph::detail::profiling::profiling_info_t profiling;
-    if constexpr (enable_profiling) {
-      profiling.start = std::chrono::high_resolution_clock::now();
-    }
     // TODO: Add automatic load_balancing for the type of graph. 
     while (!inFrontier.empty()) {
-      sygraph::operators::advance::vertex<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
+      auto e1 = sygraph::operators::advance::vertex<load_balance_t::workgroup_mapped>(G, inFrontier, outFrontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
         return (iter + 1) < distances[dst];
-      }).wait();
-      sygraph::operators::parallel_for::execute(G, outFrontier, [=](auto v) {
+      });
+      e1.wait();
+      auto e2 = sygraph::operators::parallel_for::execute(G, outFrontier, [=](auto v) {
         distances[v] = iter + 1;
-      }).wait();
+      });
+      e2.wait();
+      
+#ifdef ENABLE_PROFILING
+      sygraph::profiler::add_event(e1, "advance");
+      sygraph::profiler::add_event(e2, "for");
+#endif
 
       sygraph::frontier::swap(inFrontier, outFrontier);
       outFrontier.clear();
       iter++;
     }
-    if constexpr (enable_profiling) {
-      profiling.end = std::chrono::high_resolution_clock::now();
-    }
-    return profiling;
   }
 
   /**

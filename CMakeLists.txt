@@ -15,6 +15,7 @@ target_include_directories(sygraph INTERFACE include)
 option(SYGRAPH_BUILD_TESTS "Build tests" OFF)
 option(SYGRAPH_BUILD_EXAMPLES "Build Examples" OFF)
 option(SYGRAPH_SAMPLE_DATA "Generate samples data" OFF)
+option(SYGRAPH_ENABLE_PROFILING "Enable profiling" OFF)
 
 if (SYGRAPH_BUILD_TESTS)
   add_subdirectory(tests)
@@ -23,6 +24,10 @@ endif()
 
 if (SYGRAPH_SAMPLE_DATA)
   target_compile_definitions(sygraph INTERFACE "GENERATE_SAMPLE_DATA")
+endif()
+
+if (SYGRAPH_ENABLE_PROFILING)
+  target_compile_definitions(sygraph INTERFACE "ENABLE_PROFILING")
 endif()
 
 if (SYGRAPH_BUILD_EXAMPLES)

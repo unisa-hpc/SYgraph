@@ -7,7 +7,9 @@
 #include <sygraph/operators/advance/advance.hpp>
 #include <sygraph/operators/for/for.hpp>
 #include <sygraph/operators/filter/filter.hpp>
-#include <sygraph/utils/profiling.hpp>
+#ifdef ENABLE_PROFILING
+#include <sygraph/utils/profiler.hpp>
+#endif
 #include <sygraph/sync/atomics.hpp>
 
 
@@ -75,7 +77,7 @@ public:
 
   
   template <bool enable_profiling = false> 
-  sygraph::detail::profiling::profiling_info_t run() {
+  void run() {
     if (!_instance) {
       throw std::runtime_error("SSSP instance not initialized");
     }
@@ -101,13 +103,8 @@ public:
     int iter = 0;
     inFrontier.insert(source);
 
-    sygraph::detail::profiling::profiling_info_t profiling;
-    if constexpr (enable_profiling) {
-      profiling.start = std::chrono::high_resolution_clock::now();
-    }
-
     while (!inFrontier.empty()) {
-      sygraph::operators::advance::vertex<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
+      auto e1 = sygraph::operators::advance::vertex<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
         weight_t source_distance = sygraph::sync::load(&distances[src]);
         weight_t distance_to_neighbor = source_distance + weight;
 
@@ -116,25 +113,26 @@ public:
         recover_distance = sygraph::sync::min(&(distances[dst]), &distance_to_neighbor);
 
         return (distance_to_neighbor < recover_distance);
-      }).wait();
+      });
+      e1.wait();
 
-      sygraph::operators::filter::inplace(G, outFrontier, [=](auto vertex) -> bool {
+      auto e2 = sygraph::operators::filter::inplace(G, outFrontier, [=](auto vertex) -> bool {
         if (visited[vertex] == iter)
           return false;
         visited[vertex] = iter;
         return true;
-      }).wait();
+      });
+      e2.wait();
+
+#ifdef ENABLE_PROFILING
+      sygraph::profiler::add_event(e1);
+      sygraph::profiler::add_event(e2);
+#endif
       
       sygraph::frontier::swap(inFrontier, outFrontier);
       outFrontier.clear();
       iter++;
     }
-
-    if constexpr (enable_profiling) {
-      profiling.end = std::chrono::high_resolution_clock::now();
-    }
-
-    return profiling;
   }
 
   const weight_t get_distance(size_t vertex) const {

@@ -5,7 +5,7 @@
 namespace sygraph {
 inline namespace v0 {
 
-class event : sycl::event {
+class event : public sycl::event {
 public:
   event() = default;
   event(const sycl::event& e) : sycl::event(e) {}

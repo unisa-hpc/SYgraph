@@ -35,3 +35,8 @@
 
 // Include sync
 #include <sygraph/sync/atomics.hpp>
+
+// Include profiler
+#ifdef ENABLE_PROFILING
+#include <sygraph/utils/profiler.hpp>
+#endif

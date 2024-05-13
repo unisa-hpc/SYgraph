@@ -3,6 +3,9 @@
 #include <sygraph/utils/memory.hpp>
 #include <sygraph/utils/vector.hpp>
 #include <sygraph/utils/types.hpp>
+#ifdef ENABLE_PROFILING
+#include <sygraph/utils/profiler.hpp>
+#endif
 
 namespace sygraph {
 inline namespace v0 {
@@ -281,7 +284,7 @@ public:
 
     sycl::buffer<size_t, 1> g_tail_buffer(sycl::range<1>(1));
 
-    q.submit([&](sycl::handler& cgh) {
+    auto e = q.submit([&](sycl::handler& cgh) {
       auto bitmap = this->get_device_frontier();
 
       sycl::local_accessor<type_t, 1> local_elems(bitmap_range * local_size, cgh);
@@ -329,7 +332,11 @@ public:
           elems[our_slice + i] = local_elems[i];
         }
       });
-    }).wait();
+    });
+    e.wait();
+#ifdef ENABLE_PROFILING
+    sygraph::profiler::add_event(e, "get_active_elements");
+#endif
     size = g_tail_buffer.get_host_access()[0];
   }
 

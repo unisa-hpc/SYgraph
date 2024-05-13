@@ -55,8 +55,12 @@ int main(int argc, char** argv) {
   std::cerr << "[*  ] Reading CSR" << std::endl;
   auto csr = read_csr<uint, uint, uint>(args);
 
+#ifdef ENABLE_PROFILING
+  sycl::queue q {sycl::gpu_selector_v, sycl::property::queue::enable_profiling()};
+#else
   sycl::queue q {sycl::gpu_selector_v};
-  
+#endif
+
   std::cerr << "[** ] Building Graph" << std::endl;
   auto G = sygraph::graph::build::from_csr<sygraph::memory::space::shared>(q, csr);
   print_graph_info(G);
@@ -69,7 +73,7 @@ int main(int argc, char** argv) {
   bfs.init(args.source);
 
   std::cerr << "[***] Running BFS on source " << args.source << std::endl;
-  auto info = bfs.run<true>();
+  bfs.run<true>();
   
   std::cerr << "[!] Done" << std::endl;
 
@@ -99,5 +103,5 @@ int main(int argc, char** argv) {
     }  
   }
 
-  std::cerr << "Time: " << info.get_duration<std::chrono::milliseconds>() << " ms" << std::endl;
+  sygraph::profiler::print();
 }
