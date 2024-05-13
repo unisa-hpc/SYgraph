@@ -289,8 +289,8 @@ public:
       sycl::accessor tail_acc(g_tail_buffer, cgh, sycl::read_write);
 
       cgh.parallel_for<class get_active_elements_kernel>(nd_range, [=, bitmap_range=bitmap_range, bitmap_size=bitmap.size, data=bitmap.data](sycl::nd_item<1> item) {
-        sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::work_group> l_tail_ref(l_tail[0]); // TODO: check if acq_rel works
-        sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::device> g_tail_ref(tail_acc[0]);
+        sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> l_tail_ref(l_tail[0]); // TODO: check if acq_rel works
+        sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> g_tail_ref(tail_acc[0]);
 
         auto lid = item.get_local_linear_id();
         auto gid = item.get_global_linear_id();
