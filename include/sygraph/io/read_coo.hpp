@@ -22,10 +22,11 @@ namespace coo {
  * @tparam offset_t The offset type of the graph.
  * 
  * @param iss The input stream containing the COO representation of the graph.
+ * @param directed Whether the graph is directed or not. If it's set to true, the graph is considered undirected and so all the values will be inserted twice.
  * @return The COO representation of the graph.
  */
 template <typename value_t, typename index_t, typename offset_t = types::offset_t>
-sygraph::formats::COO<value_t, index_t, offset_t> from_coo(std::istream& iss) {
+sygraph::formats::COO<value_t, index_t, offset_t> from_coo(std::istream& iss, bool undirected = false) {
   // Initialize row pointers for CSR format
 
   // skip all comments that starts with %
@@ -39,6 +40,8 @@ sygraph::formats::COO<value_t, index_t, offset_t> from_coo(std::istream& iss) {
   }
   size_t n_nodes1, n_nodes2, num_edges;
   std::istringstream {line} >> n_nodes1 >> n_nodes2 >> num_edges;
+
+  num_edges *= undirected ? 2 : 1;
 
   std::vector<index_t> coo_row_indices(num_edges);
   std::vector<index_t> coo_col_indices(num_edges);
@@ -55,6 +58,12 @@ sygraph::formats::COO<value_t, index_t, offset_t> from_coo(std::istream& iss) {
     coo_col_indices[i] = v;
     coo_values[i] = w;
     ++i;
+    if (undirected) {
+      coo_row_indices[i] = v;
+      coo_col_indices[i] = u;
+      coo_values[i] = w;
+      ++i;
+    }
   }
 
   return sygraph::formats::COO<value_t, index_t, offset_t>(coo_row_indices, coo_col_indices, coo_values);

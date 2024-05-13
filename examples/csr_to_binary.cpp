@@ -4,8 +4,9 @@
 #include <sygraph/sygraph.hpp>
 
 int main(int argc, char** argv) {
+  bool undirected = false;
   if (argc < 3) {
-    std::cerr << "Usage: " << argv[0] << " <COO file format> <out>" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " <COO file format> <out> [-u]" << std::endl;
     return 1;
   }
 
@@ -15,10 +16,14 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  if (argc == 4 && std::string(argv[3]) == "-u") {
+    undirected = true;
+  }
+
   sycl::queue q {sycl::gpu_selector_v};
 
   std::cerr << "[* ] Loading COO file" << std::endl;
-  auto coo = sygraph::io::coo::from_coo<uint, uint, uint>(in_file);
+  auto coo = sygraph::io::coo::from_coo<uint, uint, uint>(in_file, undirected);
   std::cerr << "[**] Converting to CSR" << std::endl;
   auto csr = sygraph::io::csr::from_coo(coo);
 
