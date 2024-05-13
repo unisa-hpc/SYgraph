@@ -405,6 +405,10 @@ public:
     return bitmap;
   }
 
+  static void swap(frontier_bitmap_t<type_t>& a, frontier_bitmap_t<type_t>& b) {
+    std::swap(a.bitmap, b.bitmap);
+  }
+
 private:
   sycl::queue& q;          ///< The SYCL queue used for memory allocation.
   bitmap_device_t<type_t, bitmap_type> bitmap; ///< The bitmap.
