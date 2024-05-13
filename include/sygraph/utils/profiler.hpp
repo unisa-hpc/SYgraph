@@ -37,11 +37,11 @@ public:
     double milliseconds = 0.0;
     double total = 0.0;
     for (auto& [tag, events] : details::events) {
-      std::cout << "[" << tag << "]";
+      std::cout << " Kernel [" << tag << " x " << events.size() << "]";
       for (auto& event : events) {
-        milliseconds += static_cast<double>(event.get_profiling_info<sycl::info::event_profiling::command_end>() - event.get_profiling_info<sycl::info::event_profiling::command_start>()) / 1000000;
+        milliseconds += static_cast<double>(event.get_profiling_info<sycl::info::event_profiling::command_end>() - event.get_profiling_info<sycl::info::event_profiling::command_start>()) / 1e6;
       }
-      std::cout << " GPU Time: " << milliseconds << " ms" << std::endl;
+      std::cout << " Time: " << milliseconds << " ms" << std::endl;
       total += milliseconds;
       milliseconds = 0.0;
     }
