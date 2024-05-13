@@ -282,7 +282,6 @@ public:
     sycl::buffer<size_t, 1> g_tail_buffer(sycl::range<1>(1));
 
     q.submit([&](sycl::handler& cgh) {
-      sycl::stream os(1024, 1024, cgh);
       auto bitmap = this->get_device_frontier();
 
       sycl::local_accessor<type_t, 1> local_elems(bitmap_range * local_size, cgh);
