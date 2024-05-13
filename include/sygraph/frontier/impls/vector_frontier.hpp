@@ -65,17 +65,17 @@ public:
   device_vector_frontier_t(size_t max_size) : max_size(max_size) {}
 
   SYCL_EXTERNAL inline bool empty() const {
-    sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::device> ref(tail[0]);
+    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(tail[0]);
     return ref.load() == 0;
   }
 
   SYCL_EXTERNAL inline size_t size() const {
-    sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::device> ref(tail[0]);
+    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(tail[0]);
     return ref.load();
   }
 
   SYCL_EXTERNAL inline bool insert(type_t val) const {
-    sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::device> ref(tail[0]);
+    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(tail[0]);
     data[ref++] = val;
     return true;
   }
@@ -93,12 +93,12 @@ public:
   }
 
   SYCL_EXTERNAL inline void clear() const {
-    sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::device> ref(tail[0]);
+    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(tail[0]);
     ref = 0;
   }
 
   SYCL_EXTERNAL inline size_t prealloc(size_t num_elems) const { // TODO: [!] check for max size
-    sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::device> ref(tail[0]);
+    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(tail[0]);
     return ref.fetch_add(num_elems);
   }
 
@@ -145,6 +145,17 @@ public:
   inline bool self_allocated() const { return true; }
 
   void get_active_elements(type_t*& elems) const {
+    elems = vector.data;
+  }
+
+  /**
+   * @brief Retrieves the active elements in the bitmap.
+   * 
+   * @param elems The array to store the active elements. It must be pre-allocated with shared-access.
+   * @param active If true, it retrieves the active elements, otherwise the inactive elements.
+  */
+  void get_active_elements(type_t*& elems, size_t& size) const {
+    size = vector.get_tail();
     elems = vector.data;
   }
 
