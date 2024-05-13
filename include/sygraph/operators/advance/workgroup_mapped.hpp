@@ -44,6 +44,8 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
     sycl::local_accessor<size_t, 1> n_edges_local {local_range, cgh};
     sycl::local_accessor<bool, 1> visited {local_range, cgh};
     sycl::local_accessor<type_t, 1> active_elements_local {local_range, cgh};
+    sycl::local_accessor<type_t, 1> work_group_reduce {local_range, cgh};
+    sycl::local_accessor<size_t, 1> work_group_reduce_tail {1, cgh};
     
     cgh.parallel_for<class workgroup_mapped_advance_kernel>(sycl::nd_range<1>{global_range, local_range}, [=](sycl::nd_item<1> item) {
       // 0. retrieve global and local ids
@@ -58,6 +60,9 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
       size_t sgid = subgroup.get_local_linear_id();
 
       // 1. load number of edges in local memory
+      if (lid == 0) {
+        work_group_reduce_tail[0] = 0;
+      }
       if (gid < active_elements_size) {
         type_t element = active_elements[gid];
         n_edges_local[lid] = graphDev.get_neighbors_count(element);
@@ -67,13 +72,21 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
         n_edges_local[lid] = 0;
         visited[lid] = true;
       }
-      sycl::group_barrier(group); // synchronize
 
-      // 2. process elements with more than local_range edges
-      // for (size_t i = 0; i < local_range; i++) { // TODO: [!!!!] for some reason this slows a lot the performances
-      //   if (!visited[i] && n_edges_local[i] >= local_range) {
-      //     auto vertex = active_elements_local[i];
-      //     size_t n_edges = n_edges_local[i];
+      // // 1.5 compute nodes to be computed by all the item in the workgroup
+      // sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> tail{work_group_reduce_tail[0]};
+      // if (n_edges_local[lid] >= local_range) {
+      //   work_group_reduce[tail++] = lid;
+      // }
+
+      // sycl::group_barrier(group); // synchronize
+
+      // // 2. process elements with more than local_range edges
+      // for (size_t i = 0; i < tail.load(); i++) { // TODO: [!!!!] for some reason this slows a lot the performances (6ms)
+      //   size_t vertex_id = work_group_reduce[i];
+      //   if (!visited[vertex_id]) {
+      //     auto vertex = active_elements_local[vertex_id];
+      //     size_t n_edges = n_edges_local[vertex_id];
       //     size_t private_slice = n_edges / local_range;
       //     auto start = graphDev.begin(vertex) + (private_slice * lid);
       //     auto end = lid == local_range - 1 ? graphDev.end(vertex) : start + private_slice;
@@ -83,14 +96,14 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
       //       auto weight = graphDev.get_edge_weight(edge);
       //       auto neighbor = *n;
       //       if (functor(vertex, neighbor, edge, weight)) {
-      //         outDevFrontier.insert(neighbor);
+      //         outDevFrontier.insert(neighbor); // this might be the bottleneck
       //       }
       //     }
-      //     sycl::group_barrier(group);
-      //     if (i == lid) {
+      //     if (vertex_id == lid) {
       //       visited[i] = true;
       //     }
       //   }
+      //   sycl::group_barrier(group);
       // }
 
       // 3. process elements with less than local_range edges but more than one subgroup size edges
