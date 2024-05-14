@@ -60,9 +60,6 @@ int main(int argc, char** argv) {
 #else
   sycl::queue q {sycl::gpu_selector_v};
 #endif
-  for (auto& p : sycl::platform::get_platforms()) {
-    std::cerr << "[*] Platform: " << p.get_info<sycl::info::platform::name>() << std::endl;
-  }
 
   print_device_info(q, "[*] ");
 
