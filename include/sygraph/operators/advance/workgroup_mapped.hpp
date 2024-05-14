@@ -29,7 +29,10 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
   using type_t = typename in_frontier_t::type_t;
   size_t active_elements_size = in.get_num_active_elements();
 
-  type_t* active_elements = sycl::malloc_shared<type_t>(active_elements_size, q);
+  type_t* active_elements;
+  if (!in.self_allocated()) {
+    active_elements = sycl::malloc_shared<type_t>(active_elements_size, q);
+  }
   in.get_active_elements(active_elements, active_elements_size);
 
   auto e = q.submit([&](sycl::handler& cgh) {
@@ -147,7 +150,9 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
     });
   });
 
-  sycl::free(active_elements, q);
+  if (!in.self_allocated()) {
+    sycl::free(active_elements, q);
+  }
   return {e};
 }
 
