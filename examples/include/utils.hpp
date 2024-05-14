@@ -99,3 +99,9 @@ void print_graph_info(const GraphT& g) {
   std::cerr << std::setw(17) << "Average degree:" << std::setw(10) << g.get_edge_count() / g.get_vertex_count() << std::endl;
   std::cerr << "-----------------------------------" << std::endl;
 }
+
+void print_device_info(sycl::queue& queue, std::string prefix = "") {
+  std::string device_name = queue.get_device().get_info<sycl::info::device::name>();
+  std::string device_backend = queue.get_device().get_platform().get_info<sycl::info::platform::name>();
+  std::cerr << prefix << "Running on: " << "[" << device_backend << "] " << device_name << std::endl;
+}

@@ -52,7 +52,7 @@ bool validate(const GraphT& graph, BFS_T& bfs, uint source) {
 int main(int argc, char** argv) {
   args_t args {argc, argv};
 
-  std::cerr << "[*  ] Reading CSR" << std::endl;
+  std::cerr << "[*] Reading CSR" << std::endl;
   auto csr = read_csr<uint, uint, uint>(args);
 
 #ifdef ENABLE_PROFILING
@@ -60,8 +60,13 @@ int main(int argc, char** argv) {
 #else
   sycl::queue q {sycl::gpu_selector_v};
 #endif
+  for (auto& p : sycl::platform::get_platforms()) {
+    std::cerr << "[*] Platform: " << p.get_info<sycl::info::platform::name>() << std::endl;
+  }
 
-  std::cerr << "[** ] Building Graph" << std::endl;
+  print_device_info(q, "[*] ");
+
+  std::cerr << "[*] Building Graph" << std::endl;
   auto G = sygraph::graph::build::from_csr<sygraph::memory::space::shared>(q, csr);
   print_graph_info(G);
   size_t size = G.get_vertex_count();
@@ -72,7 +77,7 @@ int main(int argc, char** argv) {
   }
   bfs.init(args.source);
 
-  std::cerr << "[***] Running BFS on source " << args.source << std::endl;
+  std::cerr << "[*] Running BFS on source " << args.source << std::endl;
   bfs.run<true>();
   
   std::cerr << "[!] Done" << std::endl;
@@ -103,5 +108,7 @@ int main(int argc, char** argv) {
     }  
   }
 
+#ifdef ENABLE_PROFILING
   sygraph::profiler::print();
+#endif
 }

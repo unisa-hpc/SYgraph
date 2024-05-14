@@ -76,6 +76,9 @@ public:
 
   SYCL_EXTERNAL inline bool insert(type_t val) const {
     sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(tail[0]);
+    if (ref.load() >= max_size) {
+      return false;
+    }
     data[ref++] = val;
     return true;
   }
@@ -124,12 +127,11 @@ public:
   static void swap(frontier_vector_t<type_t>& a, frontier_vector_t<type_t>& b) {
     std::swap(a.vector.data, b.vector.data);
     std::swap(a.vector.tail, b.vector.tail);
-    // std::swap(a.vector, b.vector);
   }
 
   frontier_vector_t(sycl::queue& q, size_t num_elems) : q(q), vector(num_elems) {
-    vector.data = memory::detail::memory_alloc<type_t, memory::space::shared>(num_elems, q);
-    vector.tail = memory::detail::memory_alloc<size_t, memory::space::shared>(1, q);
+    vector.data = sycl::malloc_shared<type_t>(num_elems, q);
+    vector.tail = sycl::malloc_shared<size_t>(1, q);
     vector.set_tail(0);
   }
 

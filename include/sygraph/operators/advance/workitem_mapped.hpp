@@ -28,7 +28,10 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
   using type_t = typename in_frontier_t::type_t;
   
   size_t active_elements_size = types::detail::MAX_ACTIVE_ELEMS_SIZE;
-  type_t* active_elements = sycl::malloc_shared<type_t>(active_elements_size, q);
+  type_t* active_elements;
+  if (!in.self_allocated()) {
+    active_elements = sycl::malloc_shared<type_t>(active_elements_size, q);
+  }
   in.get_active_elements(active_elements, active_elements_size);
   
   // TODO: [!!] for some reason is way slower so we need to investigate
@@ -56,6 +59,7 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
     auto inDevFrontier = in.get_device_frontier();
     auto outDevFrontier = out.get_device_frontier();
     auto graphDev = graph.get_device_graph();
+    sycl::stream os(1024, 256, cgh);
 
     cgh.parallel_for<class vertex_workitem_advance_kernel>(sycl::range<1>(active_elements_size), [=](sycl::id<1> idx) {
       auto element = active_elements[idx];
@@ -68,13 +72,18 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
         auto weight = graphDev.get_edge_weight(edge);
         auto neighbor = *i;
         if (functor(element, neighbor, edge, weight)) {
-          outDevFrontier.insert(neighbor);
+          bool val = outDevFrontier.insert(neighbor);
+          if (!val) {
+            os << "Error inserting " << neighbor << sycl::endl;
+          }
         }
       }
     });
   })};
 
-  sycl::free(active_elements, q);
+  if (!in.self_allocated()) {
+    sycl::free(active_elements, q);
+  }
   return ret;
 }
 

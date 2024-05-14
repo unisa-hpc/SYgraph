@@ -126,8 +126,8 @@ public:
     using frontier_view_t = sygraph::frontier::FrontierView;
     using frontier_impl_t = sygraph::frontier::FrontierType;
 
-    auto inFrontier = sygraph::frontier::make_frontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
-    auto outFrontier = sygraph::frontier::make_frontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
+    auto inFrontier = sygraph::frontier::make_frontier<frontier_view_t::vertex, frontier_impl_t::vector>(queue, G);
+    auto outFrontier = sygraph::frontier::make_frontier<frontier_view_t::vertex, frontier_impl_t::vector>(queue, G);
 
     inFrontier.insert(source);
 
@@ -136,14 +136,14 @@ public:
 
     // TODO: Add automatic load_balancing for the type of graph. 
     while (!inFrontier.empty()) {
-      auto e1 = sygraph::operators::advance::vertex<load_balance_t::workgroup_mapped>(G, inFrontier, outFrontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
+      auto e1 = sygraph::operators::advance::vertex<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
         return (iter + 1) < distances[dst];
       });
-      e1.wait();
+      e1.wait_and_throw();
       auto e2 = sygraph::operators::parallel_for::execute(G, outFrontier, [=](auto v) {
         distances[v] = iter + 1;
       });
-      e2.wait();
+      e2.wait_and_throw();
       
 #ifdef ENABLE_PROFILING
       sygraph::profiler::add_event(e1, "advance");
