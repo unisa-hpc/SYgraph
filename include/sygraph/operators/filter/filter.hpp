@@ -17,6 +17,7 @@ namespace operators {
 
 namespace filter {
 
+namespace v0 {
 template <typename graph_t,
           typename frontier_t,
           typename lambda_t>
@@ -48,7 +49,9 @@ sygraph::event inplace(graph_t& graph, frontier_t& frontier, lambda_t&& functor)
 
   return e;
 }
-  
+}
+
+namespace v0 { 
 template <typename graph_t,
           typename frontier_t,
           typename lambda_t>
@@ -80,6 +83,59 @@ sygraph::event external(graph_t& graph, frontier_t& in, frontier_t& out, lambda_
 
   return e;
 }
+}
+
+inline namespace v1 {
+template <typename graph_t,
+          typename frontier_t,
+          typename lambda_t>
+sygraph::event inplace(graph_t& graph, frontier_t& frontier, lambda_t&& functor) {
+  auto q = graph.get_queue();
+
+  using type_t = typename frontier_t::type_t;
+  size_t num_nodes = graph.get_vertex_count();
+
+  sygraph::event e = q.submit([&](sycl::handler& cgh) {
+    cgh.parallel_for<class inplace_filter_kernel>(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) {
+      type_t element = idx[0];
+      if (!functor(element)) {
+        outDev.remove(element);
+      }
+    });
+  });
+
+  return e;
+}
+}
+
+inline namespace v1 { 
+template <typename graph_t,
+          typename frontier_t,
+          typename lambda_t>
+sygraph::event external(graph_t& graph, frontier_t& in, frontier_t& out, lambda_t&& functor) {
+  auto q = graph.get_queue();
+  out.clear();
+
+  using type_t = typename frontier_t::type_t;
+  size_t num_nodes = graph.get_vertex_count();
+
+  sygraph::event e = q.submit([&](sycl::handler& cgh) {
+    cgh.parallel_for<class external_filter_kernel>(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) {
+      type_t element = idx[0];
+      if (functor(element)) {
+        out.insert(element);
+      }
+    });
+  });
+
+  if (!in.self_allocated()) {
+    sycl::free(active_elements, q);
+  }
+
+  return e;
+}
+}
+
 
 } // namespace advance
 } // namespace operators
