@@ -96,9 +96,11 @@ sygraph::event inplace(graph_t& graph, frontier_t& frontier, lambda_t&& functor)
   size_t num_nodes = graph.get_vertex_count();
 
   sygraph::event e = q.submit([&](sycl::handler& cgh) {
+    auto outDev = frontier.get_device_frontier();
+
     cgh.parallel_for<class inplace_filter_kernel>(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) {
       type_t element = idx[0];
-      if (!functor(element)) {
+      if (outDev.check(element) && !functor(element)) {
         outDev.remove(element);
       }
     });
@@ -119,18 +121,17 @@ sygraph::event external(graph_t& graph, frontier_t& in, frontier_t& out, lambda_
   using type_t = typename frontier_t::type_t;
   size_t num_nodes = graph.get_vertex_count();
 
+  auto outDev = out.get_device_frontier();
+  auto inDev = in.get_device_frontier();
+
   sygraph::event e = q.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<class external_filter_kernel>(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) {
       type_t element = idx[0];
-      if (functor(element)) {
+      if (inDev.check(element) && functor(element)) {
         out.insert(element);
       }
     });
   });
-
-  if (!in.self_allocated()) {
-    sycl::free(active_elements, q);
-  }
 
   return e;
 }
