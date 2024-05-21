@@ -3,6 +3,7 @@
 #include <sygraph/utils/memory.hpp>
 #include <sygraph/utils/vector.hpp>
 #include <sygraph/utils/types.hpp>
+#include <sygraph/sycl/event.hpp>
 #ifdef ENABLE_PROFILING
 #include <sygraph/utils/profiler.hpp>
 #endif
@@ -381,16 +382,34 @@ public:
    * Merges the contents of the current bitmap frontier with the specified frontier.
    * 
    * @param other The frontier to merge with.
+   * @return The event associated with the operation.
    * @post The current frontier contains the union of the current frontier and the specified frontier. The specified frontier is not modified.
   */
-  inline void merge(frontier_bitmap_t<type_t>& other) {
-    q.submit([&](sycl::handler& cgh) {
+  sygraph::event merge(frontier_bitmap_t<type_t>& other) {
+    return q.submit([&](sycl::handler& cgh) {
       auto bitmap = this->get_device_frontier();
       auto other_bitmap = other.get_device_frontier();
       cgh.parallel_for<class merge_bitmap_frontier_kernel>(sycl::range<1>(bitmap.size), [=](sycl::id<1> idx) {
         bitmap.data[idx] |= other_bitmap.data[idx];
       });
-    }).wait();
+    });
+  }
+
+  /**
+   * @brief Intersects the contents of the current bitmap frontier with the specified frontier.
+   * 
+   * @param other The frontier to intersect with.
+   * @return The event associated with the operation.
+   * @post The current frontier contains the intersection of the current frontier and the specified frontier. The specified frontier is not modified.
+   */
+  sygraph::event intersect(frontier_bitmap_t<type_t>& other) {
+    return q.submit([&](sycl::handler& cgh) {
+      auto bitmap = this->get_device_frontier();
+      auto other_bitmap = other.get_device_frontier();
+      cgh.parallel_for<class intersect_bitmap_frontier_kernel>(sycl::range<1>(bitmap.size), [=](sycl::id<1> idx) {
+        bitmap.data[idx] &= other_bitmap.data[idx];
+      });
+    });
   }
 
   /**
