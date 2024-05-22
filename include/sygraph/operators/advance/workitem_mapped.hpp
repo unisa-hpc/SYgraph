@@ -122,28 +122,8 @@ sygraph::event vertex(graph_t& graph,
 
   size_t active_elements_size = in.get_num_active_elements();
   T* active_elements;
-  in.get_active_elements(active_elements);
+  in.get_active_elements(active_elements, active_elements_size);
 
-  constexpr size_t THRESHOLD = 1; // TODO: we must tune on a certain value to avoid offloading computation when the frontier is too small
-  if (active_elements_size <= THRESHOLD) {
-    for (size_t k = 0; k < active_elements_size; k++) {
-      auto deviceGraph = graph.get_device_graph();
-      auto element = active_elements[k];
-      auto start = deviceGraph.begin(element);
-      auto end = deviceGraph.end(element);
-
-      for (auto i = start; i != end; ++i) {
-        auto edge = i.get_index();
-        auto weight = graph.get_edge_weight(edge);
-        auto neighbor = *i;
-        if (functor(element, neighbor, edge, weight)) {
-          out.insert(neighbor);
-        }
-      }
-    }
-    return sygraph::event{};
-  }
-  
   sygraph::event ret {q.submit([&](sycl::handler& cgh) {
     auto inDevFrontier = in.get_device_frontier();
     auto outDevFrontier = out.get_device_frontier();
@@ -196,10 +176,6 @@ sygraph::event vertex(graph_t& graph,
       }
     });
   })};
-
-  if (!in.self_allocated()) {
-    sycl::free(active_elements, q);
-  }
 
   return ret;
 }

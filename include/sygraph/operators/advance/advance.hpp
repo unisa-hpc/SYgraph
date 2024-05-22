@@ -36,7 +36,11 @@ sygraph::event vertex(graph_t& graph,
       throw std::runtime_error("Load balancer not implemented");
     }
   } else {
-    throw std::runtime_error("Frontier type not implemented");
+    if constexpr (lb == sygraph::operators::LoadBalancer::workitem_mapped) {
+      return sygraph::operators::advance::detail::workitem_mapped::vector::vertex(graph, in, out, std::forward<lambda_t>(functor));
+    } else {
+      throw std::runtime_error("Load balancer not implemented");
+    }
   }
 }
 
