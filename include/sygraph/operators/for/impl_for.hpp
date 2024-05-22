@@ -11,48 +11,50 @@
 #include <sygraph/sycl/event.hpp>
 #include <sygraph/utils/vector.hpp>
 
-#include <sygraph/operators/for/impl_for.hpp>
-
 namespace sygraph {
 inline namespace v0 {
 namespace operators {
 
 namespace compute {
 
+namespace detail {
 
-inline namespace v1 {
 template <typename graph_t,
           typename T,
           typename sygraph::frontier::FrontierView FrontierView,
-          typename sygraph::frontier::FrontierType FrontierType,
           typename lambda_t>
-sygraph::event execute(graph_t& graph, 
-                       const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& frontier, 
-                       lambda_t&& functor) {
-  
-  if constexpr (FrontierType == sygraph::frontier::FrontierType::bitmap) {
-    return sygraph::operators::compute::detail::bitmap_execute(graph, frontier, std::forward<lambda_t>(functor));
-  } else if constexpr (FrontierType == sygraph::frontier::FrontierType::vector) {
-    return sygraph::operators::compute::detail::vector_execute(graph, frontier, std::forward<lambda_t>(functor));
-  } else {
-    throw std::runtime_error("Frontier type not implemented");
-
-  }
-}
-}
-
-namespace v0 {
-template <typename graph_t,
-          typename frontier_t,
-          typename lambda_t>
-sygraph::event execute(graph_t& graph, frontier_t& frontier, lambda_t&& functor) {
+sygraph::event bitmap_execute(graph_t& graph, 
+                              const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& frontier, 
+                              lambda_t&& functor) {
   auto q = graph.get_queue();
 
-  using type_t = typename frontier_t::type_t;
+  size_t num_nodes = graph.get_vertex_count();
+  auto devFrontier = frontier.get_device_frontier();
+
+  sygraph::event e = q.submit([&](sycl::handler& cgh) {
+    cgh.parallel_for<class for_kernel>(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) {
+      if (devFrontier.check(idx[0])) {
+        functor(idx[0]);
+      }
+    });
+  });
+
+  return e;
+}
+
+template <typename graph_t,
+          typename T,
+          typename sygraph::frontier::FrontierView FrontierView,
+          typename lambda_t>
+sygraph::event vector_execute(graph_t& graph, 
+                              const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::vector>& frontier, 
+                              lambda_t&& functor) {
+  auto q = graph.get_queue();
+
   size_t active_elements_size = types::detail::MAX_ACTIVE_ELEMS_SIZE;
-  type_t* active_elements;
+  T* active_elements;
   if (!frontier.self_allocated()) {
-    active_elements = sycl::malloc_shared<type_t>(active_elements_size, q);
+    active_elements = sycl::malloc_shared<T>(active_elements_size, q);
   }
   frontier.get_active_elements(active_elements, active_elements_size);
 
@@ -69,8 +71,8 @@ sygraph::event execute(graph_t& graph, frontier_t& frontier, lambda_t&& functor)
 
   return e;
 }
-}
 
+} // namespace detail
 } // namespace compute
 } // namespace operators
 } // namespace v0

@@ -140,7 +140,7 @@ public:
         return (iter + 1) < distances[dst];
       });
       e1.wait_and_throw();
-      auto e2 = sygraph::operators::parallel_for::execute(G, outFrontier, [=](auto v) {
+      auto e2 = sygraph::operators::compute::execute(G, outFrontier, [=](auto v) {
         distances[v] = iter + 1;
       });
       e2.wait_and_throw();
