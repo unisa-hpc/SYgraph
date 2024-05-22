@@ -18,21 +18,23 @@ namespace detail {
 
 namespace workgroup_mapped {
 
+namespace bitmap {
+
 namespace v0 {
 template <typename graph_t,
-          typename in_frontier_t,
-          typename out_frontier_t,
+          typename T,
           typename lambda_t>
-sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& out, lambda_t&& functor) {
-  
+sygraph::event vertex(graph_t& graph,   
+                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::edge, sygraph::frontier::FrontierType::bitmap>& in, 
+                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::edge, sygraph::frontier::FrontierType::bitmap>& out, 
+                      lambda_t&& functor) {  
   sycl::queue& q = graph.get_queue();
 
-  using type_t = typename in_frontier_t::type_t;
   size_t active_elements_size = in.get_num_active_elements();
 
-  type_t* active_elements;
+  T* active_elements;
   if (!in.self_allocated()) {
-    active_elements = sycl::malloc_device<type_t>(active_elements_size, q);
+    active_elements = sycl::malloc_device<T>(active_elements_size, q);
   }
   in.get_active_elements(active_elements, active_elements_size);
 
@@ -47,8 +49,8 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
 
     sycl::local_accessor<size_t, 1> n_edges_local {local_range, cgh};
     sycl::local_accessor<bool, 1> visited {local_range, cgh};
-    sycl::local_accessor<type_t, 1> active_elements_local {local_range, cgh};
-    sycl::local_accessor<type_t, 1> work_group_reduce {local_range, cgh};
+    sycl::local_accessor<T, 1> active_elements_local {local_range, cgh};
+    sycl::local_accessor<T, 1> work_group_reduce {local_range, cgh};
     sycl::local_accessor<size_t, 1> work_group_reduce_tail {1, cgh};
     
     cgh.parallel_for<class workgroup_mapped_advance_kernel>(sycl::nd_range<1>{global_range, local_range}, [=](sycl::nd_item<1> item) {
@@ -68,7 +70,7 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
         work_group_reduce_tail[0] = 0;
       }
       if (gid < active_elements_size) {
-        type_t element = active_elements[gid];
+        T element = active_elements[gid];
         n_edges_local[lid] = graphDev.get_neighbors_count(element);
         active_elements_local[lid] = element;
         visited[lid] = false;
@@ -160,14 +162,14 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
 
 inline namespace v1 {
 template <typename graph_t,
-          typename in_frontier_t,
-          typename out_frontier_t,
+          typename T,
           typename lambda_t>
-sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& out, lambda_t&& functor) {
-  
+sygraph::event vertex(graph_t& graph,   
+                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitmap>& in, 
+                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitmap>& out, 
+                      lambda_t&& functor) {  
   sycl::queue& q = graph.get_queue();
 
-  using type_t = typename in_frontier_t::type_t;
   size_t bitmap_range = in.get_bitmap_range();
   size_t num_nodes = graph.get_vertex_count();
   constexpr size_t COARSENING_FACTOR = 8;
@@ -182,10 +184,10 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
     auto graphDev = graph.get_device_graph();
 
     sycl::local_accessor<size_t, 1> n_edges_local {local_range, cgh};
-    sycl::local_accessor<type_t, 1> active_elements_local {local_range, cgh};
+    sycl::local_accessor<T, 1> active_elements_local {local_range, cgh};
     sycl::local_accessor<size_t, 1> active_elements_tail {local_range / 8, cgh};
     sycl::local_accessor<bool, 1> visited {local_range, cgh};
-    sycl::local_accessor<type_t, 1> work_group_reduce {local_range, cgh};
+    sycl::local_accessor<T, 1> work_group_reduce {local_range, cgh};
     sycl::local_accessor<size_t, 1> work_group_reduce_tail {1, cgh};
     
     cgh.parallel_for<class workgroup_mapped_advance_kernel>(sycl::nd_range<1>{global_range, local_range}, [=](sycl::nd_item<1> item) {
@@ -204,15 +206,26 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
       if (subgroup.leader()) {
         active_elements_tail[subgroup_id] = 0;
       }
+      if (group.leader()) {
+        work_group_reduce_tail[0] = 0;
+      }
 
       sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::sub_group> tail{active_elements_tail[subgroup_id]};
       sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::work_group> tail_global{active_elements_tail[0]};
 
       size_t offset = subgroup_id * subgroup_size;
       if (gid < num_nodes && inDevFrontier.check(gid)) {
+        size_t n_edges = graphDev.get_neighbors_count(gid);
+        // if (n_edges > local_range * 2) { // assign to the workgroup
+        //   work_group_reduce[tail_global++] = gid;
+        // } else { // assign to the subgroup
+        //   size_t loc = tail.fetch_add(1);
+        //   n_edges_local[offset + loc] = n_edges;
+        //   active_elements_local[offset + loc] = gid;
+        // }
         size_t loc = tail.fetch_add(1);
+        n_edges_local[offset + loc] = n_edges;
         active_elements_local[offset + loc] = gid;
-        n_edges_local[offset + loc] = graphDev.get_neighbors_count(gid);
         visited[lid] = false;
       } else {
         visited[lid] = true;
@@ -226,11 +239,7 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
         size_t n_edges = n_edges_local[vertex_id];
         if (n_edges < subgroup_size) {
           continue;
-        } 
-        // else if (n_edges > local_range * 2) { // TODO [!] tune this value
-        //   if (subgroup.leader()) work_group_reduce[tail_global.fetch_add(1)] = vertex;
-        //   continue;
-        // }
+        }
         size_t private_slice = n_edges / subgroup_size;
         auto start = graphDev.begin(vertex) + (private_slice * sgid);
         auto end = sgid == subgroup_size - 1 ? graphDev.end(vertex) : start + private_slice;
@@ -246,7 +255,6 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
         if (subgroup.leader()) {
           visited[vertex % local_range] = true;
         }
-        sycl::group_barrier(subgroup);
       }
       sycl::group_barrier(group);
 
@@ -291,6 +299,7 @@ sygraph::event vertex(graph_t& graph, const in_frontier_t& in, out_frontier_t& o
 }
 } // namespace v1
 
+} // namespace bitmap
 } // namespace workitem_mapped
 } // namespace detail  
 } // namespace advance
