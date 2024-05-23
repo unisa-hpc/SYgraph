@@ -148,6 +148,8 @@ public:
 #ifdef ENABLE_PROFILING
       sygraph::profiler::add_event(e1, "advance");
       sygraph::profiler::add_event(e2, "for");
+      size_t visited_edges = outFrontier.get_num_active_elements();
+      sygraph::profiler::add_visited_edges(visited_edges);
 #endif
 
       sygraph::frontier::swap(inFrontier, outFrontier);
