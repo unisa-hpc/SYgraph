@@ -22,7 +22,7 @@ template <typename graph_t,
           typename T,
           typename sygraph::frontier::FrontierView FrontierView,
           typename lambda_t>
-sygraph::event bitmap_inplace(graph_t& graph, 
+sygraph::event inplace(graph_t& graph, 
                               const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& frontier, 
                               lambda_t&& functor) {
   auto q = graph.get_queue();
@@ -48,7 +48,7 @@ template <typename graph_t,
           typename T,
           typename sygraph::frontier::FrontierView FrontierView,
           typename lambda_t>
-sygraph::event bitmap_external(graph_t& graph, 
+sygraph::event external(graph_t& graph, 
                               const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& in, 
                               const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& out, 
                               lambda_t&& functor) {

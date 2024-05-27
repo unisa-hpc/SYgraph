@@ -23,7 +23,7 @@ template <typename graph_t,
           typename T,
           typename sygraph::frontier::FrontierView FrontierView,
           typename lambda_t>
-sygraph::event bitmap_execute(graph_t& graph, 
+sygraph::event execute(graph_t& graph, 
                               const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& frontier, 
                               lambda_t&& functor) {
   auto q = graph.get_queue();
@@ -46,7 +46,7 @@ template <typename graph_t,
           typename T,
           typename sygraph::frontier::FrontierView FrontierView,
           typename lambda_t>
-sygraph::event vector_execute(graph_t& graph, 
+sygraph::event execute(graph_t& graph, 
                               const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::vector>& frontier, 
                               lambda_t&& functor) {
   auto q = graph.get_queue();
@@ -67,6 +67,42 @@ sygraph::event vector_execute(graph_t& graph,
 
   if (!frontier.self_allocated()) {
     sycl::free(active_elements, q);
+  }
+
+  return e;
+}
+
+template <typename graph_t,
+          typename T,
+          typename sygraph::frontier::FrontierView FrontierView,
+          typename lambda_t>
+sygraph::event execute(graph_t& graph, 
+                              const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitvec>& frontier, 
+                              lambda_t&& functor) {
+  auto q = graph.get_queue();
+  auto devFrontier = frontier.get_device_frontier();
+
+  sygraph::event e;
+  if (devFrontier.use_vector()) {
+    T* active_elements = devFrontier.get_vector();
+    size_t size = devFrontier.get_vector_size();
+
+    e = q.submit([&](sycl::handler& cgh) {
+      cgh.parallel_for(sycl::range<1>{size}, [=](sycl::id<1> idx) {
+        auto element = active_elements[idx];
+        functor(element);
+      });
+    });
+  } else {
+    size_t num_nodes = graph.get_vertex_count();
+
+    e = q.submit([&](sycl::handler& cgh) {
+      cgh.parallel_for(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) {
+        if (devFrontier.check(idx[0])) {
+          functor(idx[0]);
+        }
+      });
+    });
   }
 
   return e;

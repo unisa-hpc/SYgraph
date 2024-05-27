@@ -17,7 +17,6 @@ namespace detail {
 
 namespace workitem_mapped {
 
-namespace bitmap {
 
 template <typename graph_t,
           typename T,
@@ -108,9 +107,6 @@ sygraph::event edge(graph_t& graph,
   return ret;
 }
 
-} // namespace bitmap
-
-namespace vector {
 template <typename graph_t,
           typename T,
           typename lambda_t>
@@ -179,7 +175,6 @@ sygraph::event vertex(graph_t& graph,
 
   return ret;
 }
-} // namespace vector
 
 
 } // namespace workitem_mapped

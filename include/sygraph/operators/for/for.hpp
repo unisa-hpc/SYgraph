@@ -29,15 +29,7 @@ template <typename graph_t,
 sygraph::event execute(graph_t& graph, 
                        const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& frontier, 
                        lambda_t&& functor) {
-  
-  if constexpr (FrontierType == sygraph::frontier::FrontierType::bitmap) {
-    return sygraph::operators::compute::detail::bitmap_execute(graph, frontier, std::forward<lambda_t>(functor));
-  } else if constexpr (FrontierType == sygraph::frontier::FrontierType::vector) {
-    return sygraph::operators::compute::detail::vector_execute(graph, frontier, std::forward<lambda_t>(functor));
-  } else {
-    throw std::runtime_error("Frontier type not implemented");
-
-  }
+  return sygraph::operators::compute::detail::execute(graph, frontier, std::forward<lambda_t>(functor));
 }
 }
 

@@ -28,14 +28,7 @@ template <typename graph_t,
 sygraph::event inplace(graph_t& graph, 
                        const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& frontier, 
                        lambda_t&& functor) {
-  if constexpr (FrontierType == sygraph::frontier::FrontierType::bitmap) {
-    return sygraph::operators::filter::detail::bitmap_inplace(graph, frontier, std::forward<lambda_t>(functor));
-  } else if constexpr (FrontierType == sygraph::frontier::FrontierType::vector) {
-    return sygraph::operators::filter::detail::vector_inplace(graph, frontier, std::forward<lambda_t>(functor));
-  } else {
-    throw std::runtime_error("Frontier type not implemented");
-
-  }
+  return sygraph::operators::filter::detail::inplace(graph, frontier, std::forward<lambda_t>(functor));
 }
 
 template <typename graph_t,
@@ -47,13 +40,7 @@ sygraph::event external(graph_t& graph,
                        const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& in, 
                        const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& out, 
                        lambda_t&& functor) {
-  if constexpr (FrontierType == sygraph::frontier::FrontierType::bitmap) {
-    return sygraph::operators::filter::detail::bitmap_external(graph, in, out, std::forward<lambda_t>(functor));
-  } else if constexpr (FrontierType == sygraph::frontier::FrontierType::vector) {
-    return sygraph::operators::filter::detail::vector_external(graph, in, out, std::forward<lambda_t>(functor));
-  } else {
-    throw std::runtime_error("Frontier type not implemented");
-  }
+  return sygraph::operators::filter::detail::external(graph, in, out, std::forward<lambda_t>(functor));
 }
 
 

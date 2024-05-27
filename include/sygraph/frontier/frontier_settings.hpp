@@ -18,6 +18,7 @@ enum class FrontierView {
 enum class FrontierType {
   bitmap, /**< Frontier implemented as a bitmap. */
   vector, /**< Frontier implemented as a vector. */
+  bitvec, /**< Frontier implemented as a bit vector. */
 };
 
 } // namespace frontier

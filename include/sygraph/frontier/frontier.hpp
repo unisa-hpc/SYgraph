@@ -3,6 +3,7 @@
 #include <sygraph/frontier/frontier_settings.hpp>
 #include <sygraph/frontier/impls/bitmap_frontier.hpp>
 #include <sygraph/frontier/impls/vector_frontier.hpp>
+#include <sygraph/frontier/impls/bitvec_frontier.hpp>
 
 namespace sygraph {
 inline namespace v0 {
@@ -20,6 +21,11 @@ class frontier_impl_t<type_t, FrontierType::bitmap> : public frontier_bitmap_t<t
 template <typename type_t>
 class frontier_impl_t<type_t, FrontierType::vector> : public frontier_vector_t<type_t> {
   using frontier_vector_t<type_t>::frontier_vector_t;
+};
+
+template <typename type_t>
+class frontier_impl_t<type_t, FrontierType::bitvec> : public frontier_bitvec_t<type_t> {
+  using frontier_bitvec_t<type_t>::frontier_bitvec_t;
 };
 } // namespace detail
 
@@ -52,8 +58,10 @@ template <typename type_t,
 void swap(Frontier<type_t, view, type>& a, Frontier<type_t, view, type>& b) {
   if constexpr (type == FrontierType::bitmap) {
     detail::frontier_bitmap_t<type_t>::swap(a, b);
-  } else if (type == FrontierType::vector) {
+  } else if constexpr (type == FrontierType::vector) {
     detail::frontier_vector_t<type_t>::swap(a, b);
+  } else if constexpr (type == FrontierType::bitvec) {
+    detail::frontier_bitvec_t<type_t>::swap(a, b);
   }
 }
 
