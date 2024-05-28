@@ -22,7 +22,7 @@ struct args_t {
     std::cerr << "  -b: binary format" << std::endl;
     std::cerr << "  -p: print output" << std::endl;
     std::cerr << "  -v: validate output" << std::endl;
-    std::cerr << "  -u: undirected graph" << std::endl;
+    std::cerr << "  -u: undirected graph [only for non-binary format]" << std::endl;
     std::cerr << "  -s <source>: source vertex" << std::endl;
   }
 
