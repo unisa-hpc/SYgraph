@@ -55,6 +55,28 @@ struct BFSInstance {
     queue.fill(parents, static_cast<vertex_t>(-1), size).wait();
   }
 
+  const size_t get_visited_vertices() const {
+    size_t vertex_count = G.get_vertex_count();
+    size_t visited_nodes = 0;
+    for (size_t i = 0; i < G.get_vertex_count(); i++) {
+      if (distances[i] != static_cast<edge_t>(vertex_count + 1)) {
+        visited_nodes++;
+      }
+    }
+    return visited_nodes;
+  }
+
+  const size_t get_visited_edges() const {
+    size_t vertex_count = G.get_vertex_count();
+    size_t visited_edges = 0;
+    for (size_t i = 0; i < G.get_vertex_count(); i++) {
+      if (distances[i] != static_cast<edge_t>(vertex_count + 1)) {
+        visited_edges += G.get_degree(i);
+      }
+    }
+    return visited_edges;
+  }
+
   /**
    * @brief Destroys the BFSInstance object and frees the allocated memory.
    */
@@ -148,14 +170,16 @@ public:
 #ifdef ENABLE_PROFILING
       sygraph::profiler::add_event(e1, "advance");
       sygraph::profiler::add_event(e2, "for");
-      size_t visited_edges = outFrontier.get_num_active_elements();
-      sygraph::profiler::add_visited_edges(visited_edges);
 #endif
 
       sygraph::frontier::swap(inFrontier, outFrontier);
       outFrontier.clear();
       iter++;
     }
+
+#ifdef ENABLE_PROFILING
+    sygraph::profiler::add_visited_edges(_instance->get_visited_edges());
+#endif
   }
 
   /**
