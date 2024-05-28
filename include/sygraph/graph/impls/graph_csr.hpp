@@ -71,7 +71,7 @@ public:
    * @param vertex The vertex.
    * @return The number of neighbors.
    */
-  SYCL_EXTERNAL inline size_t get_neighbors_count(vertex_t vertex) const {
+  SYCL_EXTERNAL inline size_t get_degree(vertex_t vertex) const {
     return row_offsets[vertex + 1] - row_offsets[vertex];
   }
 
@@ -220,12 +220,12 @@ public:
   }
 
   /**
-   * @brief Returns the number of neighbors of a vertex in the graph.
+   * @brief Returns the number of neighbors (out degree) of a vertex in the graph.
    * @param vertex The vertex.
    * @return The number of neighbors.
    */
-  inline size_t get_neighbors_count(vertex_t vertex) const override {
-    return device_graph.get_neighbors_count(vertex);
+  inline size_t get_degree(vertex_t vertex) const override {
+    return device_graph.get_degree(vertex);
   }
 
   /**

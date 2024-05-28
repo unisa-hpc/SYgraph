@@ -30,7 +30,7 @@ public:
 
   virtual inline size_t get_edge_count() const = 0;
 
-  virtual inline size_t get_neighbors_count(vertex_t vertex) const = 0;
+  virtual inline size_t get_degree(vertex_t vertex) const = 0;
 
   virtual inline vertex_t get_first_neighbor_idx(vertex_t vertex) const = 0;
 

@@ -60,7 +60,7 @@ struct vector_kernel {
     }
     if (gid < active_elements_size) {
       T element = active_elements[gid];
-      n_edges_local[lid] = graphDev.get_neighbors_count(element);
+      n_edges_local[lid] = graphDev.get_degree(element);
       active_elements_local[lid] = element;
       visited[lid] = false;
     } else {
@@ -183,7 +183,7 @@ struct bitmap_kernel {
 
     size_t offset = subgroup_id * subgroup_size;
     if (gid < num_nodes && inDevFrontier.check(gid)) {
-      size_t n_edges = graphDev.get_neighbors_count(gid);
+      size_t n_edges = graphDev.get_degree(gid);
       // if (n_edges > local_range * 2) { // assign to the workgroup
       //   work_group_reduce[tail_global++] = gid;
       // } else { // assign to the subgroup
@@ -228,7 +228,7 @@ struct bitmap_kernel {
 
     // for (size_t i = 0; i < work_group_reduce_tail[0]; i++) { // TODO: fix this
     //   auto vertex = work_group_reduce[i];
-    //   size_t n_edges = graphDev.get_neighbors_count(vertex);
+    //   size_t n_edges = graphDev.get_degree(vertex);
     //   size_t private_slice = n_edges / local_range;
     //   auto start = graphDev.begin(vertex) + (private_slice * lid);
     //   auto end = lid == local_range - 1 ? graphDev.end(vertex) : start + private_slice;
