@@ -180,7 +180,7 @@ public:
   }
 
   friend class frontier_bitmap_t<type_t>;
-private:
+protected:
   void set_ptr(bitmap_type* ptr) {
     data = ptr;
   }
