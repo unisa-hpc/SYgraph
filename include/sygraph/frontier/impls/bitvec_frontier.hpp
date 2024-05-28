@@ -110,15 +110,25 @@ public:
    * @param val The value of the bit to set.
    */
   SYCL_EXTERNAL inline bool insert(type_t val) const {
-    sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::device> bitmap_ref(bitmap[get_bitmap_index(val)]);
-    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> tail_ref(vector_tail[0]);
-    bitmap_ref |= static_cast<bitmap_type>(static_cast<bitmap_type>(1) << (val % bitmap_range));
-
-    if (tail_ref < vector_max_size) {
-      vector[tail_ref.fetch_add(1)] = val;
-    }
+    insert_only_bitmap(val);
+    insert_only_vector(val);
     
     return true;
+  }
+
+  SYCL_EXTERNAL inline bool insert_only_bitmap(type_t val) const {
+    sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::device> bitmap_ref(bitmap[get_bitmap_index(val)]);
+    bitmap_ref |= static_cast<bitmap_type>(static_cast<bitmap_type>(1) << (val % bitmap_range));
+    return true;
+  }
+
+  SYCL_EXTERNAL inline bool insert_only_vector(type_t val) const {
+    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> tail_ref(vector_tail[0]);
+    if (tail_ref < vector_max_size) {
+      vector[tail_ref.fetch_add(1)] = val;
+      return true;
+    }
+    return false;
   }
 
   /**
