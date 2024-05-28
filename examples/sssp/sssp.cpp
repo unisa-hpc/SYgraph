@@ -13,10 +13,11 @@ bool validate(const GraphT& graph, BenchT& bfs, uint source) {
 }
 
 int main(int argc, char** argv) {
-  args_t args {argc, argv};
+  using type_t = unsigned int;
+  args_t<type_t> args {argc, argv};
 
   std::cerr << "[*  ] Reading CSR" << std::endl;
-  auto csr = read_csr<uint, uint, uint>(args);
+  auto csr = read_csr<type_t, type_t, type_t>(args);
 
 #ifdef ENABLE_PROFILING
   sycl::queue q {sycl::gpu_selector_v, sycl::property::queue::enable_profiling()};

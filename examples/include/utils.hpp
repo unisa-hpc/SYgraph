@@ -5,13 +5,14 @@
 #include <sygraph/sygraph.hpp>
 
 
+template <typename index_t>
 struct args_t {
   bool print_output = false;
   bool validate = false;
   bool binary_format = false;
   bool random_source = true;
   std::string path;
-  uint source;
+  index_t source;
 
   args_t(int argc, char** argv) {
     if (argc < 2) {
@@ -63,8 +64,8 @@ uint get_random_source(size_t size) {
 }
 
 template<typename value_t, typename index_t, typename offset_t>
-sygraph::formats::CSR<value_t, index_t, offset_t> read_csr(const args_t& args) {
-  sygraph::formats::CSR<uint, uint, uint> csr;
+sygraph::formats::CSR<value_t, index_t, offset_t> read_csr(const args_t<index_t>& args) {
+  sygraph::formats::CSR<value_t, index_t, offset_t> csr;
   if (args.binary_format) {
     std::ifstream file(args.path, std::ios::binary);
     if (!file.is_open()) {
