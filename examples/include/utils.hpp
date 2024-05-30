@@ -11,17 +11,32 @@ struct args_t {
   bool validate = false;
   bool binary_format = false;
   bool random_source = true;
+  bool undirected = false;
   std::string path;
   index_t source;
 
+  void print_usage() {
+    std::cerr << "Usage: " << path << " [-b] <path-to-graph> [-p] [-v] [-u] [-s <source>]" << std::endl;
+    std::cerr << "Options:" << std::endl;
+    std::cerr << "  -h: show this message" << std::endl;
+    std::cerr << "  -b: binary format" << std::endl;
+    std::cerr << "  -p: print output" << std::endl;
+    std::cerr << "  -v: validate output" << std::endl;
+    std::cerr << "  -u: undirected graph [only for non-binary format]" << std::endl;
+    std::cerr << "  -s <source>: source vertex" << std::endl;
+  }
+
   args_t(int argc, char** argv) {
     if (argc < 2) {
-      std::cerr << "Usage: " << argv[0] << " [-b] <path-to-graph>" << std::endl;
+      print_usage();
       exit(1);
     } else {
       if (std::string(argv[1]) == "-b") {
         binary_format = true;
         path = argv[2];
+      } else if (std::string(argv[1]) == "-h") {
+        print_usage();
+        exit(0);
       } else {
         path = argv[1];
       }
@@ -31,6 +46,8 @@ struct args_t {
         print_output = true;
       } else if (std::string(argv[i]) == "-v") {
         validate = true;
+      } else if (std::string(argv[i]) == "-u") {
+        undirected = true;
       } else if (std::string(argv[i]) == "-s") {
         random_source = false;
         try {
@@ -39,6 +56,11 @@ struct args_t {
           std::cerr << "Error: -s flag requires an integer argument" << std::endl;
           exit(1);
         }
+      } else if (std::string(argv[i]) == "-h") {
+        print_usage();
+        exit(0);
+      } else {
+        continue;
       }
     }
   }
@@ -79,7 +101,7 @@ sygraph::formats::CSR<value_t, index_t, offset_t> read_csr(const args_t<index_t>
       std::cerr << "Error: could not open file " << args.path << std::endl;
       exit(1);
     }
-    auto coo = sygraph::io::coo::from_coo<value_t, index_t, offset_t>(file);
+    auto coo = sygraph::io::coo::from_coo<value_t, index_t, offset_t>(file, args.undirected);
     csr = sygraph::io::csr::from_coo(coo);
   }
   
