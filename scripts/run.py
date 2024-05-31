@@ -68,17 +68,6 @@ def parse_output(graph: GraphObj, output: str) -> pd.Series:
   ret = pd.Series({'graph': graph.name, 'source': source, 'gpu_time_ms': gpu_time_ms, 'edge_throughput': edge_throughput, 'success': True})
   return ret
 
-def parse_args(command, graph, source):
-  args = [os.path.join('.', command)]
-  if graph.format == 'bin':
-    args.append('-b')
-  args.append(graph.path)
-  if graph.format == 'mtx' and graph.undirected:
-    args.append('-u')
-  if source is not None:
-    args.append('-s')
-    args.append(str(source))
-
 def calculate_metrics(data: pd.DataFrame) -> pd.DataFrame:
   cols = [f'{col}_{met}' for col in MET_COLS for met in METRICS]
   cols = DEF_COLS + cols
@@ -110,7 +99,7 @@ def exec_command(command, graph: GraphObj, cwd):
   if graph.source is not None:
     args.append('-s')
     args.append(str(graph.source))
-  
+
   proc = subprocess.run(args, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
   if proc.returncode != 0:
     raise ValueError(f'Error running command: {proc.stdout}')
@@ -124,9 +113,8 @@ def main():
   data = pd.DataFrame(columns=COLUMNS)
   for graph in graphs:
     for _ in tqdm(range(args.num_iterations), desc=f'Running on graph {graph.name}'):
-      graph = GraphObj(graph.path, graph.name, graph.format, graph.undirected, args.source)
       output = exec_command(args.command, graph, args.directory)
-      if not args.random_source and args.source is None:
+      if not args.random_source and graph.source is None:
         graph = GraphObj(graph.path, graph.name, graph.format, graph.undirected, int(output['source']))
       data.loc[len(data)] = output
       
