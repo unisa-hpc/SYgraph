@@ -13,7 +13,7 @@ if __name__ == '__main__':
   
   df = pd.read_csv(args.input)
   
-  seaborn.violinplot(data=df, x='graph', y='gpu_time_ms', split=True)
+  seaborn.boxplot(data=df, x='graph', y='gpu_time_ms', split=True)
   plt.ylabel('GPU Time (ms)')
   plt.xlabel('Graph')
   plt.xticks(rotation=45)
