@@ -6,11 +6,12 @@ import argparse
 import subprocess
 import pandas as pd
 from typing import List, Tuple, Dict, Any
+from tqdm import tqdm
 
 from types import SimpleNamespace
 from collections import namedtuple
 
-GraphObj = namedtuple('Graph', ['path', 'format', 'undirected'])
+GraphObj = namedtuple('Graph', ['path', 'name', 'format', 'undirected', 'source'])
 METRICS = ['mean', 'median', 'std', 'min', 'max']
 COMMANDS = ['bfs', 'sssp']
 DEF_COLS = ['graph', 'source', 'success']
@@ -32,36 +33,30 @@ def parse_commands():
   
   return parser.parse_args()
 
-def parse_graph_file(graph_file):
-  path = ''
-  undirected = False
-  format = ''
+def parse_graph_file(graph_file: str):
   
-  if graph_file.endswith(']'):
-    bracets = graph_file.split('[')
-    path = bracets[0]
-    flag = bracets[1][:-1]
-    if flag != 'd' and flag != 'u':
-      raise ValueError(f'Invalid flag: {flag}')
-    undirected = flag == 'u'
+  patt = re.compile(r'^(.+\/([^\/]+)\.(bin|mtx))(?:\[(\d+)?:?(u|d)?\])?$')
+  path, name, format, source, flag = patt.search(graph_file).groups()
+  if flag is not None:
+    flag = flag == 'u'
   else:
-    path = graph_file
-    undirected = False
+    flag = False
+    
+  if source is not None:
+    source = int(source)
+    
+  if format is None:
+    raise ValueError(f'Invalid graph file: {graph_file}')
   
-  format = path.split('.')[-1]
-  if format not in FORMATS:
-    raise ValueError(f'Invalid format: {format}')
-  
-  return GraphObj(path=path, format=format, undirected=undirected)
+  return GraphObj(path=path, name=name, format=format, undirected=flag, source=source)
 
 
-def parse_output(graph_path, output: str) -> pd.Series:
+def parse_output(graph: GraphObj, output: str) -> pd.Series:
   total_gpu_time_patt = re.compile(r'Total GPU Time: (\d+\.\d+) ms')
   edge_throughput_patt = re.compile(r'Total Edge-Througput \(MTEPS\): (\d+\.\d+) MTEPS')
   source_patt = re.compile(r'.* on source (\d+)')
-  source, gpu_time_ms, edge_throughput = None, None, None
+  source, gpu_time_ms, edge_throughput = graph.source, None, None
   
-  graph_name = os.path.basename(graph_path).split('.')[0]
   for line in output.split('\n'):
     if total_gpu_time_patt.match(line):
       gpu_time_ms = float(total_gpu_time_patt.match(line).group(1))
@@ -70,7 +65,7 @@ def parse_output(graph_path, output: str) -> pd.Series:
     elif source_patt.match(line):
       source = int(source_patt.match(line).group(1))  
   
-  ret = pd.Series({'graph': graph_name, 'source': source, 'gpu_time_ms': gpu_time_ms, 'edge_throughput': edge_throughput, 'success': True})
+  ret = pd.Series({'graph': graph.name, 'source': source, 'gpu_time_ms': gpu_time_ms, 'edge_throughput': edge_throughput, 'success': True})
   return ret
 
 def parse_args(command, graph, source):
@@ -84,39 +79,10 @@ def parse_args(command, graph, source):
     args.append('-s')
     args.append(str(source))
 
-def exec_command(command, graph: GraphObj, cwd, num_runs, random_source: bool = False, source = None):
-  cwd = os.path.abspath(cwd)
-  def parse_args():
-    args = [os.path.join('.', command)]
-    if graph.format == 'bin':
-      args.append('-b')
-    args.append(graph.path)
-    if graph.format == 'mtx' and graph.undirected:
-      args.append('-u')
-    if source is not None:
-      args.append('-s')
-      args.append(str(source))
-    return args
-  args = parse_args()
-  
-  ret = []
-  for it in range(num_runs):
-    print(f'Running iteration {it+1}/{num_runs}')
-    proc = subprocess.run(args, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    if proc.returncode != 0:
-      raise ValueError(f'Error running command: {proc.stdout}')
-    val = parse_output(graph.path, proc.stdout)
-    if not random_source:
-      source = int(val['source'])
-      args = parse_args()
-    ret.append(val)
-  return ret
-
 def calculate_metrics(data: pd.DataFrame) -> pd.DataFrame:
   cols = [f'{col}_{met}' for col in MET_COLS for met in METRICS]
   cols = DEF_COLS + cols
   ret = pd.DataFrame(columns=cols)
-  
    
   for name, group in data.groupby('graph'):
     row = {col: None for col in cols}
@@ -128,8 +94,28 @@ def calculate_metrics(data: pd.DataFrame) -> pd.DataFrame:
       for met in METRICS:
         row[f'{col}_{met}'] = group[col].agg(met)
     
-    ret = pd.concat([ret, pd.DataFrame([row])])
+    tmp = pd.DataFrame([row])
+    ret = pd.concat([ret.astype(tmp.dtypes), tmp.astype(ret.dtypes)])
   return ret
+
+
+def exec_command(command, graph: GraphObj, cwd):
+  cwd = os.path.abspath(cwd)
+  args = [os.path.join('.', command)]
+  if graph.format == 'bin':
+    args.append('-b')
+  args.append(graph.path)
+  if graph.format == 'mtx' and graph.undirected:
+    args.append('-u')
+  if graph.source is not None:
+    args.append('-s')
+    args.append(str(graph.source))
+  
+  proc = subprocess.run(args, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+  if proc.returncode != 0:
+    raise ValueError(f'Error running command: {proc.stdout}')
+  val = parse_output(graph, proc.stdout)
+  return val
       
 def main():
   args = parse_commands()
@@ -137,10 +123,13 @@ def main():
 
   data = pd.DataFrame(columns=COLUMNS)
   for graph in graphs:
-    print("Running on graph: ", graph.path)
-    output = exec_command(args.command, graph, args.directory, args.num_iterations, args.random_source, args.source)
-    tmp = pd.DataFrame(output)
-    data = pd.concat([data.astype(tmp.dtypes), tmp.astype(data.dtypes)])
+    for _ in tqdm(range(args.num_iterations), desc=f'Running on graph {graph.name}'):
+      graph = GraphObj(graph.path, graph.name, graph.format, graph.undirected, args.source)
+      output = exec_command(args.command, graph, args.directory)
+      if not args.random_source and args.source is None:
+        graph = GraphObj(graph.path, graph.name, graph.format, graph.undirected, int(output['source']))
+      data.loc[len(data)] = output
+      
   
   if args.parse:
     data = calculate_metrics(data)
