@@ -170,8 +170,10 @@ struct bitmap_kernel {
     size_t subgroup_size = subgroup.get_local_range()[0];
     size_t sgid = subgroup.get_local_linear_id();
     int* bitmap_offsets = inDevFrontier.get_offsets();
-
-    size_t actual_id = bitmap_offsets[group_id] * inDevFrontier.get_bitmap_range() + lid;
+    
+    size_t coarsening_factor = local_range / inDevFrontier.get_bitmap_range();
+    size_t acutal_id_offset = group_id * coarsening_factor + lid / inDevFrontier.get_bitmap_range();
+    size_t actual_id = bitmap_offsets[acutal_id_offset] * inDevFrontier.get_bitmap_range() + lid;
 
     // 1. load number of edges in local memory
     if (subgroup.leader()) {
@@ -339,7 +341,7 @@ sygraph::event vertex_bitmap(graph_t& graph,
 
   size_t bitmap_range = in.get_bitmap_range();
   size_t num_nodes = graph.get_vertex_count();
-  constexpr size_t COARSENING_FACTOR = 1;
+  constexpr size_t COARSENING_FACTOR = 8;
   auto inDevFrontier = in.get_device_frontier();
   auto outDevFrontier = out.get_device_frontier();
   auto graphDev = graph.get_device_graph();
@@ -349,7 +351,7 @@ sygraph::event vertex_bitmap(graph_t& graph,
   auto e = q.submit([&](sycl::handler& cgh) {
 
     sycl::range<1> local_range{bitmap_range * COARSENING_FACTOR};
-    size_t global_size = offsets_size * local_range[0];
+    size_t global_size = offsets_size * bitmap_range;
     sycl::range<1> global_range{global_size > local_range[0] ? global_size + (local_range[0] - (global_size % local_range[0])) : local_range[0]};
     // sycl::range<1> global_range{num_nodes > local_range[0] ? num_nodes + (local_range[0] - (num_nodes % local_range[0])) : local_range[0]};
     sycl::local_accessor<size_t, 1> n_edges_local {local_range, cgh};
