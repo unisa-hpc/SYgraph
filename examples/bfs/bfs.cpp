@@ -32,7 +32,7 @@ bool validate(const GraphT& graph, BFS_T& bfs, uint source) {
         if (distances[neighbor] == graph.get_vertex_count() + 1) {
           distances[neighbor] = distances[vertex] + 1;
           if (distances[neighbor] != bfs.get_distance(neighbor)) {
-            std::cout << "Distance mismatch at vertex " << neighbor << " expected " << distances[neighbor] << " got " << bfs.get_distance(neighbor) << std::endl;
+            // std::cout << "Distance mismatch at vertex " << neighbor << " expected " << distances[neighbor] << " got " << bfs.get_distance(neighbor) << std::endl;
             mismatches++;
           }
           outFrontier.push_back(neighbor);

@@ -45,6 +45,28 @@ struct SSSPInstance {
     queue.fill(visited, -1, size).wait();
   }
 
+  const size_t get_visited_vertices() const {
+    size_t vertex_count = G.get_vertex_count();
+    size_t visited_nodes = 0;
+    for (size_t i = 0; i < G.get_vertex_count(); i++) {
+      if (distances[i] != static_cast<edge_t>(vertex_count + 1)) {
+        visited_nodes++;
+      }
+    }
+    return visited_nodes;
+  }
+
+  const size_t get_visited_edges() const {
+    size_t vertex_count = G.get_vertex_count();
+    size_t visited_edges = 0;
+    for (size_t i = 0; i < G.get_vertex_count(); i++) {
+      if (distances[i] != static_cast<edge_t>(vertex_count + 1)) {
+        visited_edges += G.get_degree(i);
+      }
+    }
+    return visited_edges;
+  }
+
   ~SSSPInstance() {
     sycl::queue& queue = G.get_queue();
     sycl::free(distances, queue);
@@ -104,7 +126,7 @@ public:
     inFrontier.insert(source);
 
     while (!inFrontier.empty()) {
-      auto e1 = sygraph::operators::advance::vertex<load_balance_t::workitem_mapped>(G, inFrontier, outFrontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
+      auto e1 = sygraph::operators::advance::vertex<load_balance_t::workgroup_mapped>(G, inFrontier, outFrontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
         weight_t source_distance = sygraph::sync::load(&distances[src]);
         weight_t distance_to_neighbor = source_distance + weight;
 
@@ -125,14 +147,17 @@ public:
       e2.wait();
 
 #ifdef ENABLE_PROFILING
-      sygraph::profiler::add_event(e1);
-      sygraph::profiler::add_event(e2);
+      sygraph::profiler::add_event(e1, "advance");
+      sygraph::profiler::add_event(e2, "filter");
 #endif
       
       sygraph::frontier::swap(inFrontier, outFrontier);
       outFrontier.clear();
       iter++;
     }
+#ifdef ENABLE_PROFILING
+    sygraph::profiler::add_visited_edges(_instance->get_visited_edges());
+#endif
   }
 
   const weight_t get_distance(size_t vertex) const {
