@@ -183,18 +183,18 @@ struct bitmap_kernel {
       work_group_reduce_tail[0] = 0;
     }
 
-    sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::sub_group> tail{active_elements_tail[subgroup_id]};
-    sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::work_group> tail_global{active_elements_tail[0]};
+    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::sub_group> tail{active_elements_tail[subgroup_id]};
+    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> tail_global{active_elements_tail[0]};
 
     size_t offset = subgroup_id * subgroup_size;
     if (actual_id < num_nodes && inDevFrontier.check(actual_id)) {
       size_t n_edges = graphDev.get_degree(actual_id);
       // if (n_edges > local_range * 2) { // assign to the workgroup
-      //   work_group_reduce[tail_global++] = gid;
+      //   work_group_reduce[tail_global++] = actual_id;
       // } else { // assign to the subgroup
       //   size_t loc = tail.fetch_add(1);
       //   n_edges_local[offset + loc] = n_edges;
-      //   active_elements_local[offset + loc] = gid;
+      //   active_elements_local[offset + loc] = actual_id;
       // }
       size_t loc = tail.fetch_add(1);
       n_edges_local[offset + loc] = n_edges;

@@ -34,14 +34,14 @@ struct SSSPInstance {
     sycl::queue& queue = G.get_queue();
     size_t size = G.get_vertex_count();
 
-    distances = sycl::malloc_shared<edge_t>(size, queue);
+    distances = memory::detail::memory_alloc<edge_t, memory::space::shared>(size, queue);
     queue.fill(distances, static_cast<weight_t>(size + 1), size).wait();
     distances[source] = static_cast<edge_t>(0);
 
-    parents = sycl::malloc_shared<vertex_t>(size, queue);
+    parents = memory::detail::memory_alloc<vertex_t, memory::space::shared>(size, queue);
     queue.fill(parents, static_cast<vertex_t>(-1), size).wait();
 
-    visited = sycl::malloc_shared<int>(size, queue);
+    visited = memory::detail::memory_alloc<int, memory::space::shared>(size, queue);
     queue.fill(visited, -1, size).wait();
   }
 

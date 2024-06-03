@@ -130,8 +130,8 @@ public:
   }
 
   frontier_vector_t(sycl::queue& q, size_t num_elems) : q(q), vector(num_elems) {
-    vector.data = sycl::malloc_shared<type_t>(num_elems, q);
-    vector.tail = sycl::malloc_shared<size_t>(1, q);
+    vector.data = memory::detail::memory_alloc<type_t, memory::space::shared>(num_elems, q);
+    vector.tail = memory::detail::memory_alloc<size_t, memory::space::shared>(1, q);
     vector.set_tail(0);
   }
 

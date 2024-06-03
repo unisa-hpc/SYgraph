@@ -75,7 +75,7 @@ sygraph::event execute(graph_t& graph,
   size_t active_elements_size = types::detail::MAX_ACTIVE_ELEMS_SIZE;
   T* active_elements;
   if (!frontier.self_allocated()) {
-    active_elements = sycl::malloc_shared<T>(active_elements_size, q);
+    active_elements = memory::detail::memory_alloc<T, memory::space::shared>(active_elements_size, q);
   }
   frontier.get_active_elements(active_elements, active_elements_size);
 

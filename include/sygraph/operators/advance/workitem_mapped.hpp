@@ -31,7 +31,7 @@ sygraph::event vertex(graph_t& graph,
   size_t active_elements_size = types::detail::MAX_ACTIVE_ELEMS_SIZE;
   T* active_elements;
   if (!in.self_allocated()) {
-    active_elements = sycl::malloc_shared<T>(active_elements_size, q);
+    active_elements = memory::detail::memory_alloc<T, memory::space::shared>(active_elements_size, q);
   }
   in.get_active_elements(active_elements, active_elements_size);
 
@@ -78,7 +78,7 @@ sygraph::event edge(graph_t& graph,
   sycl::queue& q = graph.get_queue();
 
   size_t active_elements_size = in.get_num_active_elements();
-  T* active_elements = sycl::malloc_shared<T>(active_elements_size, q);
+  T* active_elements = memory::detail::memory_alloc<T, memory::space::shared>(active_elements_size, q);
   in.get_active_elements(active_elements);
 
   sygraph::event ret {q.submit([&](sycl::handler& cgh) {

@@ -247,6 +247,8 @@ public:
    */
   ~frontier_bitmap_t() {
     sycl::free(bitmap.get_data(), q);
+    sycl::free(bitmap.get_offsets(), q);
+    sycl::free(bitmap.get_offsets_size(), q);
   }
 
   inline size_t get_bitmap_size() const {
