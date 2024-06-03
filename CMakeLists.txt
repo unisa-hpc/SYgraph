@@ -17,6 +17,7 @@ option(SYGRAPH_BUILD_TESTS "Build tests" OFF)
 option(SYGRAPH_BUILD_EXAMPLES "Build Examples" OFF)
 option(SYGRAPH_SAMPLE_DATA "Generate samples data" OFF)
 option(SYGRAPH_ENABLE_PROFILING "Enable profiling" OFF)
+option(SYGRAPH_ENABLE_PREFETCH "Enable runtime to prefetch shared memory allocation. Turn it OFF for compatibility" OFF)
 
 if (SYGRAPH_BUILD_TESTS)
   add_subdirectory(tests)
@@ -29,6 +30,10 @@ endif()
 
 if (SYGRAPH_ENABLE_PROFILING)
   target_compile_definitions(sygraph INTERFACE "ENABLE_PROFILING")
+endif()
+
+if (SYGRAPH_ENABLE_PREFETCH)
+  target_compile_definitions(sygraph INTERFACE "ENABLE_PREFETCH")
 endif()
 
 if (SYGRAPH_BUILD_EXAMPLES)

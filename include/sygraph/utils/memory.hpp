@@ -21,7 +21,11 @@ inline T* memory_alloc(size_t n, sycl::queue& q) {
   } else if constexpr (V == space::device) {
     return sycl::malloc_device<T>(n, q);
   } else if constexpr (V == space::shared) {
-    return sycl::malloc_shared<T>(n, q);
+    T* ptr = sycl::malloc_shared<T>(n, q);
+#ifdef ENABLE_PREFETCH
+    q.prefetch(ptr, n * sizeof(T)).wait();
+#endif
+    return ptr;
   }
 
   throw std::runtime_error("Unknown memory space");
