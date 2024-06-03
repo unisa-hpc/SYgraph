@@ -204,6 +204,28 @@ struct bitmap_kernel {
       visited[lid] = true;
     }
 
+    // sycl::group_barrier(group);
+    // for (size_t i = 0; i < work_group_reduce_tail[0]; i++) { // TODO: fix this
+    //   auto vertex = work_group_reduce[i];
+    //   size_t n_edges = graphDev.get_degree(vertex);
+    //   size_t private_slice = n_edges / local_range;
+    //   auto start = graphDev.begin(vertex) + (private_slice * lid);
+    //   auto end = lid == local_range - 1 ? graphDev.end(vertex) : start + private_slice;
+
+    //   for (auto n = start; n != end; ++n) {
+    //     auto edge = n.get_index();
+    //     auto weight = graphDev.get_edge_weight(edge);
+    //     auto neighbor = *n;
+    //     if (functor(vertex, neighbor, edge, weight)) {
+    //       outDevFrontier.insert(neighbor);
+    //     }
+    //   }
+    //   if (group.leader()) {
+    //     visited[vertex % local_range] = true;
+    //   }
+    //   // sycl::group_barrier(group);
+    // }
+
     sycl::group_barrier(subgroup);
 
     for (size_t i = 0; i < active_elements_tail[subgroup_id]; i++) { // active_elements_tail[subgroup_id] is always less or equal than subgroup_size
@@ -229,28 +251,7 @@ struct bitmap_kernel {
         visited[vertex % local_range] = true;
       }
     }
-    sycl::group_barrier(group);
-
-    // for (size_t i = 0; i < work_group_reduce_tail[0]; i++) { // TODO: fix this
-    //   auto vertex = work_group_reduce[i];
-    //   size_t n_edges = graphDev.get_degree(vertex);
-    //   size_t private_slice = n_edges / local_range;
-    //   auto start = graphDev.begin(vertex) + (private_slice * lid);
-    //   auto end = lid == local_range - 1 ? graphDev.end(vertex) : start + private_slice;
-
-    //   for (auto n = start; n != end; ++n) {
-    //     auto edge = n.get_index();
-    //     auto weight = graphDev.get_edge_weight(edge);
-    //     auto neighbor = *n;
-    //     if (functor(vertex, neighbor, edge, weight)) {
-    //       outDevFrontier.insert(neighbor);
-    //     }
-    //   }
-    //   if (group.leader()) {
-    //     visited[vertex % local_range] = true;
-    //   }
-    //   sycl::group_barrier(group);
-    // }
+    sycl::group_barrier(subgroup);
 
     if (!visited[lid]) {
       auto vertex = actual_id;
