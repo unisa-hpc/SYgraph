@@ -31,9 +31,6 @@ sygraph::event execute(graph_t& graph,
   size_t num_nodes = graph.get_vertex_count();
   auto devFrontier = frontier.get_device_frontier();
 
-  size_t local_size = frontier.get_bitmap_range();
-  size_t global_size = frontier.compute_offsets();
-
   size_t bitmap_range = frontier.get_bitmap_range();
   size_t offsets_size = frontier.compute_offsets();
 
