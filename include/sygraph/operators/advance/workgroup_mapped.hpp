@@ -23,7 +23,7 @@ struct vector_kernel {
                 size_t active_elements_size, 
                 frontier_dev_t inDevFrontier, 
                 frontier_dev_t outDevFrontier, 
-                graph_dev_t graphDev, 
+                graph_dev_t graphDev,
                 sycl::local_accessor<size_t, 1> n_edges_local, 
                 sycl::local_accessor<bool, 1> visited, 
                 sycl::local_accessor<T, 1> active_elements_local, 
@@ -34,7 +34,7 @@ struct vector_kernel {
       active_elements_size{active_elements_size}, 
       inDevFrontier{inDevFrontier}, 
       outDevFrontier{outDevFrontier}, 
-      graphDev{graphDev}, 
+      graphDev{graphDev},
       n_edges_local{n_edges_local}, 
       visited{visited}, 
       active_elements_local{active_elements_local}, 
@@ -169,6 +169,9 @@ struct bitmap_kernel {
     auto subgroup_id = subgroup.get_group_id();
     size_t subgroup_size = subgroup.get_local_range()[0];
     size_t sgid = subgroup.get_local_linear_id();
+    int* bitmap_offsets = inDevFrontier.get_offsets();
+
+    size_t actual_id = bitmap_offsets[group_id] * inDevFrontier.get_bitmap_range() + lid;
 
     // 1. load number of edges in local memory
     if (subgroup.leader()) {
@@ -182,8 +185,8 @@ struct bitmap_kernel {
     sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::work_group> tail_global{active_elements_tail[0]};
 
     size_t offset = subgroup_id * subgroup_size;
-    if (gid < num_nodes && inDevFrontier.check(gid)) {
-      size_t n_edges = graphDev.get_degree(gid);
+    if (actual_id < num_nodes && inDevFrontier.check(actual_id)) {
+      size_t n_edges = graphDev.get_degree(actual_id);
       // if (n_edges > local_range * 2) { // assign to the workgroup
       //   work_group_reduce[tail_global++] = gid;
       // } else { // assign to the subgroup
@@ -193,7 +196,7 @@ struct bitmap_kernel {
       // }
       size_t loc = tail.fetch_add(1);
       n_edges_local[offset + loc] = n_edges;
-      active_elements_local[offset + loc] = gid;
+      active_elements_local[offset + loc] = actual_id;
       visited[lid] = false;
     } else {
       visited[lid] = true;
@@ -244,11 +247,11 @@ struct bitmap_kernel {
     //   if (group.leader()) {
     //     visited[vertex % local_range] = true;
     //   }
+    //   sycl::group_barrier(group);
     // }
-    // sycl::group_barrier(group);
 
     if (!visited[lid]) {
-      auto vertex = gid;
+      auto vertex = actual_id;
       auto start = graphDev.begin(vertex);
       auto end = graphDev.end(vertex);
 
@@ -330,23 +333,25 @@ template <typename graph_t,
           typename lambda_t>
 sygraph::event vertex_bitmap(graph_t& graph,   
                       const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitvec>& in, 
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitvec>& out, 
+                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitvec>& out,
                       lambda_t&& functor) {  
   sycl::queue& q = graph.get_queue();
 
   size_t bitmap_range = in.get_bitmap_range();
   size_t num_nodes = graph.get_vertex_count();
-  constexpr size_t COARSENING_FACTOR = 8;
+  constexpr size_t COARSENING_FACTOR = 1;
   auto inDevFrontier = in.get_device_frontier();
   auto outDevFrontier = out.get_device_frontier();
   auto graphDev = graph.get_device_graph();
 
+  size_t offsets_size = in.compute_offsets();
+
   auto e = q.submit([&](sycl::handler& cgh) {
 
     sycl::range<1> local_range{bitmap_range * COARSENING_FACTOR};
-    sycl::range<1> global_range{num_nodes > local_range[0] ? num_nodes + (local_range[0] - (num_nodes % local_range[0])) : local_range[0]};
-
-
+    size_t global_size = offsets_size * local_range[0];
+    sycl::range<1> global_range{global_size > local_range[0] ? global_size + (local_range[0] - (global_size % local_range[0])) : local_range[0]};
+    // sycl::range<1> global_range{num_nodes > local_range[0] ? num_nodes + (local_range[0] - (num_nodes % local_range[0])) : local_range[0]};
     sycl::local_accessor<size_t, 1> n_edges_local {local_range, cgh};
     sycl::local_accessor<T, 1> active_elements_local {local_range, cgh};
     sycl::local_accessor<size_t, 1> active_elements_tail {local_range / 8, cgh};
@@ -358,7 +363,7 @@ sygraph::event vertex_bitmap(graph_t& graph,
       bitmap_kernel<T, decltype(inDevFrontier), decltype(graphDev), lambda_t>{num_nodes,
                       inDevFrontier, 
                       outDevFrontier, 
-                      graphDev, 
+                      graphDev,
                       n_edges_local, 
                       active_elements_local, 
                       active_elements_tail, 
@@ -395,7 +400,7 @@ sygraph::event vertex(graph_t& graph,
 
   size_t bitmap_range = in.get_bitmap_range();
   size_t num_nodes = graph.get_vertex_count();
-  constexpr size_t COARSENING_FACTOR = 8;
+  constexpr size_t COARSENING_FACTOR = 1;
 
   auto inDevFrontier = in.get_device_frontier();
   auto outDevFrontier = out.get_device_frontier();
@@ -403,10 +408,14 @@ sygraph::event vertex(graph_t& graph,
 
   using bitmap_kernel_t = bitmap_kernel<T, decltype(inDevFrontier), decltype(graphDev), lambda_t>;
 
+  size_t offsets_size = in.compute_offsets();
+
   auto e = q.submit([&](sycl::handler& cgh) {
 
     sycl::range<1> local_range{bitmap_range * COARSENING_FACTOR};
-    sycl::range<1> global_range{num_nodes > local_range[0] ? num_nodes + (local_range[0] - (num_nodes % local_range[0])) : local_range[0]};
+    size_t global_size = offsets_size * local_range[0];
+    sycl::range<1> global_range{global_size > local_range[0] ? global_size + (local_range[0] - (global_size % local_range[0])) : local_range[0]};
+    // sycl::range<1> global_range{num_nodes > local_range[0] ? num_nodes + (local_range[0] - (num_nodes % local_range[0])) : local_range[0]};
 
     sycl::local_accessor<size_t, 1> n_edges_local {local_range, cgh};
     sycl::local_accessor<T, 1> active_elements_local {local_range, cgh};
@@ -414,6 +423,7 @@ sygraph::event vertex(graph_t& graph,
     sycl::local_accessor<bool, 1> visited {local_range, cgh};
     sycl::local_accessor<T, 1> work_group_reduce {local_range, cgh};
     sycl::local_accessor<size_t, 1> work_group_reduce_tail {1, cgh};
+
     
     cgh.parallel_for<class workgroup_mapped_advance_kernel>(sycl::nd_range<1>{global_range, local_range}, 
       bitmap_kernel_t{num_nodes,

@@ -179,16 +179,29 @@ public:
     return sycl::reduce_over_group(group, count, sycl::plus<size_t>());
   }
 
+  SYCL_EXTERNAL inline int* get_offsets() const {
+    return offsets;
+  }
+
+  SYCL_EXTERNAL inline size_t* get_offsets_size() const {
+    return offsets_size;
+  }
+
   friend class frontier_bitmap_t<type_t>;
 protected:
-  void set_ptr(bitmap_type* ptr) {
+  void set_ptr(bitmap_type* ptr, int* offsets, size_t* offsets_size) {
     data = ptr;
+    this->offsets = offsets;
+    this->offsets_size = offsets_size;
   }
 
   size_t range;            ///< The range of the bitmap.
   size_t num_elems;        ///< The number of elements in the bitmap.
   size_t size;             ///< The size of the bitmap.
   bitmap_type* data;       ///< Pointer to the bitmap.
+
+  int* offsets;
+  size_t* offsets_size;
 };
 
 template <typename type_t>
@@ -219,9 +232,12 @@ public:
   frontier_bitmap_t(sycl::queue& q, size_t num_elems) : q(q), bitmap(num_elems) { // TODO: [!] tune on bitmap size
     using bitmap_type = typename bitmap_device_t<type_t>::bitmap_type;
     bitmap_type* ptr = sygraph::memory::detail::memory_alloc<bitmap_type, memory::space::shared>(bitmap.get_bitmap_size(), q);
+    int* offsets = sygraph::memory::detail::memory_alloc<int, memory::space::device>(bitmap.get_bitmap_size(), q);
+    size_t* offsets_size = sygraph::memory::detail::memory_alloc<size_t, memory::space::shared>(1, q);
     auto size = bitmap.get_bitmap_size();
     q.memset(ptr, static_cast<bitmap_type>(0), size).wait();
-    bitmap.set_ptr(ptr);
+    q.fill(offsets_size, 0, size).wait();
+    bitmap.set_ptr(ptr, offsets, offsets_size);
   }
 
   using bitmap_type = typename bitmap_device_t<type_t>::bitmap_type;
@@ -418,10 +434,31 @@ public:
    */
   inline void clear() {
     q.fill(bitmap.data, static_cast<bitmap_type>(0), bitmap.size).wait();
+    q.fill(bitmap.offsets_size, 0, 1).wait();
   }
 
   const bitmap_device_t<type_t, bitmap_type>& get_device_frontier() const {
     return bitmap;
+  }
+
+  const size_t compute_offsets() const {
+    size_t size = bitmap.get_bitmap_size();
+    auto e = q.submit([&](sycl::handler& cgh) {
+      auto bitmap = this->get_device_frontier();
+      auto offsets_size = bitmap.offsets_size;
+      auto offsets = bitmap.offsets;
+      cgh.parallel_for(sycl::range<1>{size}, [=](sycl::id<1> idx) {
+        sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> offset{offsets_size[0]};
+        if (bitmap.get_data()[idx[0]] != 0) {
+          offsets[offset++] = idx[0];
+        }
+      });
+    });
+    e.wait();
+#ifdef ENABLE_PROFILING
+    sygraph::profiler::add_event(e, "compute_offsets");
+#endif
+    return bitmap.offsets_size[0];
   }
 
   static void swap(frontier_bitmap_t<type_t>& a, frontier_bitmap_t<type_t>& b) {

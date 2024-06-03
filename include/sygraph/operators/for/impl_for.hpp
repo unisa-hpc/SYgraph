@@ -31,13 +31,37 @@ sygraph::event execute(graph_t& graph,
   size_t num_nodes = graph.get_vertex_count();
   auto devFrontier = frontier.get_device_frontier();
 
-  sygraph::event e = q.submit([&](sycl::handler& cgh) {
-    cgh.parallel_for<class for_kernel>(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) {
-      if (devFrontier.check(idx[0])) {
-        functor(idx[0]);
+  size_t local_size = frontier.get_bitmap_range();
+  size_t global_size = frontier.compute_offsets();
+
+  size_t bitmap_range = frontier.get_bitmap_range();
+  size_t offsets_size = frontier.compute_offsets();
+
+  sygraph::event e = q.submit([&] (sycl::handler& cgh) {
+    sycl::range<1> local_range{bitmap_range};
+    size_t global_size = offsets_size * local_range[0];
+    sycl::range<1> global_range{global_size > local_range[0] ? global_size + (local_range[0] - (global_size % local_range[0])) : local_range[0]};
+
+    cgh.parallel_for<class for_kernel>(sycl::nd_range<1>{global_range, local_range}, [=](sycl::nd_item<1> item) {
+      auto lid = item.get_local_id();
+      auto group_id = item.get_group_linear_id();
+      auto local_size = item.get_local_range()[0];
+      int* bitmap_offsets = devFrontier.get_offsets();
+
+      size_t actual_id = bitmap_offsets[group_id] * bitmap_range + lid;
+      
+      if (actual_id < num_nodes && devFrontier.check(actual_id)) {
+        functor(actual_id);
       }
     });
   });
+  // sygraph::event e = q.submit([&](sycl::handler& cgh) {
+  //   cgh.parallel_for<class for_kernel>(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) {
+  //     if (devFrontier.check(idx[0])) {
+  //       functor(idx[0]);
+  //     }
+  //   });
+  // });
 
   return e;
 }
