@@ -42,24 +42,24 @@ public:
     return column_indices.size();
   }
 
-  const std::vector<offset_t>& get_row_offsets() const {
+  const std::vector<offset_t>& getRowOffsets() const {
     return row_offsets;
   }
-  std::vector<offset_t>& get_row_offsets() {
+  std::vector<offset_t>& getRowOffsets() {
     return row_offsets;
   }
 
-  const std::vector<index_t>& get_column_indices() const {
+  const std::vector<index_t>& getColumnIndices() const {
     return column_indices;
   }
-  std::vector<index_t>& get_column_indices() {
+  std::vector<index_t>& getColumnIndices() {
     return column_indices;
   }
 
-  const std::vector<value_t>& get_values() const {
+  const std::vector<value_t>& getValues() const {
     return nnz_values;
   }
-  std::vector<value_t>& get_values() {
+  std::vector<value_t>& getValues() {
     return nnz_values;
   }
 

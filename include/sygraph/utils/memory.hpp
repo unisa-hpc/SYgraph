@@ -15,7 +15,7 @@ enum class space {
 namespace detail {
 
 template <typename T, space V>
-inline T* memory_alloc(size_t n, sycl::queue& q) {
+inline T* memoryAlloc(size_t n, sycl::queue& q) {
   if constexpr (V == space::host) {
     return sycl::malloc_host<T>(n, q);
   } else if constexpr (V == space::device) {

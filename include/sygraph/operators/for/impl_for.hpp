@@ -26,13 +26,13 @@ template <typename graph_t,
 sygraph::event execute(graph_t& graph, 
                               const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& frontier, 
                               lambda_t&& functor) {
-  auto q = graph.get_queue();
+  auto q = graph.getQueue();
 
-  size_t num_nodes = graph.get_vertex_count();
-  auto devFrontier = frontier.get_device_frontier();
+  size_t num_nodes = graph.getVertexCount();
+  auto devFrontier = frontier.getDeviceFrontier();
 
-  size_t bitmap_range = frontier.get_bitmap_range();
-  size_t offsets_size = frontier.compute_offsets();
+  size_t bitmap_range = frontier.getBitmapRange();
+  size_t offsets_size = frontier.computeActiveFrontier();
 
   sygraph::event e = q.submit([&] (sycl::handler& cgh) {
     sycl::range<1> local_range{bitmap_range};
@@ -43,7 +43,7 @@ sygraph::event execute(graph_t& graph,
       auto lid = item.get_local_id();
       auto group_id = item.get_group_linear_id();
       auto local_size = item.get_local_range()[0];
-      int* bitmap_offsets = devFrontier.get_offsets();
+      int* bitmap_offsets = devFrontier.getOffsets();
 
       size_t actual_id = bitmap_offsets[group_id] * bitmap_range + lid;
       
@@ -70,14 +70,14 @@ template <typename graph_t,
 sygraph::event execute(graph_t& graph, 
                               const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::vector>& frontier, 
                               lambda_t&& functor) {
-  auto q = graph.get_queue();
+  auto q = graph.getQueue();
 
   size_t active_elements_size = types::detail::MAX_ACTIVE_ELEMS_SIZE;
   T* active_elements;
-  if (!frontier.self_allocated()) {
-    active_elements = memory::detail::memory_alloc<T, memory::space::shared>(active_elements_size, q);
+  if (!frontier.selfAllocated()) {
+    active_elements = memory::detail::memoryAlloc<T, memory::space::shared>(active_elements_size, q);
   }
-  frontier.get_active_elements(active_elements, active_elements_size);
+  frontier.getActiveElements(active_elements, active_elements_size);
 
   sygraph::event e = q.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<class for_kernel>(sycl::range<1>{active_elements_size}, [=](sycl::id<1> idx) {
@@ -86,7 +86,7 @@ sygraph::event execute(graph_t& graph,
     });
   });
 
-  if (!frontier.self_allocated()) {
+  if (!frontier.selfAllocated()) {
     sycl::free(active_elements, q);
   }
 
@@ -100,13 +100,13 @@ template <typename graph_t,
 sygraph::event execute(graph_t& graph, 
                               const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitvec>& frontier, 
                               lambda_t&& functor) {
-  auto q = graph.get_queue();
-  auto devFrontier = frontier.get_device_frontier();
+  auto q = graph.getQueue();
+  auto devFrontier = frontier.getDeviceFrontier();
 
   sygraph::event e;
   if (devFrontier.use_vector()) {
     T* active_elements = devFrontier.get_vector();
-    size_t size = devFrontier.get_vector_size();
+    size_t size = devFrontier.getVectorSize();
 
     e = q.submit([&](sycl::handler& cgh) {
       cgh.parallel_for(sycl::range<1>{size}, [=](sycl::id<1> idx) {
@@ -115,7 +115,7 @@ sygraph::event execute(graph_t& graph,
       });
     });
   } else {
-    size_t num_nodes = graph.get_vertex_count();
+    size_t num_nodes = graph.getVertexCount();
 
     e = q.submit([&](sycl::handler& cgh) {
       cgh.parallel_for(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) {

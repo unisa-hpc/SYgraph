@@ -25,7 +25,7 @@ namespace csr {
  * @return The CSR object representing the matrix.
  */
 template <typename value_t, typename index_t, typename offset_t>
-sygraph::formats::CSR<value_t, index_t, offset_t> from_matrix(std::istream& iss) {
+sygraph::formats::CSR<value_t, index_t, offset_t> fromMatrix(std::istream& iss) {
   size_t n_rows = 0;
   size_t n_nonzeros = 0;
   std::vector<offset_t> row_offsets;
@@ -67,7 +67,7 @@ sygraph::formats::CSR<value_t, index_t, offset_t> from_matrix(std::istream& iss)
  * @throws std::runtime_error if the file fails to open.
  */
 template <typename value_t, typename index_t, typename offset_t>
-sygraph::formats::CSR<value_t, index_t, offset_t> from_csr(std::istream& iss) {
+sygraph::formats::CSR<value_t, index_t, offset_t> fromCSR(std::istream& iss) {
   size_t n_rows = 0;
   size_t n_nonzeros = 0;
   std::vector<offset_t> row_offsets;
@@ -104,10 +104,10 @@ sygraph::formats::CSR<value_t, index_t, offset_t> from_csr(std::istream& iss) {
 }
 
 template <typename value_t, typename index_t, typename offset_t>
-sygraph::formats::CSR<value_t, index_t, offset_t> from_coo(const sygraph::formats::COO<value_t, index_t, offset_t>& coo) {
+sygraph::formats::CSR<value_t, index_t, offset_t> fromCOO(const sygraph::formats::COO<value_t, index_t, offset_t>& coo) {
   auto coo_row_indices = coo.get_row_indices();
-  auto coo_column_indices = coo.get_column_indices();
-  auto coo_values = coo.get_values();
+  auto coo_column_indices = coo.getColumnIndices();
+  auto coo_values = coo.getValues();
   auto size = coo.get_size();
   auto n_nodes = std::max(*std::max_element(coo_row_indices.begin(), coo_row_indices.end()),
                           *std::max_element(coo_column_indices.begin(), coo_column_indices.end())) + 1;
@@ -154,9 +154,9 @@ void to_binary(const sygraph::formats::CSR<value_t, index_t, offset_t>& csr, std
     throw std::runtime_error("Failed to write binary CSR matrix");
   }
 
-  auto& row_offsets = csr.get_row_offsets();
-  auto& column_indices = csr.get_column_indices();
-  auto& values = csr.get_values();
+  auto& row_offsets = csr.getRowOffsets();
+  auto& column_indices = csr.getColumnIndices();
+  auto& values = csr.getValues();
 
   size_t num_rows = row_offsets.size();
   size_t num_nonzero = column_indices.size();
@@ -170,7 +170,7 @@ void to_binary(const sygraph::formats::CSR<value_t, index_t, offset_t>& csr, std
 }
 
 template <typename value_t, typename index_t, typename offset_t>
-sygraph::formats::CSR<value_t, index_t, offset_t> from_binary(std::istream& iss) {
+sygraph::formats::CSR<value_t, index_t, offset_t> fromBinary(std::istream& iss) {
   if (!iss) {
     throw std::runtime_error("Failed to read binary CSR matrix");
   }

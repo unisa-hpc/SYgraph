@@ -69,12 +69,12 @@ struct args_t {
 template<typename T>
 void PRINT_FRONTIER(T& f, std::string prefix = "") {
   using type_t = typename T::type_t;
-  auto size = f.get_bitmap_size() * f.get_bitmap_range();
+  auto size = f.getBitmapSize() * f.getBitmapRange();
   std::cout << prefix;
   for (int i = size - 1; i >= 0; --i) {
     std::cout << (f.check(static_cast<type_t>(i)) ? "1" : "0");
   }
-  std::cout << " [" << f.get_device_frontier().get_data()[0] << "]" << std::endl; 
+  std::cout << " [" << f.getDeviceFrontier().get_data()[0] << "]" << std::endl; 
   std::cout << std::endl;
 }
 
@@ -94,15 +94,15 @@ sygraph::formats::CSR<value_t, index_t, offset_t> read_csr(const args_t<index_t>
       std::cerr << "Error: could not open file " << args.path << std::endl;
       exit(1);
     }
-    csr = sygraph::io::csr::from_binary<value_t, index_t, offset_t>(file);
+    csr = sygraph::io::csr::fromBinary<value_t, index_t, offset_t>(file);
   } else {
     std::ifstream file(args.path);
     if (!file.is_open()) {
       std::cerr << "Error: could not open file " << args.path << std::endl;
       exit(1);
     }
-    auto coo = sygraph::io::coo::from_coo<value_t, index_t, offset_t>(file, args.undirected);
-    csr = sygraph::io::csr::from_coo(coo);
+    auto coo = sygraph::io::coo::fromCOO<value_t, index_t, offset_t>(file, args.undirected);
+    csr = sygraph::io::csr::fromCOO(coo);
   }
   
   std::ifstream file(args.path);
@@ -117,9 +117,9 @@ template<typename GraphT>
 void print_graph_info(const GraphT& g) {
   std::cerr << "-----------------------------------" << std::endl;
   std::cerr << std::left;
-  std::cerr << std::setw(17) << "Vertex count:" << std::setw(10) << g.get_vertex_count()<< std::endl;
-  std::cerr << std::setw(17) << "Edge count:" << std::setw(10) << g.get_edge_count() << std::endl;
-  std::cerr << std::setw(17) << "Average degree:" << std::setw(10) << g.get_edge_count() / g.get_vertex_count() << std::endl;
+  std::cerr << std::setw(17) << "Vertex count:" << std::setw(10) << g.getVertexCount()<< std::endl;
+  std::cerr << std::setw(17) << "Edge count:" << std::setw(10) << g.getEdgeCount() << std::endl;
+  std::cerr << std::setw(17) << "Average degree:" << std::setw(10) << g.getEdgeCount() / g.getVertexCount() << std::endl;
   std::cerr << "-----------------------------------" << std::endl;
 }
 

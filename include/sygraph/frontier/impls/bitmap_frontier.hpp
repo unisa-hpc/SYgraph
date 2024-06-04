@@ -33,7 +33,7 @@ public:
    * 
    * @return The size of the bitmap.
    */
-  SYCL_EXTERNAL inline size_t get_bitmap_size() const {
+  SYCL_EXTERNAL inline size_t getBitmapSize() const {
     return size;
   }
 
@@ -42,7 +42,7 @@ public:
    * 
    * @return The number of elements in the bitmap.
    */
-  SYCL_EXTERNAL inline size_t get_num_elems() const {
+  SYCL_EXTERNAL inline size_t getNumElems() const {
     return num_elems;
   }
 
@@ -51,7 +51,7 @@ public:
    * 
    * @return The range of the bitmap.
    */
-  SYCL_EXTERNAL inline const size_t get_bitmap_range() const {
+  SYCL_EXTERNAL inline const size_t getBitmapRange() const {
     return range;
   }
 
@@ -60,7 +60,7 @@ public:
    * 
    * @return A pointer to the bitmap.
    */
-  SYCL_EXTERNAL bitmap_type* get_data() const {
+  SYCL_EXTERNAL bitmap_type* getData() const {
     return data;
   }
 
@@ -84,7 +84,7 @@ public:
    * @param idx The index of the bit to set.
    */
   SYCL_EXTERNAL inline bool insert(type_t idx) const {
-    sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(data[get_bitmap_index(idx)]);
+    sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(data[getBitmapIndex(idx)]);
     ref |= static_cast<bitmap_type>(static_cast<bitmap_type>(1) << (idx % range));
     return true;
   }
@@ -99,7 +99,7 @@ public:
    * @param idx The index of the bit to set.
    */
   SYCL_EXTERNAL inline bool remove(size_t idx) const {
-    sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(data[get_bitmap_index(idx)]);
+    sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(data[getBitmapIndex(idx)]);
     ref &= ~(static_cast<bitmap_type>(static_cast<bitmap_type>(1) << (idx % range)));
     return true;
   }
@@ -149,12 +149,12 @@ public:
    * @param idx The index.
    * @return The bitmap index.
    */
-  SYCL_EXTERNAL inline const size_t get_bitmap_index(size_t idx) const {
+  SYCL_EXTERNAL inline const size_t getBitmapIndex(size_t idx) const {
     return idx / range;
   }
 
   template<int Dim, typename group_t>
-  SYCL_EXTERNAL size_t get_num_active_elements(sycl::nd_item<Dim> item, group_t group) const {
+  SYCL_EXTERNAL size_t getNumActiveElements(sycl::nd_item<Dim> item, group_t group) const {
     size_t count = 0;
     auto id = item.get_local_linear_id();
     auto local_range = item.get_local_range(0);
@@ -170,17 +170,17 @@ public:
     return sycl::reduce_over_group(group, count, sycl::plus<size_t>());
   }
 
-  SYCL_EXTERNAL inline int* get_offsets() const {
+  SYCL_EXTERNAL inline int* getOffsets() const {
     return offsets;
   }
 
-  SYCL_EXTERNAL inline size_t* get_offsets_size() const {
+  SYCL_EXTERNAL inline size_t* getOffsetsSize() const {
     return offsets_size;
   }
 
   friend class frontier_bitmap_t<type_t>;
 protected:
-  void set_ptr(bitmap_type* ptr, int* offsets, size_t* offsets_size) {
+  void setPtr(bitmap_type* ptr, int* offsets, size_t* offsets_size) {
     data = ptr;
     this->offsets = offsets;
     this->offsets_size = offsets_size;
@@ -222,13 +222,13 @@ public:
    */
   frontier_bitmap_t(sycl::queue& q, size_t num_elems) : q(q), bitmap(num_elems) { // TODO: [!] tune on bitmap size
     using bitmap_type = typename bitmap_device_t<type_t>::bitmap_type;
-    bitmap_type* ptr = sygraph::memory::detail::memory_alloc<bitmap_type, memory::space::shared>(bitmap.get_bitmap_size(), q);
-    int* offsets = sygraph::memory::detail::memory_alloc<int, memory::space::device>(bitmap.get_bitmap_size(), q);
-    size_t* offsets_size = sygraph::memory::detail::memory_alloc<size_t, memory::space::shared>(1, q);
-    auto size = bitmap.get_bitmap_size();
+    bitmap_type* ptr = sygraph::memory::detail::memoryAlloc<bitmap_type, memory::space::shared>(bitmap.getBitmapSize(), q);
+    int* offsets = sygraph::memory::detail::memoryAlloc<int, memory::space::device>(bitmap.getBitmapSize(), q);
+    size_t* offsets_size = sygraph::memory::detail::memoryAlloc<size_t, memory::space::shared>(1, q);
+    auto size = bitmap.getBitmapSize();
     q.memset(ptr, static_cast<bitmap_type>(0), size).wait();
     q.fill(offsets_size, 0, size).wait();
-    bitmap.set_ptr(ptr, offsets, offsets_size);
+    bitmap.setPtr(ptr, offsets, offsets_size);
   }
 
   using bitmap_type = typename bitmap_device_t<type_t>::bitmap_type;
@@ -237,36 +237,36 @@ public:
    * @brief Destroys the frontier_bitmap_t object and frees the allocated memory.
    */
   ~frontier_bitmap_t() {
-    sycl::free(bitmap.get_data(), q);
-    sycl::free(bitmap.get_offsets(), q);
-    sycl::free(bitmap.get_offsets_size(), q);
+    sycl::free(bitmap.getData(), q);
+    sycl::free(bitmap.getOffsets(), q);
+    sycl::free(bitmap.getOffsetsSize(), q);
   }
 
-  inline size_t get_bitmap_size() const {
+  inline size_t getBitmapSize() const {
     return bitmap.size;
   }
 
-  inline size_t get_num_elems() const {
+  inline size_t getNumElems() const {
     return bitmap.num_elems;
   }
 
-  inline size_t get_bitmap_range() const {
+  inline size_t getBitmapRange() const {
     return bitmap.range;
   }
 
-  inline bool self_allocated() const { return false; }
+  inline bool selfAllocated() const { return false; }
 
-  size_t get_num_active_elements() const { // TODO: [!!!] this kernel is too slow, we need a better way to count the number of active elements
-    size_t* count = memory::detail::memory_alloc<size_t, memory::space::shared>(1, q);
+  size_t getNumActiveElements() const { // TODO: [!!!] this kernel is too slow, we need a better way to count the number of active elements
+    size_t* count = memory::detail::memoryAlloc<size_t, memory::space::shared>(1, q);
 
     sycl::nd_range<1> nd_range(128, 128); // TODO: [!] tune on these value
 
     q.submit([&](sycl::handler& h) {
-      auto bitmap = this->get_device_frontier();
+      auto bitmap = this->getDeviceFrontier();
 
       h.parallel_for<class get_num_active_elements_kernel>(nd_range, [=](sycl::nd_item<1> item) {
         auto group = item.get_group();
-        auto lcount = bitmap.get_num_active_elements(item, group);
+        auto lcount = bitmap.getNumActiveElements(item, group);
         if (item.get_global_linear_id() == 0) {
           *count = lcount;
         }
@@ -283,19 +283,19 @@ public:
    * @param elems The array to store the active elements. It must be pre-allocated with shared-access.
    * @param active If true, it retrieves the active elements, otherwise the inactive elements.
   */
-  void get_active_elements(type_t*& elems, size_t& size) const {
+  void getActiveElements(type_t*& elems, size_t& size) const {
     constexpr size_t local = 32;
     sycl::range<1> local_size {local}; // TODO: [!] tuning on this value
     sycl::range<1> global_size {(bitmap.size > local ? bitmap.size + local - (bitmap.size % local) : local)};
 
     sycl::nd_range<1> nd_range(global_size, local_size);
 
-    size_t bitmap_range = this->bitmap.get_bitmap_range();
+    size_t bitmap_range = this->bitmap.getBitmapRange();
 
     sycl::buffer<size_t, 1> g_tail_buffer(sycl::range<1>(1));
 
     auto e = q.submit([&](sycl::handler& cgh) {
-      auto bitmap = this->get_device_frontier();
+      auto bitmap = this->getDeviceFrontier();
 
       sycl::local_accessor<type_t, 1> local_elems(bitmap_range * local_size, cgh);
       sycl::local_accessor<size_t, 1> l_tail(1, cgh);
@@ -345,7 +345,7 @@ public:
     });
     e.wait();
 #ifdef ENABLE_PROFILING
-    sygraph::profiler::add_event(e, "get_active_elements");
+    sygraph::profiler::addEvent(e, "getActiveElements");
 #endif
     size = g_tail_buffer.get_host_access()[0];
   }
@@ -360,7 +360,7 @@ public:
 
   bool insert(size_t idx) {
     q.submit([&](sycl::handler& cgh) {
-      auto bitmap = this->get_device_frontier();
+      auto bitmap = this->getDeviceFrontier();
       cgh.single_task([=]() {
         bitmap.insert(idx);
       });
@@ -370,7 +370,7 @@ public:
 
   bool remove(size_t idx) {
     q.submit([&](sycl::handler& cgh) {
-      auto bitmap = this->get_device_frontier();
+      auto bitmap = this->getDeviceFrontier();
       cgh.single_task([=]() {
         bitmap.remove(idx);
       });
@@ -396,8 +396,8 @@ public:
   */
   sygraph::event merge(frontier_bitmap_t<type_t>& other) {
     return q.submit([&](sycl::handler& cgh) {
-      auto bitmap = this->get_device_frontier();
-      auto other_bitmap = other.get_device_frontier();
+      auto bitmap = this->getDeviceFrontier();
+      auto other_bitmap = other.getDeviceFrontier();
       cgh.parallel_for<class merge_bitmap_frontier_kernel>(sycl::range<1>(bitmap.size), [=](sycl::id<1> idx) {
         bitmap.data[idx] |= other_bitmap.data[idx];
       });
@@ -413,8 +413,8 @@ public:
    */
   sygraph::event intersect(frontier_bitmap_t<type_t>& other) {
     return q.submit([&](sycl::handler& cgh) {
-      auto bitmap = this->get_device_frontier();
-      auto other_bitmap = other.get_device_frontier();
+      auto bitmap = this->getDeviceFrontier();
+      auto other_bitmap = other.getDeviceFrontier();
       cgh.parallel_for<class intersect_bitmap_frontier_kernel>(sycl::range<1>(bitmap.size), [=](sycl::id<1> idx) {
         bitmap.data[idx] &= other_bitmap.data[idx];
       });
@@ -430,26 +430,53 @@ public:
     q.fill(bitmap.offsets_size, 0, 1).wait();
   }
 
-  const bitmap_device_t<type_t, bitmap_type>& get_device_frontier() const {
+  const bitmap_device_t<type_t, bitmap_type>& getDeviceFrontier() const {
     return bitmap;
   }
 
-  const size_t compute_offsets() const {
-    size_t size = bitmap.get_bitmap_size();
+  const size_t computeActiveFrontier() const {
+    sycl::range<1> local_range{128}; // TODO: [!] tune on this value
+    size_t size = bitmap.getBitmapSize();
+    sycl::range<1> global_range{(size > local_range[0] ? size + local_range[0] - (size % local_range[0]) : local_range[0])};
+
     auto e = q.submit([&](sycl::handler& cgh) {
-      auto bitmap = this->get_device_frontier();
-      auto offsets_size = bitmap.offsets_size;
-      auto offsets = bitmap.offsets;
-      cgh.parallel_for(sycl::range<1>{size}, [=](sycl::id<1> idx) {
-        sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> offset{offsets_size[0]};
-        if (bitmap.get_data()[idx[0]] != 0) {
-          offsets[offset++] = idx[0];
+      auto bitmap = this->getDeviceFrontier();
+
+      sycl::local_accessor<int, 1> local_offsets(local_range[0], cgh);
+      sycl::local_accessor<size_t, 1> local_size(1, cgh);
+      bitmap.offsets_size[0] = 0;
+
+      cgh.parallel_for(sycl::nd_range<1>{global_range, local_range}, [=, offsets_size=bitmap.offsets_size, offsets=bitmap.offsets](sycl::nd_item<1> item) {
+        int gid = item.get_global_linear_id();
+        size_t lid = item.get_local_linear_id();
+        auto group = item.get_group();
+
+        sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> local_size_ref(local_size[0]);
+        sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> offsets_size_ref{offsets_size[0]};
+        
+        if (group.leader()) {
+          local_size_ref.store(0);
+        }
+        sycl::group_barrier(group);
+
+        if (bitmap.getData()[gid] != 0) {
+          local_offsets[local_size_ref++] = gid;
+        }
+        sycl::group_barrier(group);
+
+        size_t data_offset = 0;
+        if (group.leader()) {
+          data_offset = offsets_size_ref.fetch_add(local_size_ref.load());
+        }
+        data_offset = sycl::group_broadcast(group, data_offset, 0);
+        if (lid < local_size_ref.load()) {
+          offsets[data_offset + lid] = local_offsets[lid];
         }
       });
     });
     e.wait();
 #ifdef ENABLE_PROFILING
-    sygraph::profiler::add_event(e, "compute_offsets");
+    sygraph::profiler::addEvent(e, "computeActiveFrontier");
 #endif
     return bitmap.offsets_size[0];
   }

@@ -8,15 +8,15 @@
 template<typename GraphT, typename BFS_T>
 bool validate(const GraphT& graph, BFS_T& bfs, uint source) {
   using vertex_t = typename GraphT::vertex_t;
-  assert(bfs.get_distance(source) == 0);
-  std::vector<uint> distances(graph.get_vertex_count(), graph.get_vertex_count() + 1);
+  assert(bfs.getDistance(source) == 0);
+  std::vector<uint> distances(graph.getVertexCount(), graph.getVertexCount() + 1);
   std::vector<vertex_t> inFrontier;
   std::vector<vertex_t> outFrontier;
   inFrontier.push_back(source);
   distances[source] = 0;
 
-  auto row_offsets = graph.get_row_offsets();
-  auto col_indices = graph.get_column_indices();
+  auto row_offsets = graph.getRowOffsets();
+  auto col_indices = graph.getColumnIndices();
 
   size_t iter = 0;
   size_t mismatches = 0;
@@ -29,10 +29,10 @@ bool validate(const GraphT& graph, BFS_T& bfs, uint source) {
 
       for (size_t j = start; j < end; j++) {
         auto neighbor = col_indices[j];
-        if (distances[neighbor] == graph.get_vertex_count() + 1) {
+        if (distances[neighbor] == graph.getVertexCount() + 1) {
           distances[neighbor] = distances[vertex] + 1;
-          if (distances[neighbor] != bfs.get_distance(neighbor)) {
-            // std::cout << "Distance mismatch at vertex " << neighbor << " expected " << distances[neighbor] << " got " << bfs.get_distance(neighbor) << std::endl;
+          if (distances[neighbor] != bfs.getDistance(neighbor)) {
+            // std::cout << "Distance mismatch at vertex " << neighbor << " expected " << distances[neighbor] << " got " << bfs.getDistance(neighbor) << std::endl;
             mismatches++;
           }
           outFrontier.push_back(neighbor);
@@ -65,9 +65,9 @@ int main(int argc, char** argv) {
   print_device_info(q, "[*] ");
 
   std::cerr << "[*] Building Graph" << std::endl;
-  auto G = sygraph::graph::build::from_csr<sygraph::memory::space::shared>(q, csr);
+  auto G = sygraph::graph::build::fromCSR<sygraph::memory::space::shared>(q, csr);
   print_graph_info(G);
-  size_t size = G.get_vertex_count();
+  size_t size = G.getVertexCount();
   
   sygraph::algorithms::BFS bfs {G};
   if (args.random_source) {
@@ -96,8 +96,8 @@ int main(int argc, char** argv) {
   if (args.print_output) {
     std::cout << std::left;
     std::cout << std::setw(10) << "Vertex" << std::setw(10) << "Distance" << std::endl;
-    for (size_t i = 0; i < G.get_vertex_count(); i++) {
-      auto distance = bfs.get_distance(i);
+    for (size_t i = 0; i < G.getVertexCount(); i++) {
+      auto distance = bfs.getDistance(i);
       if (distance == size + 1) {
         continue;
       } else {

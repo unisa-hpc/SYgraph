@@ -25,7 +25,7 @@ public:
     sycl::event::wait();
   }
 
-  void wait_and_throw() {
+  void waitAndThrow() {
     sycl::event::wait_and_throw();
   }
 };

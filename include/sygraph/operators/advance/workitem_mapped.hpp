@@ -26,19 +26,19 @@ sygraph::event vertex(graph_t& graph,
                       const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitmap>& out, 
                       lambda_t&& functor) {
   
-  sycl::queue& q = graph.get_queue();
+  sycl::queue& q = graph.getQueue();
   
   size_t active_elements_size = types::detail::MAX_ACTIVE_ELEMS_SIZE;
   T* active_elements;
-  if (!in.self_allocated()) {
-    active_elements = memory::detail::memory_alloc<T, memory::space::shared>(active_elements_size, q);
+  if (!in.selfAllocated()) {
+    active_elements = memory::detail::memoryAlloc<T, memory::space::shared>(active_elements_size, q);
   }
-  in.get_active_elements(active_elements, active_elements_size);
+  in.getActiveElements(active_elements, active_elements_size);
 
   sygraph::event ret {q.submit([&](sycl::handler& cgh) {
-    auto inDevFrontier = in.get_device_frontier();
-    auto outDevFrontier = out.get_device_frontier();
-    auto graphDev = graph.get_device_graph();
+    auto in_dev_frontier = in.getDeviceFrontier();
+    auto outDevFrontier = out.getDeviceFrontier();
+    auto graphDev = graph.getDeviceGraph();
     sycl::stream os(1024, 256, cgh);
 
     cgh.parallel_for<class vertex_workitem_advance_kernel>(sycl::range<1>(active_elements_size), [=](sycl::id<1> idx) {
@@ -49,7 +49,7 @@ sygraph::event vertex(graph_t& graph,
       // each work item takes care of all the neighbors of the vertex he is responsible for
       for (auto i = start; i != end; ++i) {
         auto edge = i.get_index();
-        auto weight = graphDev.get_edge_weight(edge);
+        auto weight = graphDev.getEdgeWeight(edge);
         auto neighbor = *i;
         if (functor(element, neighbor, edge, weight)) {
           bool val = outDevFrontier.insert(neighbor);
@@ -61,7 +61,7 @@ sygraph::event vertex(graph_t& graph,
     });
   })};
 
-  if (!in.self_allocated()) {
+  if (!in.selfAllocated()) {
     sycl::free(active_elements, q);
   }
   return ret;
@@ -75,16 +75,16 @@ sygraph::event edge(graph_t& graph,
                     const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::edge, sygraph::frontier::FrontierType::bitmap>& out, 
                     lambda_t&& functor) {
   
-  sycl::queue& q = graph.get_queue();
+  sycl::queue& q = graph.getQueue();
 
-  size_t active_elements_size = in.get_num_active_elements();
-  T* active_elements = memory::detail::memory_alloc<T, memory::space::shared>(active_elements_size, q);
-  in.get_active_elements(active_elements);
+  size_t active_elements_size = in.getNumActiveElements();
+  T* active_elements = memory::detail::memoryAlloc<T, memory::space::shared>(active_elements_size, q);
+  in.getActiveElements(active_elements);
 
   sygraph::event ret {q.submit([&](sycl::handler& cgh) {
-    auto inDevFrontier = in.get_device_frontier();
-    auto outDevFrontier = out.get_device_frontier();
-    auto graphDev = graph.get_device_graph();
+    auto in_dev_frontier = in.getDeviceFrontier();
+    auto outDevFrontier = out.getDeviceFrontier();
+    auto graphDev = graph.getDeviceGraph();
 
     cgh.parallel_for<class edge_advance_kernel>(sycl::range<1>(active_elements_size), [=](sycl::id<1> idx) {
       auto element = active_elements[idx];
@@ -94,7 +94,7 @@ sygraph::event edge(graph_t& graph,
       // each work item takes care of all the neighbors of the vertex he is responsible for
       for (auto i = start; i != end; ++i) {
         auto edge = i.get_index();
-        auto weight = graphDev.get_edge_weight(element, edge);
+        auto weight = graphDev.getEdgeWeight(element, edge);
         auto neighbor = *i;
         if (functor(element, neighbor, edge, weight)) {
           outDevFrontier.insert(edge);
@@ -114,16 +114,16 @@ sygraph::event vertex(graph_t& graph,
                       const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::vector>& in, 
                       const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::vector>& out, 
                       lambda_t&& functor) {  
-  sycl::queue& q = graph.get_queue();
+  sycl::queue& q = graph.getQueue();
 
-  size_t active_elements_size = in.get_num_active_elements();
+  size_t active_elements_size = in.getNumActiveElements();
   T* active_elements;
-  in.get_active_elements(active_elements, active_elements_size);
+  in.getActiveElements(active_elements, active_elements_size);
 
   sygraph::event ret {q.submit([&](sycl::handler& cgh) {
-    auto inDevFrontier = in.get_device_frontier();
-    auto outDevFrontier = out.get_device_frontier();
-    auto graphDev = graph.get_device_graph();
+    auto in_dev_frontier = in.getDeviceFrontier();
+    auto outDevFrontier = out.getDeviceFrontier();
+    auto graphDev = graph.getDeviceGraph();
     constexpr size_t LOCAL_MEM_SIZE = types::detail::MAX_LOCAL_MEM_SIZE;
 
     sycl::range<1> local_size(128); // TODO: tune this value
@@ -150,7 +150,7 @@ sygraph::event vertex(graph_t& graph,
         // each work item takes care of all the neighbors of the vertex he is responsible for
         for (auto i = start; i != end; ++i) {
           auto edge = i.get_index();
-          auto weight = graphDev.get_edge_weight(edge);
+          auto weight = graphDev.getEdgeWeight(edge);
           auto neighbor = *i;
           if (functor(element, neighbor, edge, weight)) {
             if (l_frontier_tail_ref < LOCAL_MEM_SIZE) { // if the local memory is not full, we can use it

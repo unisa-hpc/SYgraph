@@ -31,24 +31,24 @@ struct SSSPInstance {
   int* visited;
 
   SSSPInstance(GraphType& G, vertex_t source) : G(G), source(source) {
-    sycl::queue& queue = G.get_queue();
-    size_t size = G.get_vertex_count();
+    sycl::queue& queue = G.getQueue();
+    size_t size = G.getVertexCount();
 
-    distances = memory::detail::memory_alloc<edge_t, memory::space::shared>(size, queue);
+    distances = memory::detail::memoryAlloc<edge_t, memory::space::shared>(size, queue);
     queue.fill(distances, static_cast<weight_t>(size + 1), size).wait();
     distances[source] = static_cast<edge_t>(0);
 
-    parents = memory::detail::memory_alloc<vertex_t, memory::space::shared>(size, queue);
+    parents = memory::detail::memoryAlloc<vertex_t, memory::space::shared>(size, queue);
     queue.fill(parents, static_cast<vertex_t>(-1), size).wait();
 
-    visited = memory::detail::memory_alloc<int, memory::space::shared>(size, queue);
+    visited = memory::detail::memoryAlloc<int, memory::space::shared>(size, queue);
     queue.fill(visited, -1, size).wait();
   }
 
-  const size_t get_visited_vertices() const {
-    size_t vertex_count = G.get_vertex_count();
+  const size_t getVisitedVertices() const {
+    size_t vertex_count = G.getVertexCount();
     size_t visited_nodes = 0;
-    for (size_t i = 0; i < G.get_vertex_count(); i++) {
+    for (size_t i = 0; i < G.getVertexCount(); i++) {
       if (distances[i] != static_cast<edge_t>(vertex_count + 1)) {
         visited_nodes++;
       }
@@ -56,19 +56,19 @@ struct SSSPInstance {
     return visited_nodes;
   }
 
-  const size_t get_visited_edges() const {
-    size_t vertex_count = G.get_vertex_count();
+  const size_t getVisitedEdges() const {
+    size_t vertex_count = G.getVertexCount();
     size_t visited_edges = 0;
-    for (size_t i = 0; i < G.get_vertex_count(); i++) {
+    for (size_t i = 0; i < G.getVertexCount(); i++) {
       if (distances[i] != static_cast<edge_t>(vertex_count + 1)) {
-        visited_edges += G.get_degree(i);
+        visited_edges += G.getDegree(i);
       }
     }
     return visited_edges;
   }
 
   ~SSSPInstance() {
-    sycl::queue& queue = G.get_queue();
+    sycl::queue& queue = G.getQueue();
     sycl::free(distances, queue);
     sycl::free(parents, queue);
     sycl::free(visited, queue);
@@ -110,17 +110,17 @@ public:
     auto& parents = _instance->parents;
     auto& visited = _instance->visited;
 
-    sycl::queue& queue = G.get_queue();
+    sycl::queue& queue = G.getQueue();
 
     using load_balance_t = sygraph::operators::LoadBalancer;
     using direction_t = sygraph::operators::Direction;
     using frontier_view_t = sygraph::frontier::FrontierView;
     using frontier_impl_t = sygraph::frontier::FrontierType;
 
-    auto inFrontier = sygraph::frontier::make_frontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
-    auto outFrontier = sygraph::frontier::make_frontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
+    auto inFrontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
+    auto outFrontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
 
-    size_t size = G.get_vertex_count();
+    size_t size = G.getVertexCount();
 
     int iter = 0;
     inFrontier.insert(source);
@@ -147,8 +147,8 @@ public:
       e2.wait();
 
 #ifdef ENABLE_PROFILING
-      sygraph::profiler::add_event(e1, "advance");
-      sygraph::profiler::add_event(e2, "filter");
+      sygraph::profiler::addEvent(e1, "advance");
+      sygraph::profiler::addEvent(e2, "filter");
 #endif
       
       sygraph::frontier::swap(inFrontier, outFrontier);
@@ -156,15 +156,15 @@ public:
       iter++;
     }
 #ifdef ENABLE_PROFILING
-    sygraph::profiler::add_visited_edges(_instance->get_visited_edges());
+    sygraph::profiler::addVisitedEdges(_instance->getVisitedEdges());
 #endif
   }
 
-  const weight_t get_distance(size_t vertex) const {
+  const weight_t getDistance(size_t vertex) const {
     return _instance->distances[vertex];
   }
 
-  const vertex_t get_parents(size_t vertex) const {
+  const vertex_t getParents(size_t vertex) const {
     throw std::runtime_error("Not implemented");
     return _instance->parents[vertex];
   }

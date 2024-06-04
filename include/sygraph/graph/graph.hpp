@@ -22,23 +22,23 @@ public:
   
   ~Graph() = default;
 
-  const Properties& get_properties() const {
+  const Properties& getProperties() const {
     return properties;
   }
 
-  virtual inline size_t get_vertex_count() const = 0;
+  virtual inline size_t getVertexCount() const = 0;
 
-  virtual inline size_t get_edge_count() const = 0;
+  virtual inline size_t getEdgeCount() const = 0;
 
-  virtual inline size_t get_degree(vertex_t vertex) const = 0;
+  virtual inline size_t getDegree(vertex_t vertex) const = 0;
 
-  virtual inline vertex_t get_first_neighbor_idx(vertex_t vertex) const = 0;
+  virtual inline vertex_t getFirstNeighbor(vertex_t vertex) const = 0;
 
-  virtual inline vertex_t get_source_vertex(edge_t edge) const = 0;
+  virtual inline vertex_t getSourceVertex(edge_t edge) const = 0;
 
-  virtual inline vertex_t get_destination_vertex(edge_t edge) const = 0;
+  virtual inline vertex_t getDestinationVertex(edge_t edge) const = 0;
 
-  virtual inline weight_t get_edge_weight(edge_t edge) const = 0;
+  virtual inline weight_t getEdgeWeight(edge_t edge) const = 0;
 
 private:
 

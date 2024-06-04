@@ -23,9 +23,9 @@ int main(int argc, char** argv) {
   sycl::queue q {sycl::gpu_selector_v};
 
   std::cerr << "[* ] Loading COO file" << std::endl;
-  auto coo = sygraph::io::coo::from_coo<uint, uint, uint>(in_file, undirected);
+  auto coo = sygraph::io::coo::fromCOO<uint, uint, uint>(in_file, undirected);
   std::cerr << "[**] Converting to CSR" << std::endl;
-  auto csr = sygraph::io::csr::from_coo(coo);
+  auto csr = sygraph::io::csr::fromCOO(coo);
 
   std::ofstream out_file(argv[2], std::ios::binary);
   if (!out_file.is_open()) {

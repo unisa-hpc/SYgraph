@@ -54,7 +54,7 @@ public:
    * @brief Returns the number of vertices in the graph.
    * @return The number of vertices.
    */
-  SYCL_EXTERNAL inline size_t get_vertex_count() const {
+  SYCL_EXTERNAL inline size_t getVertexCount() const {
     return n_rows;
   }
 
@@ -62,7 +62,7 @@ public:
    * @brief Returns the number of edges in the graph.
    * @return The number of edges.
    */
-  SYCL_EXTERNAL inline size_t get_edge_count() const {
+  SYCL_EXTERNAL inline size_t getEdgeCount() const {
     return n_nonzeros;
   }
 
@@ -71,7 +71,7 @@ public:
    * @param vertex The vertex.
    * @return The number of neighbors.
    */
-  SYCL_EXTERNAL inline size_t get_degree(vertex_t vertex) const {
+  SYCL_EXTERNAL inline size_t getDegree(vertex_t vertex) const {
     return row_offsets[vertex + 1] - row_offsets[vertex];
   }
 
@@ -80,24 +80,24 @@ public:
    * @param vertex The vertex.
    * @return The index of the first neighbor.
    */
-  SYCL_EXTERNAL inline vertex_t get_first_neighbor_idx(vertex_t vertex) const {
+  SYCL_EXTERNAL inline vertex_t getFirstNeighbor(vertex_t vertex) const {
     return row_offsets[vertex];
   }
 
   // getters
-  SYCL_EXTERNAL index_t* get_column_indices() const {
+  SYCL_EXTERNAL index_t* getColumnIndices() const {
     return column_indices;
   }
 
-  SYCL_EXTERNAL offset_t* get_row_offsets() const {
+  SYCL_EXTERNAL offset_t* getRowOffsets() const {
     return row_offsets;
   }
 
-  SYCL_EXTERNAL value_t* get_values() const {
+  SYCL_EXTERNAL value_t* getValues() const {
     return nnz_values;
   }
 
-  SYCL_EXTERNAL vertex_t get_source_vertex(edge_t edge) const {
+  SYCL_EXTERNAL vertex_t getSourceVertex(edge_t edge) const {
     // binary search
     vertex_t low = 0;
     vertex_t high = n_rows - 1;
@@ -114,11 +114,11 @@ public:
     return n_rows;
   }
 
-  SYCL_EXTERNAL vertex_t get_destination_vertex(edge_t edge) const {
+  SYCL_EXTERNAL vertex_t getDestinationVertex(edge_t edge) const {
     return column_indices[edge];
   }
 
-  SYCL_EXTERNAL weight_t get_edge_weight(edge_t edge) const {
+  SYCL_EXTERNAL weight_t getEdgeWeight(edge_t edge) const {
     return nnz_values[edge];
   }
 
@@ -172,13 +172,13 @@ public:
 
     index_t n_rows = csr.get_row_offsets_size();
     offset_t n_nonzeros = csr.get_num_nonzeros();
-    index_t* row_offsets = memory::detail::memory_alloc<offset_t, space>(n_rows + 1, q);
-    offset_t* column_indices = memory::detail::memory_alloc<index_t, space>(n_nonzeros, q);
-    value_t* nnz_values = memory::detail::memory_alloc<value_t, space>(n_nonzeros, q);
+    index_t* row_offsets = memory::detail::memoryAlloc<offset_t, space>(n_rows + 1, q);
+    offset_t* column_indices = memory::detail::memoryAlloc<index_t, space>(n_nonzeros, q);
+    value_t* nnz_values = memory::detail::memoryAlloc<value_t, space>(n_nonzeros, q);
 
-    auto e1 = q.copy(csr.get_row_offsets().data(), row_offsets, n_rows + 1);
-    auto e2 = q.copy(csr.get_column_indices().data(), column_indices, n_nonzeros);
-    auto e3 = q.copy(csr.get_values().data(), nnz_values, n_nonzeros);
+    auto e1 = q.copy(csr.getRowOffsets().data(), row_offsets, n_rows + 1);
+    auto e2 = q.copy(csr.getColumnIndices().data(), column_indices, n_nonzeros);
+    auto e3 = q.copy(csr.getValues().data(), nnz_values, n_nonzeros);
     e1.wait(); e2.wait(); e3.wait();
 
     this->device_graph = {
@@ -197,7 +197,7 @@ public:
 
   /* Methods */
 
-  auto& get_device_graph() {
+  auto& getDeviceGraph() {
     return device_graph;
   }
 
@@ -207,16 +207,16 @@ public:
    * @brief Returns the number of vertices in the graph.
    * @return The number of vertices.
    */
-  inline size_t get_vertex_count() const override {
-    return device_graph.get_vertex_count();
+  inline size_t getVertexCount() const override {
+    return device_graph.getVertexCount();
   }
 
   /**
    * @brief Returns the number of edges in the graph.
    * @return The number of edges.
    */
-  inline size_t get_edge_count() const override {
-    return device_graph.get_edge_count();
+  inline size_t getEdgeCount() const override {
+    return device_graph.getEdgeCount();
   }
 
   /**
@@ -224,8 +224,8 @@ public:
    * @param vertex The vertex.
    * @return The number of neighbors.
    */
-  inline size_t get_degree(vertex_t vertex) const override {
-    return device_graph.get_degree(vertex);
+  inline size_t getDegree(vertex_t vertex) const override {
+    return device_graph.getDegree(vertex);
   }
 
   /**
@@ -233,20 +233,20 @@ public:
    * @param vertex The vertex.
    * @return The index of the first neighbor.
    */
-  inline vertex_t get_first_neighbor_idx(vertex_t vertex) const override {
-    return device_graph.get_first_neighbor_idx(vertex);
+  inline vertex_t getFirstNeighbor(vertex_t vertex) const override {
+    return device_graph.getFirstNeighbor(vertex);
   }
 
-  inline vertex_t get_source_vertex(edge_t edge) const override {
-    return device_graph.get_source_vertex(edge);
+  inline vertex_t getSourceVertex(edge_t edge) const override {
+    return device_graph.getSourceVertex(edge);
   }
 
-  inline vertex_t get_destination_vertex(edge_t edge) const override {
-    return device_graph.get_destination_vertex(edge);
+  inline vertex_t getDestinationVertex(edge_t edge) const override {
+    return device_graph.getDestinationVertex(edge);
   }
 
-  inline weight_t get_edge_weight(edge_t edge) const override {
-    return device_graph.get_edge_weight(edge);
+  inline weight_t getEdgeWeight(edge_t edge) const override {
+    return device_graph.getEdgeWeight(edge);
   }
 
   /* Getters and Setters for CSR Graph */
@@ -255,7 +255,7 @@ public:
    * @brief Returns the number of rows in the graph.
    * @return The number of rows.
    */
-  const index_t get_offsets_size() const  {
+  const index_t getOffsetsSize() const  {
     return device_graph.n_rows;
   }
 
@@ -263,7 +263,7 @@ public:
    * @brief Returns the number of non-zero values in the graph.
    * @return The number of non-zero values.
    */
-  const offset_t get_values_size() const {
+  const offset_t getValuesSize() const {
     return device_graph.n_nonzeros;
   }
 
@@ -271,7 +271,7 @@ public:
    * @brief Returns a pointer to the column indices of the graph.
    * @return A pointer to the column indices.
    */
-  index_t* get_column_indices() {
+  index_t* getColumnIndices() {
     return device_graph.column_indices;
   }
 
@@ -279,7 +279,7 @@ public:
    * @brief Returns a constant pointer to the column indices of the graph.
    * @return A constant pointer to the column indices.
    */
-  const index_t* get_column_indices() const {
+  const index_t* getColumnIndices() const {
     return device_graph.column_indices;
   }
 
@@ -287,7 +287,7 @@ public:
    * @brief Returns a pointer to the row offsets of the graph.
    * @return A pointer to the row offsets.
    */
-  offset_t* get_row_offsets() {
+  offset_t* getRowOffsets() {
     return device_graph.row_offsets;
   }
   
@@ -295,7 +295,7 @@ public:
    * @brief Returns a constant pointer to the row offsets of the graph.
    * @return A constant pointer to the row offsets.
    */
-  const offset_t* get_row_offsets() const {
+  const offset_t* getRowOffsets() const {
     return device_graph.row_offsets;
   }
 
@@ -303,7 +303,7 @@ public:
    * @brief Returns a pointer to the non-zero values of the graph.
    * @return A pointer to the non-zero values.
    */
-  value_t* get_values() {
+  value_t* getValues() {
     return device_graph.nnz_values;
   }
 
@@ -311,7 +311,7 @@ public:
    * @brief Returns a constant pointer to the non-zero values of the graph.
    * @return A constant pointer to the non-zero values.
    */
-  const value_t* get_values() const {
+  const value_t* getValues() const {
     return device_graph.nnz_values;
   }
 
@@ -319,7 +319,7 @@ public:
    * @brief Returns the SYCL queue associated with the graph.
    * @return The SYCL queue.
    */
-  sycl::queue& get_queue() const {
+  sycl::queue& getQueue() const {
     return q;
   }
 

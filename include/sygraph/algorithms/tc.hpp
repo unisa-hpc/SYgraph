@@ -31,7 +31,7 @@ struct TCInstance {
   }
 
   ~TCInstance() {
-    sycl::queue& queue = G.get_queue();s
+    sycl::queue& queue = G.getQueue();s
   }
 };
 } // namespace detail
@@ -65,17 +65,17 @@ public:
 
     auto& G = _instance->G;
 
-    sycl::queue& queue = G.get_queue();
+    sycl::queue& queue = G.getQueue();
 
     using load_balance_t = sygraph::operators::LoadBalancer;
     using direction_t = sygraph::operators::Direction;
     using frontier_view_t = sygraph::frontier::FrontierView;
     using frontier_impl_t = sygraph::frontier::FrontierType;
 
-    auto inFrontier = sygraph::frontier::make_frontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
-    auto outFrontier = sygraph::frontier::make_frontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
+    auto inFrontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
+    auto outFrontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
 
-    size_t size = G.get_vertex_count();
+    size_t size = G.getVertexCount();
 
     int iter = 0;
     inFrontier.insert(source);

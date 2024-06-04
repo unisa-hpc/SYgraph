@@ -19,7 +19,7 @@ static size_t num_visited_edges = 0;
 
 class profiler {
 public:
-  static void add_event(sygraph::event event, std::string tag = "") {\
+  static void addEvent(sygraph::event event, std::string tag = "") {\
     if (tag.empty()) {
       tag = "default";
     }
@@ -29,7 +29,7 @@ public:
     details::events[tag].push_back(event);
   }
 
-  static void add_visited_edges(size_t visited_edges) {
+  static void addVisitedEdges(size_t visited_edges) {
     details::num_visited_edges += visited_edges;
   }
 

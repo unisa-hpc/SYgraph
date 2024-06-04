@@ -38,15 +38,15 @@ template <typename graph_t,
           typename frontier_t,
           typename lambda_t>
 sygraph::event execute(graph_t& graph, frontier_t& frontier, lambda_t&& functor) {
-  auto q = graph.get_queue();
+  auto q = graph.getQueue();
 
   using type_t = typename frontier_t::type_t;
   size_t active_elements_size = types::detail::MAX_ACTIVE_ELEMS_SIZE;
   type_t* active_elements;
-  if (!frontier.self_allocated()) {
-    active_elements = memory::detail::memory_alloc<type_t, memory::space::shared>(active_elements_size, q);
+  if (!frontier.selfAllocated()) {
+    active_elements = memory::detail::memoryAlloc<type_t, memory::space::shared>(active_elements_size, q);
   }
-  frontier.get_active_elements(active_elements, active_elements_size);
+  frontier.getActiveElements(active_elements, active_elements_size);
 
   sygraph::event e = q.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<class for_kernel>(sycl::range<1>{active_elements_size}, [=](sycl::id<1> idx) {
@@ -55,7 +55,7 @@ sygraph::event execute(graph_t& graph, frontier_t& frontier, lambda_t&& functor)
     });
   });
 
-  if (!frontier.self_allocated()) {
+  if (!frontier.selfAllocated()) {
     sycl::free(active_elements, q);
   }
 

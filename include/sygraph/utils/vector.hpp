@@ -21,7 +21,7 @@ public:
     sycl::free(data, q);
   }
 
-  T* get_data() const {
+  T* getData() const {
     return data;
   }
 

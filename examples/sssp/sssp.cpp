@@ -26,9 +26,9 @@ int main(int argc, char** argv) {
 #endif
   
   std::cerr << "[** ] Building Graph" << std::endl;
-  auto G = sygraph::graph::build::from_csr<sygraph::memory::space::shared>(q, csr);
+  auto G = sygraph::graph::build::fromCSR<sygraph::memory::space::shared>(q, csr);
   print_graph_info(G);
-  size_t size = G.get_vertex_count();
+  size_t size = G.getVertexCount();
   
   sygraph::algorithms::SSSP sssp {G};
   if (args.random_source) {
@@ -57,8 +57,8 @@ int main(int argc, char** argv) {
   if (args.print_output) {
     std::cout << std::left;
     std::cout << std::setw(10) << "Vertex" << std::setw(10) << "Distance" << std::endl;
-    for (size_t i = 0; i < G.get_vertex_count(); i++) {
-      auto distance = sssp.get_distance(i);
+    for (size_t i = 0; i < G.getVertexCount(); i++) {
+      auto distance = sssp.getDistance(i);
       if (distance == size + 1) {
         continue;
       } else {

@@ -130,8 +130,8 @@ public:
   }
 
   frontier_vector_t(sycl::queue& q, size_t num_elems) : q(q), vector(num_elems) {
-    vector.data = memory::detail::memory_alloc<type_t, memory::space::shared>(num_elems, q);
-    vector.tail = memory::detail::memory_alloc<size_t, memory::space::shared>(1, q);
+    vector.data = memory::detail::memoryAlloc<type_t, memory::space::shared>(num_elems, q);
+    vector.tail = memory::detail::memoryAlloc<size_t, memory::space::shared>(1, q);
     vector.set_tail(0);
   }
 
@@ -140,13 +140,13 @@ public:
     sycl::free(vector.tail, q);
   }
 
-  size_t get_num_active_elements() const {
+  size_t getNumActiveElements() const {
     return vector.get_tail();
   }
 
-  inline bool self_allocated() const { return true; }
+  inline bool selfAllocated() const { return true; }
 
-  void get_active_elements(type_t*& elems) const {
+  void getActiveElements(type_t*& elems) const {
     elems = vector.data;
   }
 
@@ -156,7 +156,7 @@ public:
    * @param elems The array to store the active elements. It must be pre-allocated with shared-access.
    * @param active If true, it retrieves the active elements, otherwise the inactive elements.
   */
-  void get_active_elements(type_t*& elems, size_t& size) const {
+  void getActiveElements(type_t*& elems, size_t& size) const {
     size = vector.get_tail();
     elems = vector.data;
   }
@@ -194,11 +194,11 @@ public:
     vector.set_tail(0);
   }
 
-  const device_vector_frontier_t<type_t>& get_device_frontier() const {
+  const device_vector_frontier_t<type_t>& getDeviceFrontier() const {
     return vector;
   }
 
-  const local_vector_frontier_t<type_t> get_local_frontier(sycl::handler& cgh) const {
+  const local_vector_frontier_t<type_t> getLocalFrontier(sycl::handler& cgh) const {
     return local_vector_frontier_t<type_t>(types::detail::MAX_LOCAL_MEM_SIZE, cgh);
   }
 

@@ -26,7 +26,7 @@ namespace coo {
  * @return The COO representation of the graph.
  */
 template <typename value_t, typename index_t, typename offset_t = types::offset_t>
-sygraph::formats::COO<value_t, index_t, offset_t> from_coo(std::istream& iss, bool undirected = false) {
+sygraph::formats::COO<value_t, index_t, offset_t> fromCOO(std::istream& iss, bool undirected = false) {
   // Initialize row pointers for CSR format
 
   // skip all comments that starts with %

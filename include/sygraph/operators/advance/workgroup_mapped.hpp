@@ -21,7 +21,7 @@ struct vector_kernel {
 
   vector_kernel(T* active_elements, 
                 size_t active_elements_size, 
-                frontier_dev_t inDevFrontier, 
+                frontier_dev_t in_dev_frontier, 
                 frontier_dev_t outDevFrontier, 
                 graph_dev_t graphDev,
                 sycl::local_accessor<size_t, 1> n_edges_local, 
@@ -32,7 +32,7 @@ struct vector_kernel {
                 lambda_t&& functor) 
     : active_elements{active_elements}, 
       active_elements_size{active_elements_size}, 
-      inDevFrontier{inDevFrontier}, 
+      in_dev_frontier{in_dev_frontier}, 
       outDevFrontier{outDevFrontier}, 
       graphDev{graphDev},
       n_edges_local{n_edges_local}, 
@@ -60,7 +60,7 @@ struct vector_kernel {
     }
     if (gid < active_elements_size) {
       T element = active_elements[gid];
-      n_edges_local[lid] = graphDev.get_degree(element);
+      n_edges_local[lid] = graphDev.getDegree(element);
       active_elements_local[lid] = element;
       visited[lid] = false;
     } else {
@@ -87,7 +87,7 @@ struct vector_kernel {
 
     //   for (auto n = start; n != end; ++n) {
     //     auto edge = n.get_index();
-    //     auto weight = graphDev.get_edge_weight(edge);
+    //     auto weight = graphDev.getEdgeWeight(edge);
     //     auto neighbor = *n;
     //     if (functor(vertex, neighbor, edge, weight)) {
     //       outDevFrontier.insert(neighbor); // this might be the bottleneck
@@ -111,7 +111,7 @@ struct vector_kernel {
 
         for (auto n = start; n != end; ++n) {
           auto edge = n.get_index();
-          auto weight = graphDev.get_edge_weight(edge);
+          auto weight = graphDev.getEdgeWeight(edge);
           auto neighbor = *n;
           if (functor(vertex, neighbor, edge, weight)) {
             outDevFrontier.insert(neighbor);
@@ -132,7 +132,7 @@ struct vector_kernel {
 
       for (auto n = start; n != end; ++n) {
         auto edge = n.get_index();
-        auto weight = graphDev.get_edge_weight(edge);
+        auto weight = graphDev.getEdgeWeight(edge);
         auto neighbor = *n;
         if (functor(vertex, neighbor, edge, weight)) {
           outDevFrontier.insert(neighbor);
@@ -143,7 +143,7 @@ struct vector_kernel {
 
   T* active_elements;
   size_t active_elements_size;
-  frontier_dev_t inDevFrontier;
+  frontier_dev_t in_dev_frontier;
   frontier_dev_t outDevFrontier;
   graph_dev_t graphDev;
   sycl::local_accessor<size_t, 1> n_edges_local;
@@ -169,11 +169,11 @@ struct bitmap_kernel {
     auto subgroup_id = subgroup.get_group_id();
     size_t subgroup_size = subgroup.get_local_range()[0];
     size_t sgid = subgroup.get_local_linear_id();
-    int* bitmap_offsets = inDevFrontier.get_offsets();
+    int* bitmap_offsets = in_dev_frontier.getOffsets();
     
-    size_t coarsening_factor = local_range / inDevFrontier.get_bitmap_range();
-    size_t acutal_id_offset = group_id * coarsening_factor + lid / inDevFrontier.get_bitmap_range();
-    size_t actual_id = bitmap_offsets[acutal_id_offset] * inDevFrontier.get_bitmap_range() + lid;
+    size_t coarsening_factor = local_range / in_dev_frontier.getBitmapRange();
+    size_t acutal_id_offset = group_id * coarsening_factor + lid / in_dev_frontier.getBitmapRange();
+    size_t actual_id = bitmap_offsets[acutal_id_offset] * in_dev_frontier.getBitmapRange() + lid;
 
     // 1. load number of edges in local memory
     if (subgroup.leader()) {
@@ -187,8 +187,8 @@ struct bitmap_kernel {
     sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> tail_global{active_elements_tail[0]};
 
     size_t offset = subgroup_id * subgroup_size;
-    if (actual_id < num_nodes && inDevFrontier.check(actual_id)) {
-      size_t n_edges = graphDev.get_degree(actual_id);
+    if (actual_id < num_nodes && in_dev_frontier.check(actual_id)) {
+      size_t n_edges = graphDev.getDegree(actual_id);
       // if (n_edges > local_range * 2) { // assign to the workgroup
       //   work_group_reduce[tail_global++] = actual_id;
       // } else { // assign to the subgroup
@@ -207,14 +207,14 @@ struct bitmap_kernel {
     // sycl::group_barrier(group);
     // for (size_t i = 0; i < work_group_reduce_tail[0]; i++) { // TODO: fix this
     //   auto vertex = work_group_reduce[i];
-    //   size_t n_edges = graphDev.get_degree(vertex);
+    //   size_t n_edges = graphDev.getDegree(vertex);
     //   size_t private_slice = n_edges / local_range;
     //   auto start = graphDev.begin(vertex) + (private_slice * lid);
     //   auto end = lid == local_range - 1 ? graphDev.end(vertex) : start + private_slice;
 
     //   for (auto n = start; n != end; ++n) {
     //     auto edge = n.get_index();
-    //     auto weight = graphDev.get_edge_weight(edge);
+    //     auto weight = graphDev.getEdgeWeight(edge);
     //     auto neighbor = *n;
     //     if (functor(vertex, neighbor, edge, weight)) {
     //       outDevFrontier.insert(neighbor);
@@ -241,7 +241,7 @@ struct bitmap_kernel {
 
       for (auto n = start; n != end; ++n) {
         auto edge = n.get_index();
-        auto weight = graphDev.get_edge_weight(edge);
+        auto weight = graphDev.getEdgeWeight(edge);
         auto neighbor = *n;
         if (functor(vertex, neighbor, edge, weight)) {
           outDevFrontier.insert(neighbor);
@@ -260,7 +260,7 @@ struct bitmap_kernel {
 
       for (auto n = start; n != end; ++n) {
         auto edge = n.get_index();
-        auto weight = graphDev.get_edge_weight(edge);
+        auto weight = graphDev.getEdgeWeight(edge);
         auto neighbor = *n;
         if (functor(vertex, neighbor, edge, weight)) {
           outDevFrontier.insert(neighbor);
@@ -270,7 +270,7 @@ struct bitmap_kernel {
   }
 
   size_t num_nodes;
-  frontier_dev_t inDevFrontier;
+  frontier_dev_t in_dev_frontier;
   frontier_dev_t outDevFrontier;
   graph_dev_t graphDev;
   sycl::local_accessor<size_t, 1> n_edges_local;
@@ -292,16 +292,16 @@ sygraph::event vertex_vec(graph_t& graph,
                       const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitvec>& in, 
                       const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitvec>& out, 
                       lambda_t&& functor) {  
-  sycl::queue& q = graph.get_queue();
+  sycl::queue& q = graph.getQueue();
 
-  T* active_elements = in.get_device_frontier().get_vector();
-  size_t active_elements_size = in.get_device_frontier().get_vector_size();
+  T* active_elements = in.getDeviceFrontier().get_vector();
+  size_t active_elements_size = in.getDeviceFrontier().getVectorSize();
 
-  auto inDevFrontier = in.get_device_frontier();
-  auto outDevFrontier = out.get_device_frontier();
-  auto graphDev = graph.get_device_graph();
+  auto in_dev_frontier = in.getDeviceFrontier();
+  auto outDevFrontier = out.getDeviceFrontier();
+  auto graphDev = graph.getDeviceGraph();
 
-  using vector_kernel_t = vector_kernel<T, decltype(inDevFrontier), decltype(graphDev), lambda_t>;
+  using vector_kernel_t = vector_kernel<T, decltype(in_dev_frontier), decltype(graphDev), lambda_t>;
 
   auto e = q.submit([&](sycl::handler& cgh) {
 
@@ -317,7 +317,7 @@ sygraph::event vertex_vec(graph_t& graph,
     cgh.parallel_for(sycl::nd_range<1>{global_range, local_range}, 
       vector_kernel_t(active_elements, 
                       active_elements_size, 
-                      inDevFrontier, 
+                      in_dev_frontier, 
                       outDevFrontier, 
                       graphDev, 
                       n_edges_local, 
@@ -338,16 +338,16 @@ sygraph::event vertex_bitmap(graph_t& graph,
                       const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitvec>& in, 
                       const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitvec>& out,
                       lambda_t&& functor) {  
-  sycl::queue& q = graph.get_queue();
+  sycl::queue& q = graph.getQueue();
 
-  size_t bitmap_range = in.get_bitmap_range();
-  size_t num_nodes = graph.get_vertex_count();
+  size_t bitmap_range = in.getBitmapRange();
+  size_t num_nodes = graph.getVertexCount();
   constexpr size_t COARSENING_FACTOR = 8;
-  auto inDevFrontier = in.get_device_frontier();
-  auto outDevFrontier = out.get_device_frontier();
-  auto graphDev = graph.get_device_graph();
+  auto in_dev_frontier = in.getDeviceFrontier();
+  auto outDevFrontier = out.getDeviceFrontier();
+  auto graphDev = graph.getDeviceGraph();
 
-  size_t offsets_size = in.compute_offsets();
+  size_t offsets_size = in.computeActiveFrontier();
 
   auto e = q.submit([&](sycl::handler& cgh) {
 
@@ -363,8 +363,8 @@ sygraph::event vertex_bitmap(graph_t& graph,
     sycl::local_accessor<size_t, 1> work_group_reduce_tail {1, cgh};
     
     cgh.parallel_for(sycl::nd_range<1>{global_range, local_range}, 
-      bitmap_kernel<T, decltype(inDevFrontier), decltype(graphDev), lambda_t>{num_nodes,
-                      inDevFrontier, 
+      bitmap_kernel<T, decltype(in_dev_frontier), decltype(graphDev), lambda_t>{num_nodes,
+                      in_dev_frontier, 
                       outDevFrontier, 
                       graphDev,
                       n_edges_local, 
@@ -384,7 +384,7 @@ sygraph::event vertex(graph_t& graph,
                       const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitvec>& in, 
                       const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitvec>& out, 
                       lambda_t&& functor) {
-  if (in.get_device_frontier().use_vector()) {
+  if (in.getDeviceFrontier().use_vector()) {
     return vertex_vec(graph, in, out, std::forward<lambda_t>(functor));
   } else {
     return vertex_bitmap(graph, in, out, std::forward<lambda_t>(functor));
@@ -399,19 +399,19 @@ sygraph::event vertex(graph_t& graph,
                       const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitmap>& in, 
                       const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitmap>& out, 
                       lambda_t&& functor) {  
-  sycl::queue& q = graph.get_queue();
+  sycl::queue& q = graph.getQueue();
 
-  size_t bitmap_range = in.get_bitmap_range();
-  size_t num_nodes = graph.get_vertex_count();
+  size_t bitmap_range = in.getBitmapRange();
+  size_t num_nodes = graph.getVertexCount();
   constexpr size_t COARSENING_FACTOR = 1;
 
-  auto inDevFrontier = in.get_device_frontier();
-  auto outDevFrontier = out.get_device_frontier();
-  auto graphDev = graph.get_device_graph();
+  auto in_dev_frontier = in.getDeviceFrontier();
+  auto outDevFrontier = out.getDeviceFrontier();
+  auto graphDev = graph.getDeviceGraph();
 
-  using bitmap_kernel_t = bitmap_kernel<T, decltype(inDevFrontier), decltype(graphDev), lambda_t>;
+  using bitmap_kernel_t = bitmap_kernel<T, decltype(in_dev_frontier), decltype(graphDev), lambda_t>;
 
-  size_t offsets_size = in.compute_offsets();
+  size_t offsets_size = in.computeActiveFrontier();
 
   auto e = q.submit([&](sycl::handler& cgh) {
 
@@ -430,7 +430,7 @@ sygraph::event vertex(graph_t& graph,
     
     cgh.parallel_for<class workgroup_mapped_advance_kernel>(sycl::nd_range<1>{global_range, local_range}, 
       bitmap_kernel_t{num_nodes,
-                      inDevFrontier, 
+                      in_dev_frontier, 
                       outDevFrontier, 
                       graphDev, 
                       n_edges_local, 

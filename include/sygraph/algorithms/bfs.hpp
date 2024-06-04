@@ -42,23 +42,23 @@ struct BFSInstance {
    * @param source The source vertex for the BFS algorithm.
    */
   BFSInstance(GraphType& G, vertex_t source) : G(G), source(source) {
-    sycl::queue& queue = G.get_queue();
-    size_t size = G.get_vertex_count();
+    sycl::queue& queue = G.getQueue();
+    size_t size = G.getVertexCount();
 
     // Initialize distances
-    distances = memory::detail::memory_alloc<edge_t, memory::space::shared>(size, queue);
+    distances = memory::detail::memoryAlloc<edge_t, memory::space::shared>(size, queue);
     queue.fill(distances, static_cast<edge_t>(size + 1), size).wait();
     distances[source] = static_cast<edge_t>(0); // Distance from source to itself is 0
 
     // Initialize parents
-    parents = memory::detail::memory_alloc<vertex_t, memory::space::shared>(size, queue);
+    parents = memory::detail::memoryAlloc<vertex_t, memory::space::shared>(size, queue);
     queue.fill(parents, static_cast<vertex_t>(-1), size).wait();
   }
 
-  const size_t get_visited_vertices() const {
-    size_t vertex_count = G.get_vertex_count();
+  const size_t getVisitedVertices() const {
+    size_t vertex_count = G.getVertexCount();
     size_t visited_nodes = 0;
-    for (size_t i = 0; i < G.get_vertex_count(); i++) {
+    for (size_t i = 0; i < G.getVertexCount(); i++) {
       if (distances[i] != static_cast<edge_t>(vertex_count + 1)) {
         visited_nodes++;
       }
@@ -66,12 +66,12 @@ struct BFSInstance {
     return visited_nodes;
   }
 
-  const size_t get_visited_edges() const {
-    size_t vertex_count = G.get_vertex_count();
+  const size_t getVisitedEdges() const {
+    size_t vertex_count = G.getVertexCount();
     size_t visited_edges = 0;
-    for (size_t i = 0; i < G.get_vertex_count(); i++) {
+    for (size_t i = 0; i < G.getVertexCount(); i++) {
       if (distances[i] != static_cast<edge_t>(vertex_count + 1)) {
-        visited_edges += G.get_degree(i);
+        visited_edges += G.getDegree(i);
       }
     }
     return visited_edges;
@@ -81,8 +81,8 @@ struct BFSInstance {
    * @brief Destroys the BFSInstance object and frees the allocated memory.
    */
   ~BFSInstance() {
-    sycl::free(distances, G.get_queue());
-    sycl::free(parents, G.get_queue());
+    sycl::free(distances, G.getQueue());
+    sycl::free(parents, G.getQueue());
   }
 };
 } // namespace detail
@@ -96,7 +96,7 @@ struct BFSInstance {
  *
  * @tparam GraphType The type of the graph on which the BFS algorithm will be performed.
  */
-template<typename GraphType> // TODO: Implement the get_parents method. 
+template<typename GraphType> // TODO: Implement the getParents method. 
 class BFS {
   using vertex_t = typename GraphType::vertex_t;
   using edge_t = typename GraphType::edge_t;
@@ -141,19 +141,19 @@ public:
     auto& distances = _instance->distances;
     auto& parents = _instance->parents;
 
-    sycl::queue& queue = G.get_queue();
+    sycl::queue& queue = G.getQueue();
 
     using load_balance_t = sygraph::operators::LoadBalancer;
     using direction_t = sygraph::operators::Direction;
     using frontier_view_t = sygraph::frontier::FrontierView;
     using frontier_impl_t = sygraph::frontier::FrontierType;
 
-    auto inFrontier = sygraph::frontier::make_frontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
-    auto outFrontier = sygraph::frontier::make_frontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
+    auto inFrontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
+    auto outFrontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
 
     inFrontier.insert(source);
 
-    size_t size = G.get_vertex_count();
+    size_t size = G.getVertexCount();
     int iter = 0;
 
     // TODO: Add automatic load_balancing for the type of graph. 
@@ -161,15 +161,15 @@ public:
       auto e1 = sygraph::operators::advance::vertex<load_balance_t::workgroup_mapped>(G, inFrontier, outFrontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
         return (iter + 1) < distances[dst];
       });
-      e1.wait_and_throw();
+      e1.waitAndThrow();
       auto e2 = sygraph::operators::compute::execute(G, outFrontier, [=](auto v) {
         distances[v] = iter + 1;
       });
-      e2.wait_and_throw();
+      e2.waitAndThrow();
       
 #ifdef ENABLE_PROFILING
-      sygraph::profiler::add_event(e1, "advance");
-      sygraph::profiler::add_event(e2, "for");
+      sygraph::profiler::addEvent(e1, "advance");
+      sygraph::profiler::addEvent(e2, "for");
 #endif
 
       sygraph::frontier::swap(inFrontier, outFrontier);
@@ -178,7 +178,7 @@ public:
     }
 
 #ifdef ENABLE_PROFILING
-    sygraph::profiler::add_visited_edges(_instance->get_visited_edges());
+    sygraph::profiler::addVisitedEdges(_instance->getVisitedEdges());
 #endif
   }
 
@@ -188,7 +188,7 @@ public:
    * @param vertex The vertex for which to get the distance.
    * @return A pointer to the array of distances.
    */
-  const edge_t get_distance(size_t vertex) const {
+  const edge_t getDistance(size_t vertex) const {
     return _instance->distances[vertex];
   }
 
@@ -198,7 +198,7 @@ public:
    * @param vertex The vertex for which to get the parent vertices.
    * @return A pointer to the array of parent vertices.
    */
-  const vertex_t get_parents(size_t vertex) const {
+  const vertex_t getParents(size_t vertex) const {
     throw std::runtime_error("Not implemented");
     return _instance->parents[vertex];
   }

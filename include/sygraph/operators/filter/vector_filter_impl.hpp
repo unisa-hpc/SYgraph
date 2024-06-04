@@ -25,17 +25,17 @@ template <typename graph_t,
 sygraph::event inplace(graph_t& graph, 
                               const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::vector>& frontier, 
                               lambda_t&& functor) {
-  auto q = graph.get_queue();
+  auto q = graph.getQueue();
 
   using type_t = T;
-  // size_t active_elements_size = frontier.get_num_active_elements();
+  // size_t active_elements_size = frontier.getNumActiveElements();
   size_t active_elements_size = types::detail::MAX_ACTIVE_ELEMS_SIZE;
   type_t* active_elements;
-  if (!frontier.self_allocated()) {
-    active_elements = memory::detail::memory_alloc<type_t, memory::space::shared>(active_elements_size, q);
+  if (!frontier.selfAllocated()) {
+    active_elements = memory::detail::memoryAlloc<type_t, memory::space::shared>(active_elements_size, q);
   }
-  frontier.get_active_elements(active_elements, active_elements_size);
-  auto outDev = frontier.get_device_frontier();
+  frontier.getActiveElements(active_elements, active_elements_size);
+  auto outDev = frontier.getDeviceFrontier();
 
   sygraph::event e = q.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<class inplace_filter_kernel>(sycl::range<1>{active_elements_size}, [=](sycl::id<1> idx) {
@@ -46,7 +46,7 @@ sygraph::event inplace(graph_t& graph,
     });
   });
 
-  if (!frontier.self_allocated()) {
+  if (!frontier.selfAllocated()) {
     sycl::free(active_elements, q);
   }
 
@@ -61,17 +61,17 @@ sygraph::event external(graph_t& graph,
                               const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::vector>& in, 
                               const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::vector>& out, 
                               lambda_t&& functor) {
-  auto q = graph.get_queue();
+  auto q = graph.getQueue();
   out.clear();
 
   using type_t = T;
-  // size_t active_elements_size = in.get_num_active_elements();
+  // size_t active_elements_size = in.getNumActiveElements();
   size_t active_elements_size = types::detail::MAX_ACTIVE_ELEMS_SIZE;
   type_t* active_elements;
-  if (!in.self_allocated()) {
-    active_elements = memory::detail::memory_alloc<type_t, memory::space::shared>(active_elements_size, q);
+  if (!in.selfAllocated()) {
+    active_elements = memory::detail::memoryAlloc<type_t, memory::space::shared>(active_elements_size, q);
   }
-  in.get_active_elements(active_elements, active_elements_size);
+  in.getActiveElements(active_elements, active_elements_size);
 
   sygraph::event e = q.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<class external_filter_kernel>(sycl::range<1>{active_elements_size}, [=](sycl::id<1> idx) {
@@ -82,7 +82,7 @@ sygraph::event external(graph_t& graph,
     });
   });
 
-  if (!in.self_allocated()) {
+  if (!in.selfAllocated()) {
     sycl::free(active_elements, q);
   }
 

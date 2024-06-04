@@ -37,11 +37,11 @@ public:
 
   //Getters
   const std::vector<offset_t>& get_row_indices() const { return row_indices; }
-  const std::vector<index_t>& get_column_indices() const { return column_indices; }
-  const std::vector<value_t>& get_values() const { return nnz_values; }
+  const std::vector<index_t>& getColumnIndices() const { return column_indices; }
+  const std::vector<value_t>& getValues() const { return nnz_values; }
   std::vector<offset_t>& get_row_indices() { return row_indices; }
-  std::vector<index_t>& get_column_indices() { return column_indices; }
-  std::vector<value_t>& get_values() { return nnz_values; }
+  std::vector<index_t>& getColumnIndices() { return column_indices; }
+  std::vector<value_t>& getValues() { return nnz_values; }
   const size_t get_size() const { return row_indices.size(); }
 
 

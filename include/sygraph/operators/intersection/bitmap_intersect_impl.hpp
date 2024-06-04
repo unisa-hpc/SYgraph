@@ -19,7 +19,7 @@ template <typename graph_t,
           typename T,
           typename sygraph::frontier::FrontierView FrontierView,
           typename lambda_t>
-sygraph::event bitmap_execute(graph_t& graph, 
+sygraph::event bitmapExecute(graph_t& graph, 
                        const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& in1, 
                        const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& in2, 
                        const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& out, 

@@ -25,13 +25,13 @@ template <typename graph_t,
 sygraph::event inplace(graph_t& graph, 
                               const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& frontier, 
                               lambda_t&& functor) {
-  auto q = graph.get_queue();
+  auto q = graph.getQueue();
 
   using type_t = T;
-  size_t num_nodes = graph.get_vertex_count();
+  size_t num_nodes = graph.getVertexCount();
 
   sygraph::event e = q.submit([&](sycl::handler& cgh) {
-    auto outDev = frontier.get_device_frontier();
+    auto outDev = frontier.getDeviceFrontier();
 
     cgh.parallel_for<class inplace_filter_kernel>(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) {
       type_t element = idx[0];
@@ -52,14 +52,14 @@ sygraph::event external(graph_t& graph,
                               const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& in, 
                               const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& out, 
                               lambda_t&& functor) {
-  auto q = graph.get_queue();
+  auto q = graph.getQueue();
   out.clear();
 
   using type_t = T;
-  size_t num_nodes = graph.get_vertex_count();
+  size_t num_nodes = graph.getVertexCount();
 
-  auto outDev = out.get_device_frontier();
-  auto inDev = in.get_device_frontier();
+  auto outDev = out.getDeviceFrontier();
+  auto inDev = in.getDeviceFrontier();
 
   sygraph::event e = q.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<class external_filter_kernel>(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) {

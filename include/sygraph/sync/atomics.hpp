@@ -7,7 +7,7 @@ inline namespace v0 {
 namespace sync {
 
 template <typename T>
-SYCL_EXTERNAL inline T atomic_fetch_add(T* ptr, T val) {
+SYCL_EXTERNAL inline T atomicFetchAdd(T* ptr, T val) {
   sycl::atomic_ref<T, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(*ptr);
   return ref.fetch_add(val);
 }
