@@ -85,17 +85,12 @@ public:
    */
   SYCL_EXTERNAL inline bool insert(type_t idx) const {
     sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(data[get_bitmap_index(idx)]);
+    if (ref == 0) {
+      sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> offset(offsets_size[0]);
+      offsets[offset++] = get_bitmap_index(idx);
+    }
     ref |= static_cast<bitmap_type>(static_cast<bitmap_type>(1) << (idx % range));
     return true;
-  }
-
-  /**
-   * @brief Sets the bit at the specified index to 1.
-   * 
-   * @param idx The index of the bit to set.
-   */
-  SYCL_EXTERNAL inline bool insert(type_t val, size_t idx) const {
-    return insert(val);
   }
 
   SYCL_EXTERNAL inline size_t prealloc(size_t num_elems) const {
@@ -444,22 +439,22 @@ public:
   }
 
   const size_t compute_offsets() const {
-    size_t size = bitmap.get_bitmap_size();
-    auto e = q.submit([&](sycl::handler& cgh) {
-      auto bitmap = this->get_device_frontier();
-      auto offsets_size = bitmap.offsets_size;
-      auto offsets = bitmap.offsets;
-      cgh.parallel_for(sycl::range<1>{size}, [=](sycl::id<1> idx) {
-        sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> offset{offsets_size[0]};
-        if (bitmap.get_data()[idx[0]] != 0) {
-          offsets[offset++] = idx[0];
-        }
-      });
-    });
-    e.wait();
-#ifdef ENABLE_PROFILING
-    sygraph::profiler::add_event(e, "compute_offsets");
-#endif
+//     size_t size = bitmap.get_bitmap_size();
+//     auto e = q.submit([&](sycl::handler& cgh) {
+//       auto bitmap = this->get_device_frontier();
+//       auto offsets_size = bitmap.offsets_size;
+//       auto offsets = bitmap.offsets;
+//       cgh.parallel_for(sycl::range<1>{size}, [=](sycl::id<1> idx) {
+//         sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> offset{offsets_size[0]};
+//         if (bitmap.get_data()[idx[0]] != 0) {
+//           offsets[offset++] = idx[0];
+//         }
+//       });
+//     });
+//     e.wait();
+// #ifdef ENABLE_PROFILING
+//     sygraph::profiler::add_event(e, "compute_offsets");
+// #endif
     return bitmap.offsets_size[0];
   }
 
