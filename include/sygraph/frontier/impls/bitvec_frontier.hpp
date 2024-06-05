@@ -19,11 +19,11 @@ template<typename type_t>
 class frontier_bitvec_t;
 
 template<typename type_t, typename bitmap_t = uint64_t> // TODO [!!!] There are too many copies from host to device that degrade the performance
-class bitvec_device_t : public bitmap_device_t<bitmap_t> {
+class bitvec_device_t : public bitmap_device_t<type_t, bitmap_t> {
 public:
   using bitmap_type = bitmap_t;
 
-  bitvec_device_t(size_t num_elems) : bitmap_device_t<bitmap_t>(num_elems) {
+  bitvec_device_t(size_t num_elems) : bitmap_device_t<type_t, bitmap_t>(num_elems) {
     vector_max_size = 8192; // TODO ! tune on vector size
   }
 
@@ -38,7 +38,7 @@ public:
    */
   SYCL_EXTERNAL inline bool insert(type_t val) const {
     // call super class insert
-    bitmap_device_t<bitmap_t>::insert(val);
+    bitmap_device_t<type_t, bitmap_t>::insert(val);
     insertOnlyVector(val);
 
     return true;
@@ -63,7 +63,7 @@ public:
 
 protected:
   void setPtr(bitmap_type* bitmap_ptr, int* offsets_ptr, size_t* offsets_size_ptr, type_t* vector_ptr, size_t* tail_ptr) {
-    bitmap_device_t<bitmap_t>::setPtr(bitmap_ptr, offsets_ptr, offsets_size_ptr);
+    bitmap_device_t<type_t, bitmap_t>::setPtr(bitmap_ptr, offsets_ptr, offsets_size_ptr);
     vector = vector_ptr;
     vector_tail = tail_ptr;
   }

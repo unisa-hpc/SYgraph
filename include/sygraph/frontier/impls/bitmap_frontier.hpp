@@ -18,7 +18,8 @@ template<typename type_t>
 class frontier_bitmap_t;
 
 
-template<typename type_t, typename bitmap_t = uint64_t> // TODO [!!!] There are too many copies from host to device that degrade the performance
+template<typename type_t,
+         typename bitmap_t = types::bitmap_type_t> // TODO [!!!] There are too many copies from host to device that degrade the performance
 class bitmap_device_t {
 public:
   using bitmap_type = bitmap_t;
