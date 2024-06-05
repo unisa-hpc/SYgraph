@@ -37,5 +37,6 @@ if (SYGRAPH_ENABLE_PREFETCH)
 endif()
 
 if (SYGRAPH_BUILD_EXAMPLES)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
   add_subdirectory(examples)
 endif()

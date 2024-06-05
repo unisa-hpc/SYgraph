@@ -4,6 +4,8 @@ add_executable(csr_to_binary csr_to_binary.cpp)
 add_executable(bfs bfs/bfs.cpp)
 add_executable(sssp sssp/sssp.cpp)
 
+set_property(DIRECTORY ${CMAKE_SOURCE_DIR}/ PROPERTY CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
 get_directory_property(all_targets BUILDSYSTEM_TARGETS)
 
 if (DEFINED ARCH)

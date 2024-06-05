@@ -20,8 +20,6 @@ int main(int argc, char** argv) {
     undirected = true;
   }
 
-  sycl::queue q {sycl::gpu_selector_v};
-
   std::cerr << "[* ] Loading COO file" << std::endl;
   auto coo = sygraph::io::coo::fromCOO<uint, uint, uint>(in_file, undirected);
   std::cerr << "[**] Converting to CSR" << std::endl;
