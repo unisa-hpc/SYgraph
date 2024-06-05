@@ -58,11 +58,7 @@ int main(int argc, char** argv) {
     std::cout << std::setw(10) << "Vertex" << std::setw(10) << "Distance" << std::endl;
     for (size_t i = 0; i < G.getVertexCount(); i++) {
       auto distance = sssp.getDistance(i);
-      if (distance == size + 1) {
-        continue;
-      } else {
-        std::cout << std::setw(10) << i << std::setw(10) << distance << std::endl;
-      }
+      if (distance != size + 1) { std::cout << std::setw(10) << i << std::setw(10) << distance << std::endl; }
     }
   }
 

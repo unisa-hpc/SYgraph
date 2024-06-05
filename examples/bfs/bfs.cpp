@@ -5,14 +5,14 @@
 #include <sycl/sycl.hpp>
 #include <sygraph/sygraph.hpp>
 
-template<typename GraphT, typename BFS_T>
-bool validate(const GraphT& graph, BFS_T& bfs, uint source) {
+template<typename GraphT, typename BfsT>
+bool validate(const GraphT& graph, BfsT& bfs, uint source) {
   using vertex_t = typename GraphT::vertex_t;
   assert(bfs.getDistance(source) == 0);
   std::vector<uint> distances(graph.getVertexCount(), graph.getVertexCount() + 1);
-  std::vector<vertex_t> inFrontier;
-  std::vector<vertex_t> outFrontier;
-  inFrontier.push_back(source);
+  std::vector<vertex_t> in_frontier;
+  std::vector<vertex_t> out_frontier;
+  in_frontier.push_back(source);
   distances[source] = 0;
 
   auto row_offsets = graph.getRowOffsets();
@@ -20,8 +20,8 @@ bool validate(const GraphT& graph, BFS_T& bfs, uint source) {
 
   size_t iter = 0;
   size_t mismatches = 0;
-  while (inFrontier.size()) {
-    for (size_t i = 0; i < inFrontier.size(); i++) {
+  while (in_frontier.size()) {
+    for (size_t i = 0; i < in_frontier.size(); i++) {
       auto vertex = inFrontier[i];
 
       auto start = row_offsets[vertex];
@@ -36,12 +36,12 @@ bool validate(const GraphT& graph, BFS_T& bfs, uint source) {
             // << std::endl;
             mismatches++;
           }
-          outFrontier.push_back(neighbor);
+          out_frontier.push_back(neighbor);
         }
       }
     }
     std::swap(inFrontier, outFrontier);
-    outFrontier.clear();
+    out_frontier.clear();
     iter++;
   }
   if (mismatches) { std::cout << "Mismatches: " << mismatches << std::endl; }
@@ -96,11 +96,7 @@ int main(int argc, char** argv) {
     std::cout << std::setw(10) << "Vertex" << std::setw(10) << "Distance" << std::endl;
     for (size_t i = 0; i < G.getVertexCount(); i++) {
       auto distance = bfs.getDistance(i);
-      if (distance == size + 1) {
-        continue;
-      } else {
-        std::cout << std::setw(10) << i << std::setw(10) << distance << std::endl;
-      }
+      if (distance != size + 1) { std::cout << std::setw(10) << i << std::setw(10) << distance << std::endl; }
     }
   }
 
