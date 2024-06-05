@@ -1,7 +1,7 @@
 #pragma once
 
-#include <sycl/sycl.hpp>
 #include <memory>
+#include <sycl/sycl.hpp>
 
 #include <sygraph/graph/graph.hpp>
 #include <sygraph/operators/config.hpp>
@@ -18,24 +18,19 @@ namespace detail {
 namespace workitem_mapped {
 
 
-template <typename graph_t,
-          typename T,
-          typename lambda_t>
-sygraph::event vertex(graph_t& graph,   
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitmap>& in, 
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitmap>& out, 
+template<typename graph_t, typename T, typename lambda_t>
+sygraph::event vertex(graph_t& graph,
+                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitmap>& in,
+                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitmap>& out,
                       lambda_t&& functor) {
-  
   sycl::queue& q = graph.getQueue();
-  
+
   size_t active_elements_size = types::detail::MAX_ACTIVE_ELEMS_SIZE;
   T* active_elements;
-  if (!in.selfAllocated()) {
-    active_elements = memory::detail::memoryAlloc<T, memory::space::shared>(active_elements_size, q);
-  }
+  if (!in.selfAllocated()) { active_elements = memory::detail::memoryAlloc<T, memory::space::shared>(active_elements_size, q); }
   in.getActiveElements(active_elements, active_elements_size);
 
-  sygraph::event ret {q.submit([&](sycl::handler& cgh) {
+  sygraph::event ret{q.submit([&](sycl::handler& cgh) {
     auto in_dev_frontier = in.getDeviceFrontier();
     auto outDevFrontier = out.getDeviceFrontier();
     auto graphDev = graph.getDeviceGraph();
@@ -53,35 +48,28 @@ sygraph::event vertex(graph_t& graph,
         auto neighbor = *i;
         if (functor(element, neighbor, edge, weight)) {
           bool val = outDevFrontier.insert(neighbor);
-          if (!val) {
-            os << "Error inserting " << neighbor << sycl::endl;
-          }
+          if (!val) { os << "Error inserting " << neighbor << sycl::endl; }
         }
       }
     });
   })};
 
-  if (!in.selfAllocated()) {
-    sycl::free(active_elements, q);
-  }
+  if (!in.selfAllocated()) { sycl::free(active_elements, q); }
   return ret;
 }
 
-template <typename graph_t,
-          typename T,
-          typename lambda_t>
-sygraph::event edge(graph_t& graph, 
-                    const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::edge, sygraph::frontier::FrontierType::bitmap>& in, 
-                    const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::edge, sygraph::frontier::FrontierType::bitmap>& out, 
+template<typename graph_t, typename T, typename lambda_t>
+sygraph::event edge(graph_t& graph,
+                    const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::edge, sygraph::frontier::FrontierType::bitmap>& in,
+                    const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::edge, sygraph::frontier::FrontierType::bitmap>& out,
                     lambda_t&& functor) {
-  
   sycl::queue& q = graph.getQueue();
 
   size_t active_elements_size = in.getNumActiveElements();
   T* active_elements = memory::detail::memoryAlloc<T, memory::space::shared>(active_elements_size, q);
   in.getActiveElements(active_elements);
 
-  sygraph::event ret {q.submit([&](sycl::handler& cgh) {
+  sygraph::event ret{q.submit([&](sycl::handler& cgh) {
     auto in_dev_frontier = in.getDeviceFrontier();
     auto outDevFrontier = out.getDeviceFrontier();
     auto graphDev = graph.getDeviceGraph();
@@ -96,9 +84,7 @@ sygraph::event edge(graph_t& graph,
         auto edge = i.get_index();
         auto weight = graphDev.getEdgeWeight(element, edge);
         auto neighbor = *i;
-        if (functor(element, neighbor, edge, weight)) {
-          outDevFrontier.insert(edge);
-        }
+        if (functor(element, neighbor, edge, weight)) { outDevFrontier.insert(edge); }
       }
     });
   })};
@@ -107,27 +93,26 @@ sygraph::event edge(graph_t& graph,
   return ret;
 }
 
-template <typename graph_t,
-          typename T,
-          typename lambda_t>
-sygraph::event vertex(graph_t& graph,   
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::vector>& in, 
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::vector>& out, 
-                      lambda_t&& functor) {  
+template<typename graph_t, typename T, typename lambda_t>
+sygraph::event vertex(graph_t& graph,
+                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::vector>& in,
+                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::vector>& out,
+                      lambda_t&& functor) {
   sycl::queue& q = graph.getQueue();
 
   size_t active_elements_size = in.getNumActiveElements();
   T* active_elements;
   in.getActiveElements(active_elements, active_elements_size);
 
-  sygraph::event ret {q.submit([&](sycl::handler& cgh) {
+  sygraph::event ret{q.submit([&](sycl::handler& cgh) {
     auto in_dev_frontier = in.getDeviceFrontier();
     auto outDevFrontier = out.getDeviceFrontier();
     auto graphDev = graph.getDeviceGraph();
     constexpr size_t LOCAL_MEM_SIZE = types::detail::MAX_LOCAL_MEM_SIZE;
 
     sycl::range<1> local_size(128); // TODO: tune this value
-    sycl::range<1> global_size(active_elements_size <= local_size[0] ? local_size[0] : (active_elements_size + local_size[0] - active_elements_size % local_size[0]));
+    sycl::range<1> global_size(active_elements_size <= local_size[0] ? local_size[0]
+                                                                     : (active_elements_size + local_size[0] - active_elements_size % local_size[0]));
 
     sycl::local_accessor<T, 1> l_frontier(LOCAL_MEM_SIZE, cgh);
     sycl::local_accessor<size_t, 1> l_frontier_tail(1, cgh);
@@ -137,9 +122,7 @@ sygraph::event vertex(graph_t& graph,
       size_t lid = item.get_local_linear_id();
       sycl::atomic_ref<size_t, sycl::memory_order::acq_rel, sycl::memory_scope::work_group> l_frontier_tail_ref(l_frontier_tail[0]);
 
-      if (lid == 0) {
-        l_frontier_tail_ref = 0;
-      }
+      if (lid == 0) { l_frontier_tail_ref = 0; }
       sycl::group_barrier(item.get_group());
 
       if (gid < active_elements_size) {
@@ -163,13 +146,9 @@ sygraph::event vertex(graph_t& graph,
       }
       sycl::group_barrier(item.get_group());
       size_t address_space = 0;
-      if (lid == 0) {
-        address_space = outDevFrontier.prealloc(l_frontier_tail_ref.load());
-      }
+      if (lid == 0) { address_space = outDevFrontier.prealloc(l_frontier_tail_ref.load()); }
       address_space = sycl::group_broadcast(item.get_group(), address_space, 0);
-      for (size_t i = lid; i < l_frontier_tail_ref; i += item.get_local_range(0)) {
-        outDevFrontier.insert(l_frontier[i], address_space + i);
-      }
+      for (size_t i = lid; i < l_frontier_tail_ref; i += item.get_local_range(0)) { outDevFrontier.insert(l_frontier[i], address_space + i); }
     });
   })};
 
@@ -178,7 +157,7 @@ sygraph::event vertex(graph_t& graph,
 
 
 } // namespace workitem_mapped
-} // namespace detail  
+} // namespace detail
 } // namespace advance
 } // namespace operators
 } // namespace v0

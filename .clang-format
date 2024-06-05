@@ -1,7 +1,7 @@
 BasedOnStyle: llvm
 
-AlignAfterOpenBracket: DontAlign
-AlignOperands: false
+AlignAfterOpenBracket: Align
+AlignOperands: true
 AlignTrailingComments: true
 AllowShortBlocksOnASingleLine: true
 AllowShortCaseLabelsOnASingleLine: true
@@ -9,23 +9,23 @@ AllowShortFunctionsOnASingleLine: true
 AllowShortIfStatementsOnASingleLine: true
 AllowShortLoopsOnASingleLine: true
 AlwaysBreakTemplateDeclarations: true
-BinPackArguments: true
-BinPackParameters: true
+BinPackArguments: false
+BinPackParameters: false
 BreakBeforeBinaryOperators: All
 BreakBeforeBraces: Attach
-ColumnLimit: 120
+ColumnLimit: 150
 Cpp11BracedListStyle: true
 FixNamespaceComments: true
 IndentCaseLabels: true
-IndentWidth: 4
+IndentWidth: 2
 KeepEmptyLinesAtTheStartOfBlocks: false
 MaxEmptyLinesToKeep: 2
 NamespaceIndentation: None
-PointerAlignment: Right
+PointerAlignment: Left
 QualifierAlignment: Left
 SpaceAfterCStyleCast: false
 SpaceAfterTemplateKeyword : false
-SpaceBeforeParens: Never
+SpaceBeforeParens: ControlStatements
 SpaceInEmptyParentheses: false
 SpacesBeforeTrailingComments: 1
 SpacesInAngles: false
@@ -33,5 +33,5 @@ SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
 Standard: Cpp11
-TabWidth: 4
+TabWidth: 2
 UseTab: Never

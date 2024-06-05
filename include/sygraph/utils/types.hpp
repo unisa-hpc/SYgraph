@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 #include <cstddef>
 
@@ -15,7 +15,7 @@ constexpr uint byte_size = 8;
 constexpr size_t MAX_LOCAL_MEM_SIZE = 512;
 constexpr size_t MAX_ACTIVE_ELEMS_SIZE = 1048576; // TODO: [!!] This is a temporary value
 
-}
+} // namespace detail
 
 } // namespace types
 } // namespace v0

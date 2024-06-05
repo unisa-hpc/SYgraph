@@ -1,11 +1,11 @@
-#include <string>
 #include <iostream>
 #include <random>
+#include <string>
 
 #include <sygraph/sygraph.hpp>
 
 
-template <typename index_t>
+template<typename index_t>
 struct args_t {
   bool print_output = false;
   bool validate = false;
@@ -71,10 +71,8 @@ void PRINT_FRONTIER(T& f, std::string prefix = "") {
   using type_t = typename T::type_t;
   auto size = f.getBitmapSize() * f.getBitmapRange();
   std::cout << prefix;
-  for (int i = size - 1; i >= 0; --i) {
-    std::cout << (f.check(static_cast<type_t>(i)) ? "1" : "0");
-  }
-  std::cout << " [" << f.getDeviceFrontier().get_data()[0] << "]" << std::endl; 
+  for (int i = size - 1; i >= 0; --i) { std::cout << (f.check(static_cast<type_t>(i)) ? "1" : "0"); }
+  std::cout << " [" << f.getDeviceFrontier().get_data()[0] << "]" << std::endl;
   std::cout << std::endl;
 }
 
@@ -104,7 +102,7 @@ sygraph::formats::CSR<value_t, index_t, offset_t> read_csr(const args_t<index_t>
     auto coo = sygraph::io::coo::fromCOO<value_t, index_t, offset_t>(file, args.undirected);
     csr = sygraph::io::csr::fromCOO(coo);
   }
-  
+
   std::ifstream file(args.path);
   if (!file.is_open()) {
     std::cerr << "Error: could not open file " << args.path << std::endl;
@@ -117,7 +115,7 @@ template<typename GraphT>
 void print_graph_info(const GraphT& g) {
   std::cerr << "-----------------------------------" << std::endl;
   std::cerr << std::left;
-  std::cerr << std::setw(17) << "Vertex count:" << std::setw(10) << g.getVertexCount()<< std::endl;
+  std::cerr << std::setw(17) << "Vertex count:" << std::setw(10) << g.getVertexCount() << std::endl;
   std::cerr << std::setw(17) << "Edge count:" << std::setw(10) << g.getEdgeCount() << std::endl;
   std::cerr << std::setw(17) << "Average degree:" << std::setw(10) << g.getEdgeCount() / g.getVertexCount() << std::endl;
   std::cerr << "-----------------------------------" << std::endl;

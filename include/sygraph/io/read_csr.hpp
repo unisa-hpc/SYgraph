@@ -1,11 +1,11 @@
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 
 #include <sycl/sycl.hpp>
 
-#include <sygraph/formats/csr.hpp>
 #include <sygraph/formats/coo.hpp>
+#include <sygraph/formats/csr.hpp>
 
 namespace sygraph {
 inline namespace v0 {
@@ -14,17 +14,17 @@ namespace csr {
 
 /**
  * @brief Converts a matrix in CSR format to a CSR object.
- * 
+ *
  * This function reads a matrix in CSR format from a given input stream and converts it into a CSR object.
  * The CSR object contains the row offsets, column indices, and non-zero values of the matrix.
- * 
+ *
  * @tparam value_t The value type of the matrix elements.
  * @tparam index_t The index type used for column indices.
  * @tparam offset_t The offset type used for row offsets.
  * @param iss The input stream containing the matrix in CSR format.
  * @return The CSR object representing the matrix.
  */
-template <typename value_t, typename index_t, typename offset_t>
+template<typename value_t, typename index_t, typename offset_t>
 sygraph::formats::CSR<value_t, index_t, offset_t> fromMatrix(std::istream& iss) {
   size_t n_rows = 0;
   size_t n_nonzeros = 0;
@@ -55,10 +55,10 @@ sygraph::formats::CSR<value_t, index_t, offset_t> fromMatrix(std::istream& iss) 
 
 /**
  * @brief Converts a matrix in CSR format from a file to a CSR object.
- * 
+ *
  * This function reads a matrix in CSR format from a given file and converts it into a CSR object.
  * The CSR object contains the row offsets, column indices, and non-zero values of the matrix.
- * 
+ *
  * @tparam value_t The value type of the matrix elements.
  * @tparam index_t The index type used for column indices.
  * @tparam offset_t The offset type used for row offsets.
@@ -66,7 +66,7 @@ sygraph::formats::CSR<value_t, index_t, offset_t> fromMatrix(std::istream& iss) 
  * @return The CSR object representing the matrix.
  * @throws std::runtime_error if the file fails to open.
  */
-template <typename value_t, typename index_t, typename offset_t>
+template<typename value_t, typename index_t, typename offset_t>
 sygraph::formats::CSR<value_t, index_t, offset_t> fromCSR(std::istream& iss) {
   size_t n_rows = 0;
   size_t n_nonzeros = 0;
@@ -103,23 +103,22 @@ sygraph::formats::CSR<value_t, index_t, offset_t> fromCSR(std::istream& iss) {
   return sygraph::formats::CSR<value_t, index_t, offset_t>(row_offsets, column_indices, nnz_values);
 }
 
-template <typename value_t, typename index_t, typename offset_t>
+template<typename value_t, typename index_t, typename offset_t>
 sygraph::formats::CSR<value_t, index_t, offset_t> fromCOO(const sygraph::formats::COO<value_t, index_t, offset_t>& coo) {
   auto coo_row_indices = coo.get_row_indices();
   auto coo_column_indices = coo.getColumnIndices();
   auto coo_values = coo.getValues();
   auto size = coo.get_size();
   auto n_nodes = std::max(*std::max_element(coo_row_indices.begin(), coo_row_indices.end()),
-                          *std::max_element(coo_column_indices.begin(), coo_column_indices.end())) + 1;
+                          *std::max_element(coo_column_indices.begin(), coo_column_indices.end()))
+                 + 1;
 
   std::vector<offset_t> csr_row_offsets(n_nodes + 1);
   std::vector<index_t> csr_column_indices(size);
   std::vector<value_t> csr_values(size);
 
   // Count the number of nonzeros in each row
-  for (index_t i = 0; i < size; i++) {
-    csr_row_offsets[coo_row_indices[i]]++;
-  }
+  for (index_t i = 0; i < size; i++) { csr_row_offsets[coo_row_indices[i]]++; }
 
   // Compute the prefix sum
   offset_t sum = 0;
@@ -140,19 +139,15 @@ sygraph::formats::CSR<value_t, index_t, offset_t> fromCOO(const sygraph::formats
   }
 
   // Shift the row offsets
-  for (index_t i = n_nodes - 1; i > 0; i--) {
-    csr_row_offsets[i] = csr_row_offsets[i - 1];
-  }
+  for (index_t i = n_nodes - 1; i > 0; i--) { csr_row_offsets[i] = csr_row_offsets[i - 1]; }
   csr_row_offsets[0] = 0;
 
   return {csr_row_offsets, csr_column_indices, csr_values};
 }
 
-template <typename value_t, typename index_t, typename offset_t>
+template<typename value_t, typename index_t, typename offset_t>
 void to_binary(const sygraph::formats::CSR<value_t, index_t, offset_t>& csr, std::ostream& oss) {
-  if (!oss) {
-    throw std::runtime_error("Failed to write binary CSR matrix");
-  }
+  if (!oss) { throw std::runtime_error("Failed to write binary CSR matrix"); }
 
   auto& row_offsets = csr.getRowOffsets();
   auto& column_indices = csr.getColumnIndices();
@@ -169,11 +164,9 @@ void to_binary(const sygraph::formats::CSR<value_t, index_t, offset_t>& csr, std
   oss.write(reinterpret_cast<const char*>(&values[0]), values.size() * sizeof(value_t));
 }
 
-template <typename value_t, typename index_t, typename offset_t>
+template<typename value_t, typename index_t, typename offset_t>
 sygraph::formats::CSR<value_t, index_t, offset_t> fromBinary(std::istream& iss) {
-  if (!iss) {
-    throw std::runtime_error("Failed to read binary CSR matrix");
-  }
+  if (!iss) { throw std::runtime_error("Failed to read binary CSR matrix"); }
 
   size_t num_rows;
   size_t num_nonzero;

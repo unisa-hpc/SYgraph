@@ -1,10 +1,10 @@
-#include <iostream>
-#include <sycl/sycl.hpp>
-#include <sygraph/sygraph.hpp>
+#include "../include/utils.hpp"
 #include <chrono>
 #include <iomanip>
+#include <iostream>
 #include <random>
-#include "../include/utils.hpp"
+#include <sycl/sycl.hpp>
+#include <sygraph/sygraph.hpp>
 
 template<typename GraphT, typename BenchT>
 bool validate(const GraphT& graph, BenchT& bfs, uint source) {
@@ -14,31 +14,29 @@ bool validate(const GraphT& graph, BenchT& bfs, uint source) {
 
 int main(int argc, char** argv) {
   using type_t = unsigned int;
-  args_t<type_t> args {argc, argv};
+  args_t<type_t> args{argc, argv};
 
   std::cerr << "[*  ] Reading CSR" << std::endl;
   auto csr = read_csr<type_t, type_t, type_t>(args);
 
 #ifdef ENABLE_PROFILING
-  sycl::queue q {sycl::gpu_selector_v, sycl::property::queue::enable_profiling()};
+  sycl::queue q{sycl::gpu_selector_v, sycl::property::queue::enable_profiling()};
 #else
-  sycl::queue q {sycl::gpu_selector_v};
+  sycl::queue q{sycl::gpu_selector_v};
 #endif
-  
+
   std::cerr << "[** ] Building Graph" << std::endl;
   auto G = sygraph::graph::build::fromCSR<sygraph::memory::space::shared>(q, csr);
   print_graph_info(G);
   size_t size = G.getVertexCount();
-  
-  sygraph::algorithms::SSSP sssp {G};
-  if (args.random_source) {
-    args.source = get_random_source(size);
-  }
+
+  sygraph::algorithms::SSSP sssp{G};
+  if (args.random_source) { args.source = get_random_source(size); }
   sssp.init(args.source);
 
   std::cerr << "[***] Running SSSP on source " << args.source << std::endl;
   sssp.run<true>();
-  
+
   std::cerr << "[!] Done" << std::endl;
 
   if (args.validate) {
@@ -51,7 +49,8 @@ int main(int argc, char** argv) {
     }
     std::cerr << "] | ";
     auto validation_end = std::chrono::high_resolution_clock::now();
-    std::cerr << "Validation Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(validation_end - validation_start).count() << " ms" << std::endl;
+    std::cerr << "Validation Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(validation_end - validation_start).count() << " ms"
+              << std::endl;
   }
 
   if (args.print_output) {
@@ -64,7 +63,7 @@ int main(int argc, char** argv) {
       } else {
         std::cout << std::setw(10) << i << std::setw(10) << distance << std::endl;
       }
-    }  
+    }
   }
 
 #ifdef ENABLE_PROFILING

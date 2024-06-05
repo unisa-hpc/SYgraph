@@ -1,5 +1,5 @@
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
 #include <sygraph/sygraph.hpp>
 
@@ -16,9 +16,7 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  if (argc == 4 && std::string(argv[3]) == "-u") {
-    undirected = true;
-  }
+  if (argc == 4 && std::string(argv[3]) == "-u") { undirected = true; }
 
   std::cerr << "[* ] Loading COO file" << std::endl;
   auto coo = sygraph::io::coo::fromCOO<uint, uint, uint>(in_file, undirected);

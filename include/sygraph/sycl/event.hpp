@@ -21,13 +21,9 @@ public:
   }
   ~event() = default;
 
-  void wait() {
-    sycl::event::wait();
-  }
+  void wait() { sycl::event::wait(); }
 
-  void waitAndThrow() {
-    sycl::event::wait_and_throw();
-  }
+  void waitAndThrow() { sycl::event::wait_and_throw(); }
 };
 
 } // namespace v0

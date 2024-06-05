@@ -9,7 +9,7 @@ namespace frontier {
  */
 enum class FrontierView {
   vertex, /**< View representing only the vertices in the frontier. */
-  edge, /**< View representing only the edges in the frontier. */
+  edge,   /**< View representing only the edges in the frontier. */
 };
 
 /**

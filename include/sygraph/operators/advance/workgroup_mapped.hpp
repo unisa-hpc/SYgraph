@@ -1,11 +1,11 @@
 #pragma once
 
 #include <sycl/sycl.hpp>
-#include <memory>
 
-#include <sygraph/sycl/event.hpp>
+#include <sygraph/frontier/frontier.hpp>
 #include <sygraph/graph/graph.hpp>
 #include <sygraph/operators/config.hpp>
+#include <sygraph/sycl/event.hpp>
 #include <sygraph/utils/types.hpp>
 
 namespace sygraph {
@@ -16,34 +16,26 @@ namespace advance {
 
 namespace detail {
 
-template <typename T, typename frontier_dev_t, typename graph_dev_t, typename lambda_t>
+template<typename T, typename FrontierDevT, typename GraphDevT, typename LambdaT>
 struct vector_kernel {
+  vector_kernel(T* active_elements,
+                size_t active_elements_size,
+                FrontierDevT in_dev_frontier,
+                FrontierDevT out_dev_frontier,
+                GraphDevT graph_dev,
+                sycl::local_accessor<size_t, 1> n_edges_local,
+                sycl::local_accessor<bool, 1> visited,
+                sycl::local_accessor<T, 1> active_elements_local,
+                sycl::local_accessor<T, 1> work_group_reduce,
+                sycl::local_accessor<size_t, 1> work_group_reduce_tail,
+                LambdaT&& functor)
+      : active_elements{active_elements}, active_elements_size{active_elements_size}, in_dev_frontier{in_dev_frontier},
+        out_dev_frontier{out_dev_frontier}, graph_dev{graph_dev}, n_edges_local{n_edges_local}, visited{visited},
+        active_elements_local{active_elements_local}, work_group_reduce{work_group_reduce}, work_group_reduce_tail{work_group_reduce_tail},
+        functor{std::forward<LambdaT>(functor)} {}
 
-  vector_kernel(T* active_elements, 
-                size_t active_elements_size, 
-                frontier_dev_t in_dev_frontier, 
-                frontier_dev_t out_dev_frontier, 
-                graph_dev_t graph_dev,
-                sycl::local_accessor<size_t, 1> n_edges_local, 
-                sycl::local_accessor<bool, 1> visited, 
-                sycl::local_accessor<T, 1> active_elements_local, 
-                sycl::local_accessor<T, 1> work_group_reduce, 
-                sycl::local_accessor<size_t, 1> work_group_reduce_tail, 
-                lambda_t&& functor) 
-    : active_elements{active_elements}, 
-      active_elements_size{active_elements_size}, 
-      in_dev_frontier{in_dev_frontier}, 
-      out_dev_frontier{out_dev_frontier}, 
-      graph_dev{graph_dev},
-      n_edges_local{n_edges_local}, 
-      visited{visited}, 
-      active_elements_local{active_elements_local}, 
-      work_group_reduce{work_group_reduce}, 
-      work_group_reduce_tail{work_group_reduce_tail}, 
-      functor{std::forward<lambda_t>(functor)} {}
-
-  void operator() (sycl::nd_item<1> item) const {
-  // 0. retrieve global and local ids
+  void operator()(sycl::nd_item<1> item) const {
+    // 0. retrieve global and local ids
     size_t gid = item.get_global_linear_id();
     size_t lid = item.get_local_linear_id();
     size_t local_range = item.get_local_range(0);
@@ -53,11 +45,8 @@ struct vector_kernel {
     auto subgroup_id = subgroup.get_group_id();
     size_t subgroup_size = subgroup.get_local_range()[0];
     size_t sgid = subgroup.get_local_linear_id();
-
     // 1. load number of edges in local memory
-    if (lid == 0) {
-      work_group_reduce_tail[0] = 0;
-    }
+    if (lid == 0) { work_group_reduce_tail[0] = 0; }
     if (gid < active_elements_size) {
       T element = active_elements[gid];
       n_edges_local[lid] = graph_dev.getDegree(element);
@@ -69,15 +58,16 @@ struct vector_kernel {
     }
 
     // // 1.5 compute nodes to be computed by all the item in the workgroup
-    // sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> tail{work_group_reduce_tail[0]};
-    // if (n_edges_local[lid] >= local_range && !visited[lid]) {
+    // sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group>
+    // tail{work_group_reduce_tail[0]}; if (n_edges_local[lid] >= local_range && !visited[lid]) {
     //   work_group_reduce[tail++] = lid;
     // }
 
     // sycl::group_barrier(group); // synchronize
 
     // // 2. process elements with more than local_range edges
-    // for (size_t i = 0; i < tail.load(); i++) { // TODO: [!!!!] for some reason this slows a lot the performances (6ms)
+    // for (size_t i = 0; i < tail.load(); i++) { // TODO: [!!!!] for some reason this slows a lot
+    // the performances (6ms)
     //   size_t vertex_id = work_group_reduce[i];
     //   auto vertex = active_elements_local[vertex_id];
     //   size_t n_edges = n_edges_local[vertex_id];
@@ -102,7 +92,7 @@ struct vector_kernel {
     // 3. process elements with less than local_range edges but more than one subgroup size edges
     for (size_t i = 0; i < subgroup_size; i++) {
       size_t vertex_id = subgroup_id * subgroup_size + i;
-      if (!visited[vertex_id] &&  n_edges_local[vertex_id] >= subgroup_size) {
+      if (!visited[vertex_id] && n_edges_local[vertex_id] >= subgroup_size) {
         auto vertex = active_elements_local[vertex_id];
         size_t n_edges = n_edges_local[vertex_id];
         size_t private_slice = n_edges / subgroup_size;
@@ -113,14 +103,10 @@ struct vector_kernel {
           auto edge = n.get_index();
           auto weight = graph_dev.getEdgeWeight(edge);
           auto neighbor = *n;
-          if (functor(vertex, neighbor, edge, weight)) {
-            out_dev_frontier.insert(neighbor);
-          }
+          if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor); }
         }
         sycl::group_barrier(subgroup);
-        if (sgid == i) {
-          visited[vertex_id] = true;
-        }
+        if (sgid == i) { visited[vertex_id] = true; }
       }
     }
 
@@ -134,31 +120,28 @@ struct vector_kernel {
         auto edge = n.get_index();
         auto weight = graph_dev.getEdgeWeight(edge);
         auto neighbor = *n;
-        if (functor(vertex, neighbor, edge, weight)) {
-          out_dev_frontier.insert(neighbor);
-        }
+        if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor); }
       }
     }
   }
 
   T* active_elements;
   size_t active_elements_size;
-  frontier_dev_t in_dev_frontier;
-  frontier_dev_t out_dev_frontier;
-  graph_dev_t graph_dev;
+  FrontierDevT in_dev_frontier;
+  FrontierDevT out_dev_frontier;
+  GraphDevT graph_dev;
   sycl::local_accessor<size_t, 1> n_edges_local;
   sycl::local_accessor<bool, 1> visited;
   sycl::local_accessor<T, 1> active_elements_local;
   sycl::local_accessor<T, 1> work_group_reduce;
   sycl::local_accessor<size_t, 1> work_group_reduce_tail;
-  lambda_t functor;
+  LambdaT functor;
 };
 
 
-template <typename T, typename frontier_dev_t, typename graph_dev_t, typename lambda_t>
+template<typename T, typename FrontierDevT, typename GraphDevT, typename LambdaT>
 struct bitmap_kernel {
-
-  void operator() (sycl::nd_item<1> item) const {
+  void operator()(sycl::nd_item<1> item) const {
     // 0. retrieve global and local ids
     size_t gid = item.get_global_linear_id();
     size_t lid = item.get_local_linear_id();
@@ -170,18 +153,14 @@ struct bitmap_kernel {
     size_t subgroup_size = subgroup.get_local_range()[0];
     size_t sgid = subgroup.get_local_linear_id();
     int* bitmap_offsets = in_dev_frontier.getOffsets();
-    
+
     size_t coarsening_factor = local_range / in_dev_frontier.getBitmapRange();
     size_t acutal_id_offset = group_id * coarsening_factor + lid / in_dev_frontier.getBitmapRange();
     size_t actual_id = bitmap_offsets[acutal_id_offset] * in_dev_frontier.getBitmapRange() + lid;
 
     // 1. load number of edges in local memory
-    if (subgroup.leader()) {
-      active_elements_tail[subgroup_id] = 0;
-    }
-    if (group.leader()) {
-      work_group_reduce_tail[0] = 0;
-    }
+    if (subgroup.leader()) { active_elements_tail[subgroup_id] = 0; }
+    if (group.leader()) { work_group_reduce_tail[0] = 0; }
 
     sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::sub_group> tail{active_elements_tail[subgroup_id]};
     sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> tail_global{active_elements_tail[0]};
@@ -232,9 +211,7 @@ struct bitmap_kernel {
       size_t vertex_id = offset + i;
       auto vertex = active_elements_local[vertex_id];
       size_t n_edges = n_edges_local[vertex_id];
-      if (n_edges < subgroup_size) {
-        continue;
-      }
+      if (n_edges < subgroup_size) { continue; }
       size_t private_slice = n_edges / subgroup_size;
       auto start = graph_dev.begin(vertex) + (private_slice * sgid);
       auto end = sgid == subgroup_size - 1 ? graph_dev.end(vertex) : start + private_slice;
@@ -243,13 +220,9 @@ struct bitmap_kernel {
         auto edge = n.get_index();
         auto weight = graph_dev.getEdgeWeight(edge);
         auto neighbor = *n;
-        if (functor(vertex, neighbor, edge, weight)) {
-          out_dev_frontier.insert(neighbor);
-        }
+        if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor); }
       }
-      if (subgroup.leader()) {
-        visited[vertex % local_range] = true;
-      }
+      if (subgroup.leader()) { visited[vertex % local_range] = true; }
     }
     sycl::group_barrier(subgroup);
 
@@ -262,37 +235,32 @@ struct bitmap_kernel {
         auto edge = n.get_index();
         auto weight = graph_dev.getEdgeWeight(edge);
         auto neighbor = *n;
-        if (functor(vertex, neighbor, edge, weight)) {
-          out_dev_frontier.insert(neighbor);
-        }
+        if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor); }
       }
     }
   }
 
   size_t num_nodes;
-  frontier_dev_t in_dev_frontier;
-  frontier_dev_t out_dev_frontier;
-  graph_dev_t graph_dev;
+  FrontierDevT in_dev_frontier;
+  FrontierDevT out_dev_frontier;
+  GraphDevT graph_dev;
   sycl::local_accessor<size_t, 1> n_edges_local;
   sycl::local_accessor<T, 1> active_elements_local;
   sycl::local_accessor<size_t, 1> active_elements_tail;
   sycl::local_accessor<bool, 1> visited;
   sycl::local_accessor<T, 1> work_group_reduce;
   sycl::local_accessor<size_t, 1> work_group_reduce_tail;
-  lambda_t functor;
+  LambdaT functor;
 };
 
 
 namespace workgroup_mapped {
 
-template <typename graph_t,
-          typename T,
-          sygraph::frontier::FrontierType F,
-          typename lambda_t>
-sygraph::event launchBitmapKernel(graph_t& graph,   
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, F>& in, 
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, F>& out,
-                      lambda_t&& functor) {
+template<typename GraphT, typename T, sygraph::frontier::FrontierType F, typename LambdaT>
+sygraph::event launchBitmapKernel(GraphT& graph,
+                                  const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, F>& in,
+                                  const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, F>& out,
+                                  LambdaT&& functor) {
   if constexpr (F != sygraph::frontier::FrontierType::bitmap && F != sygraph::frontier::FrontierType::bitvec) {
     throw std::runtime_error("Invalid frontier type");
   }
@@ -307,68 +275,64 @@ sygraph::event launchBitmapKernel(graph_t& graph,
   auto out_dev_frontier = out.getDeviceFrontier();
   auto graph_dev = graph.getDeviceGraph();
 
-  using bitmap_kernel_t = bitmap_kernel<T, decltype(in_dev_frontier), decltype(graph_dev), lambda_t>;
+  using bitmap_kernel_t = bitmap_kernel<T, decltype(in_dev_frontier), decltype(graph_dev), LambdaT>;
 
   size_t offsets_size = in.computeActiveFrontier();
 
   auto e = q.submit([&](sycl::handler& cgh) {
-
     sycl::range<1> local_range{bitmap_range * COARSENING_FACTOR};
     size_t global_size = offsets_size * bitmap_range;
     sycl::range<1> global_range{global_size > local_range[0] ? global_size + (local_range[0] - (global_size % local_range[0])) : local_range[0]};
-    // sycl::range<1> global_range{num_nodes > local_range[0] ? num_nodes + (local_range[0] - (num_nodes % local_range[0])) : local_range[0]};
+    // sycl::range<1> global_range{num_nodes > local_range[0] ? num_nodes + (local_range[0] -
+    // (num_nodes % local_range[0])) : local_range[0]};
 
-    sycl::local_accessor<size_t, 1> n_edges_local {local_range, cgh};
-    sycl::local_accessor<T, 1> active_elements_local {local_range, cgh};
-    sycl::local_accessor<size_t, 1> active_elements_tail {local_range / 8, cgh};
-    sycl::local_accessor<bool, 1> visited {local_range, cgh};
-    sycl::local_accessor<T, 1> work_group_reduce {local_range, cgh};
-    sycl::local_accessor<size_t, 1> work_group_reduce_tail {1, cgh};
+    sycl::local_accessor<size_t, 1> n_edges_local{local_range, cgh};
+    sycl::local_accessor<T, 1> active_elements_local{local_range, cgh};
+    sycl::local_accessor<size_t, 1> active_elements_tail{local_range / 8, cgh};
+    sycl::local_accessor<bool, 1> visited{local_range, cgh};
+    sycl::local_accessor<T, 1> work_group_reduce{local_range, cgh};
+    sycl::local_accessor<size_t, 1> work_group_reduce_tail{1, cgh};
 
-    
-    cgh.parallel_for<class workgroup_mapped_advance_kernel>(sycl::nd_range<1>{global_range, local_range}, 
-      bitmap_kernel_t{num_nodes,
-                      in_dev_frontier, 
-                      out_dev_frontier, 
-                      graph_dev, 
-                      n_edges_local, 
-                      active_elements_local, 
-                      active_elements_tail, 
-                      visited, 
-                      work_group_reduce, 
-                      work_group_reduce_tail, 
-                      std::forward<lambda_t>(functor)});
+
+    cgh.parallel_for<class workgroup_mapped_advance_kernel>(sycl::nd_range<1>{global_range, local_range},
+                                                            bitmap_kernel_t{num_nodes,
+                                                                            in_dev_frontier,
+                                                                            out_dev_frontier,
+                                                                            graph_dev,
+                                                                            n_edges_local,
+                                                                            active_elements_local,
+                                                                            active_elements_tail,
+                                                                            visited,
+                                                                            work_group_reduce,
+                                                                            work_group_reduce_tail,
+                                                                            std::forward<LambdaT>(functor)});
   });
   return {e};
 }
 
-template <typename graph_t,
-          typename T,
-          typename lambda_t>
-sygraph::event vertex(graph_t& graph,   
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitvec>& in, 
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitvec>& out, 
-                      lambda_t&& functor) {
+template<typename GraphT, typename T, typename LambdaT>
+sygraph::event vertex(GraphT& graph,
+                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitvec>& in,
+                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitvec>& out,
+                      LambdaT&& functor) {
   if (in.getDeviceFrontier().useVector()) {
-    return vertex_vec(graph, in, out, std::forward<lambda_t>(functor));
+    return vertex_vec(graph, in, out, std::forward<LambdaT>(functor));
   } else {
-    return launchBitmapKernel(graph, in, out, std::forward<lambda_t>(functor));
+    return launchBitmapKernel(graph, in, out, std::forward<LambdaT>(functor));
   }
 }
 
 
-template <typename graph_t,
-          typename T,
-          typename lambda_t>
-sygraph::event vertex(graph_t& graph,   
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitmap>& in, 
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitmap>& out, 
-                      lambda_t&& functor) {  
-  return launchBitmapKernel(graph, in, out, std::forward<lambda_t>(functor));
+template<typename GraphT, typename T, typename LambdaT>
+sygraph::event vertex(GraphT& graph,
+                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitmap>& in,
+                      const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitmap>& out,
+                      LambdaT&& functor) {
+  return launchBitmapKernel(graph, in, out, std::forward<LambdaT>(functor));
 }
 
-} // namespace workitem_mapped
-} // namespace detail  
+} // namespace workgroup_mapped
+} // namespace detail
 } // namespace advance
 } // namespace operators
 } // namespace v0

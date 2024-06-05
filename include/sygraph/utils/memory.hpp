@@ -6,15 +6,11 @@ namespace sygraph {
 inline namespace v0 {
 namespace memory {
 
-enum class space {
-  host,
-  device,
-  shared
-};
+enum class space { host, device, shared };
 
 namespace detail {
 
-template <typename T, space V>
+template<typename T, space V>
 inline T* memoryAlloc(size_t n, sycl::queue& q) {
   if constexpr (V == space::host) {
     return sycl::malloc_host<T>(n, q);
