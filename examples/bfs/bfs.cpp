@@ -22,7 +22,7 @@ bool validate(const GraphT& graph, BfsT& bfs, uint source) {
   size_t mismatches = 0;
   while (in_frontier.size()) {
     for (size_t i = 0; i < in_frontier.size(); i++) {
-      auto vertex = inFrontier[i];
+      auto vertex = in_frontier[i];
 
       auto start = row_offsets[vertex];
       auto end = row_offsets[vertex + 1];
@@ -40,7 +40,7 @@ bool validate(const GraphT& graph, BfsT& bfs, uint source) {
         }
       }
     }
-    std::swap(inFrontier, outFrontier);
+    std::swap(in_frontier, out_frontier);
     out_frontier.clear();
     iter++;
   }
