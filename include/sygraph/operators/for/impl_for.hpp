@@ -21,20 +21,24 @@ namespace detail {
 
 template <typename graph_t,
           typename T,
-          typename sygraph::frontier::FrontierView FrontierView,
+          sygraph::frontier::FrontierView FW,
+          sygraph::frontier::FrontierType FT,
           typename lambda_t>
-sygraph::event execute(graph_t& graph, 
-                              const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& frontier, 
+sygraph::event launchBitmapKernel(graph_t& graph, 
+                              const sygraph::frontier::Frontier<T, FW, FT>& frontier, 
                               lambda_t&& functor) {
+  if constexpr (FT != sygraph::frontier::FrontierType::bitmap && FT != sygraph::frontier::FrontierType::bitvec) {
+    throw std::runtime_error("Invalid frontier type");
+  }
   auto q = graph.getQueue();
+  auto dev_frontier = frontier.getDeviceFrontier();
 
   size_t num_nodes = graph.getVertexCount();
-  auto devFrontier = frontier.getDeviceFrontier();
 
   size_t bitmap_range = frontier.getBitmapRange();
   size_t offsets_size = frontier.computeActiveFrontier();
 
-  sygraph::event e = q.submit([&] (sycl::handler& cgh) {
+  return q.submit([&] (sycl::handler& cgh) {
     sycl::range<1> local_range{bitmap_range};
     size_t global_size = offsets_size * local_range[0];
     sycl::range<1> global_range{global_size > local_range[0] ? global_size + (local_range[0] - (global_size % local_range[0])) : local_range[0]};
@@ -43,24 +47,25 @@ sygraph::event execute(graph_t& graph,
       auto lid = item.get_local_id();
       auto group_id = item.get_group_linear_id();
       auto local_size = item.get_local_range()[0];
-      int* bitmap_offsets = devFrontier.getOffsets();
+      int* bitmap_offsets = dev_frontier.getOffsets();
 
       size_t actual_id = bitmap_offsets[group_id] * bitmap_range + lid;
       
-      if (actual_id < num_nodes && devFrontier.check(actual_id)) {
+      if (actual_id < num_nodes && dev_frontier.check(actual_id)) {
         functor(actual_id);
       }
     });
   });
-  // sygraph::event e = q.submit([&](sycl::handler& cgh) {
-  //   cgh.parallel_for<class for_kernel>(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) {
-  //     if (devFrontier.check(idx[0])) {
-  //       functor(idx[0]);
-  //     }
-  //   });
-  // });
+}
 
-  return e;
+template <typename graph_t,
+          typename T,
+          typename sygraph::frontier::FrontierView FrontierView,
+          typename lambda_t>
+sygraph::event execute(graph_t& graph, 
+                              const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& frontier, 
+                              lambda_t&& functor) {
+  return launchBitmapKernel(graph, frontier, functor);
 }
 
 template <typename graph_t,
@@ -100,13 +105,13 @@ template <typename graph_t,
 sygraph::event execute(graph_t& graph, 
                               const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitvec>& frontier, 
                               lambda_t&& functor) {
-  auto q = graph.getQueue();
-  auto devFrontier = frontier.getDeviceFrontier();
-
   sygraph::event e;
-  if (devFrontier.use_vector()) {
-    T* active_elements = devFrontier.get_vector();
-    size_t size = devFrontier.getVectorSize();
+  auto q = graph.getQueue();
+  auto dev_frontier = frontier.getDeviceFrontier();
+  
+  if (dev_frontier.useVector()) {
+    T* active_elements = dev_frontier.getVector();
+    size_t size = dev_frontier.getVectorSize();
 
     e = q.submit([&](sycl::handler& cgh) {
       cgh.parallel_for(sycl::range<1>{size}, [=](sycl::id<1> idx) {
@@ -115,15 +120,7 @@ sygraph::event execute(graph_t& graph,
       });
     });
   } else {
-    size_t num_nodes = graph.getVertexCount();
-
-    e = q.submit([&](sycl::handler& cgh) {
-      cgh.parallel_for(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) {
-        if (devFrontier.check(idx[0])) {
-          functor(idx[0]);
-        }
-      });
-    });
+    e = launchBitmapKernel(graph, frontier, functor);
   }
 
   return e;

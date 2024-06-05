@@ -27,11 +27,11 @@ public:
     vector_max_size = 8192; // TODO ! tune on vector size
   }
 
-  SYCL_EXTERNAL inline bool use_vector() const {
+  SYCL_EXTERNAL inline bool useVector() const {
     return *vector_tail < vector_max_size;
   }
 
-  SYCL_EXTERNAL type_t* get_vector() const {
+  SYCL_EXTERNAL type_t* getVector() const {
     return vector;
   }
 
@@ -71,8 +71,8 @@ public:
 
   friend class frontier_bitvec_t<type_t>;
 protected:
-  void setPtr(bitmap_type* bitmap_ptr, type_t* vector_ptr, size_t* tail_ptr) {
-    bitmap_device_t<bitmap_t>::setPtr(bitmap_ptr);
+  void setPtr(bitmap_type* bitmap_ptr, int* offsets_ptr, size_t* offsets_size_ptr, type_t* vector_ptr, size_t* tail_ptr) {
+    bitmap_device_t<bitmap_t>::setPtr(bitmap_ptr, offsets_ptr, offsets_size_ptr);
     vector = vector_ptr;
     vector_tail = tail_ptr;
   }
@@ -112,9 +112,11 @@ public:
     bitmap_type* bitmap_ptr = sygraph::memory::detail::memoryAlloc<bitmap_type, memory::space::shared>(bitvec.getBitmapSize(), q);
     type_t* vector_ptr = sygraph::memory::detail::memoryAlloc<type_t, memory::space::shared>(bitvec.getVectorMaxSize(), q);
     size_t* vector_tail_ptr = sygraph::memory::detail::memoryAlloc<size_t, memory::space::shared>(1, q);
+    int* offsets = sygraph::memory::detail::memoryAlloc<int, memory::space::device>(bitvec.getBitmapSize(), q);
+    size_t* offsets_size = sygraph::memory::detail::memoryAlloc<size_t, memory::space::shared>(1, q);
     auto size = bitvec.getBitmapSize();
     q.memset(bitmap_ptr, static_cast<bitmap_type>(0), size).wait();
-    bitvec.setPtr(bitmap_ptr, vector_ptr, vector_tail_ptr);
+    bitvec.setPtr(bitmap_ptr, offsets, offsets_size, vector_ptr, vector_tail_ptr);
   }
 
   using bitmap_type = typename bitvec_device_t<type_t>::bitmap_type;
@@ -247,6 +249,53 @@ public:
 
   static void swap(frontier_bitvec_t<type_t>& a, frontier_bitvec_t<type_t>& b) {
     std::swap(a.bitvec, b.bitvec);
+  }
+
+  const size_t computeActiveFrontier() const {
+    sycl::range<1> local_range{128}; // TODO: [!] tune on this value
+    size_t size = bitvec.getBitmapSize();
+    sycl::range<1> global_range{(size > local_range[0] ? size + local_range[0] - (size % local_range[0]) : local_range[0])};
+
+    auto e = q.submit([&](sycl::handler& cgh) {
+      auto bitmap = this->getDeviceFrontier();
+
+      sycl::local_accessor<int, 1> local_offsets(local_range[0], cgh);
+      sycl::local_accessor<size_t, 1> local_size(1, cgh);
+      bitmap.offsets_size[0] = 0;
+
+      cgh.parallel_for(sycl::nd_range<1>{global_range, local_range}, [=, offsets_size=bitmap.offsets_size, offsets=bitmap.offsets](sycl::nd_item<1> item) {
+        int gid = item.get_global_linear_id();
+        size_t lid = item.get_local_linear_id();
+        auto group = item.get_group();
+
+        sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> local_size_ref(local_size[0]);
+        sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> offsets_size_ref{offsets_size[0]};
+        
+        if (group.leader()) {
+          local_size_ref.store(0);
+        }
+        sycl::group_barrier(group);
+
+        if (bitmap.getData()[gid] != 0) {
+          local_offsets[local_size_ref++] = gid;
+        }
+        sycl::group_barrier(group);
+
+        size_t data_offset = 0;
+        if (group.leader()) {
+          data_offset = offsets_size_ref.fetch_add(local_size_ref.load());
+        }
+        data_offset = sycl::group_broadcast(group, data_offset, 0);
+        if (lid < local_size_ref.load()) {
+          offsets[data_offset + lid] = local_offsets[lid];
+        }
+      });
+    });
+    e.wait();
+#ifdef ENABLE_PROFILING
+    sygraph::profiler::addEvent(e, "computeActiveFrontier");
+#endif
+    return bitvec.getOffsetsSize()[0];
   }
 
 private:
