@@ -18,11 +18,11 @@ namespace detail {
 namespace workitem_mapped {
 
 
-template<typename graph_t, typename T, typename lambda_t>
-sygraph::event vertex(graph_t& graph,
+template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
+sygraph::event vertex(GraphT& graph,
                       const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitmap>& in,
                       const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::bitmap>& out,
-                      lambda_t&& functor) {
+                      LambdaT&& functor) {
   sycl::queue& q = graph.getQueue();
 
   size_t active_elements_size = types::detail::MAX_ACTIVE_ELEMS_SIZE;
@@ -58,11 +58,11 @@ sygraph::event vertex(graph_t& graph,
   return ret;
 }
 
-template<typename graph_t, typename T, typename lambda_t>
-sygraph::event edge(graph_t& graph,
+template<typename GraphT, typename T, typename LambdaT>
+sygraph::event edge(GraphT& graph,
                     const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::edge, sygraph::frontier::FrontierType::bitmap>& in,
                     const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::edge, sygraph::frontier::FrontierType::bitmap>& out,
-                    lambda_t&& functor) {
+                    LambdaT&& functor) {
   sycl::queue& q = graph.getQueue();
 
   size_t active_elements_size = in.getNumActiveElements();
@@ -93,11 +93,11 @@ sygraph::event edge(graph_t& graph,
   return ret;
 }
 
-template<typename graph_t, typename T, typename lambda_t>
-sygraph::event vertex(graph_t& graph,
+template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
+sygraph::event vertex(GraphT& graph,
                       const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::vector>& in,
                       const sygraph::frontier::Frontier<T, sygraph::frontier::FrontierView::vertex, sygraph::frontier::FrontierType::vector>& out,
-                      lambda_t&& functor) {
+                      LambdaT&& functor) {
   sycl::queue& q = graph.getQueue();
 
   size_t active_elements_size = in.getNumActiveElements();

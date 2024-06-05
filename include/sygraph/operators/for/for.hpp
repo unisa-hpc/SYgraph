@@ -21,19 +21,19 @@ namespace compute {
 
 
 inline namespace v1 {
-template<typename graph_t,
+template<graph::detail::GraphConcept GraphT,
          typename T,
          typename sygraph::frontier::FrontierView FrontierView,
          typename sygraph::frontier::FrontierType FrontierType,
-         typename lambda_t>
-sygraph::event execute(graph_t& graph, const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& frontier, lambda_t&& functor) {
-  return sygraph::operators::compute::detail::execute(graph, frontier, std::forward<lambda_t>(functor));
+         typename LambdaT>
+sygraph::event execute(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& frontier, LambdaT&& functor) {
+  return sygraph::operators::compute::detail::execute(graph, frontier, std::forward<LambdaT>(functor));
 }
 } // namespace v1
 
 namespace v0 {
-template<typename graph_t, typename frontier_t, typename lambda_t>
-sygraph::event execute(graph_t& graph, frontier_t& frontier, lambda_t&& functor) {
+template<typename GraphT, typename frontier_t, typename LambdaT>
+sygraph::event execute(GraphT& graph, frontier_t& frontier, LambdaT&& functor) {
   auto q = graph.getQueue();
 
   using type_t = typename frontier_t::type_t;

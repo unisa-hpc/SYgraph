@@ -18,9 +18,9 @@ namespace operators {
 namespace filter {
 namespace detail {
 
-template<typename graph_t, typename T, typename sygraph::frontier::FrontierView FrontierView, typename lambda_t>
+template<graph::detail::GraphConcept GraphT, typename T, typename sygraph::frontier::FrontierView FrontierView, typename LambdaT>
 sygraph::event
-inplace(graph_t& graph, const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::vector>& frontier, lambda_t&& functor) {
+inplace(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::vector>& frontier, LambdaT&& functor) {
   auto q = graph.getQueue();
 
   using type_t = T;
@@ -43,11 +43,11 @@ inplace(graph_t& graph, const sygraph::frontier::Frontier<T, FrontierView, sygra
   return e;
 }
 
-template<typename graph_t, typename T, typename sygraph::frontier::FrontierView FrontierView, typename lambda_t>
-sygraph::event external(graph_t& graph,
+template<typename GraphT, typename T, typename sygraph::frontier::FrontierView FrontierView, typename LambdaT>
+sygraph::event external(GraphT& graph,
                         const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::vector>& in,
                         const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::vector>& out,
-                        lambda_t&& functor) {
+                        LambdaT&& functor) {
   auto q = graph.getQueue();
   out.clear();
 

@@ -20,25 +20,25 @@ namespace operators {
 
 namespace filter {
 
-template<typename graph_t,
+template<graph::detail::GraphConcept GraphT,
          typename T,
          typename sygraph::frontier::FrontierView FrontierView,
          typename sygraph::frontier::FrontierType FrontierType,
-         typename lambda_t>
-sygraph::event inplace(graph_t& graph, const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& frontier, lambda_t&& functor) {
-  return sygraph::operators::filter::detail::inplace(graph, frontier, std::forward<lambda_t>(functor));
+         typename LambdaT>
+sygraph::event inplace(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& frontier, LambdaT&& functor) {
+  return sygraph::operators::filter::detail::inplace(graph, frontier, std::forward<LambdaT>(functor));
 }
 
-template<typename graph_t,
+template<typename GraphT,
          typename T,
          typename sygraph::frontier::FrontierView FrontierView,
          typename sygraph::frontier::FrontierType FrontierType,
-         typename lambda_t>
-sygraph::event external(graph_t& graph,
+         typename LambdaT>
+sygraph::event external(GraphT& graph,
                         const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& in,
                         const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& out,
-                        lambda_t&& functor) {
-  return sygraph::operators::filter::detail::external(graph, in, out, std::forward<lambda_t>(functor));
+                        LambdaT&& functor) {
+  return sygraph::operators::filter::detail::external(graph, in, out, std::forward<LambdaT>(functor));
 }
 
 

@@ -15,12 +15,12 @@ namespace operators {
 namespace intersection {
 namespace detail {
 
-template<typename graph_t, typename T, typename sygraph::frontier::FrontierView FrontierView, typename lambda_t>
-sygraph::event bitmapExecute(graph_t& graph,
+template<graph::detail::GraphConcept GraphT, typename T, typename sygraph::frontier::FrontierView FrontierView, typename LambdaT>
+sygraph::event bitmapExecute(GraphT& graph,
                              const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& in1,
                              const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& in2,
                              const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& out,
-                             lambda_t&& functor) {
+                             LambdaT&& functor) {
   out.clear();
   out.merge(in1).wait();
   return out.intersect(in2);

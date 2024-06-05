@@ -39,6 +39,27 @@ private:
   graph::Properties properties;
 };
 
+namespace detail {
+
+template<typename DeviceGraphT>
+concept DeviceGraphConcept = requires(DeviceGraphT g) {
+  { g.getVertexCount() } -> std::convertible_to<size_t>;
+  { g.getEdgeCount() } -> std::convertible_to<size_t>;
+  { g.getDegree(std::declval<typename DeviceGraphT::vertex_t>()) } -> std::convertible_to<size_t>;
+  { g.getFirstNeighbor(std::declval<typename DeviceGraphT::vertex_t>()) } -> std::convertible_to<typename DeviceGraphT::vertex_t>;
+  { g.getSourceVertex(std::declval<typename DeviceGraphT::edge_t>()) } -> std::convertible_to<typename DeviceGraphT::vertex_t>;
+  { g.getDestinationVertex(std::declval<typename DeviceGraphT::edge_t>()) } -> std::convertible_to<typename DeviceGraphT::vertex_t>;
+  { g.getEdgeWeight(std::declval<typename DeviceGraphT::edge_t>()) } -> std::convertible_to<typename DeviceGraphT::weight_t>;
+};
+
+template<typename GraphT>
+concept GraphConcept = requires(GraphT g) {
+  { g.getQueue() } -> std::convertible_to<sycl::queue>;
+  { g.getDeviceGraph() };
+} && detail::DeviceGraphConcept<GraphT>;
+
+} // namespace detail
+
 } // namespace graph
 } // namespace v0
 } // namespace sygraph

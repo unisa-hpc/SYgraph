@@ -10,10 +10,10 @@ namespace detail {
 
 template<typename index_t, typename offset_t, typename value_t>
 class graph_csr_device_t {
+public:
   using vertex_t = index_t; ///< The type used to represent vertices of the graph.
   using edge_t = offset_t;  ///< The type used to represent edges of the graph.
   using weight_t = value_t; ///< The type used to represent weights of the graph.
-public:
   struct NeighborIterator {
     NeighborIterator(index_t* start_ptr, index_t* ptr) : start_ptr(start_ptr), ptr(ptr) {}
 
