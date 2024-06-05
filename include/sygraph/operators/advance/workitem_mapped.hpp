@@ -32,22 +32,22 @@ sygraph::event vertex(graph_t& graph,
 
   sygraph::event ret{q.submit([&](sycl::handler& cgh) {
     auto in_dev_frontier = in.getDeviceFrontier();
-    auto outDevFrontier = out.getDeviceFrontier();
-    auto graphDev = graph.getDeviceGraph();
+    auto out_dev_frontier = out.getDeviceFrontier();
+    auto graph_dev = graph.getDeviceGraph();
     sycl::stream os(1024, 256, cgh);
 
     cgh.parallel_for<class vertex_workitem_advance_kernel>(sycl::range<1>(active_elements_size), [=](sycl::id<1> idx) {
       auto element = active_elements[idx];
-      auto start = graphDev.begin(element);
-      auto end = graphDev.end(element);
+      auto start = graph_dev.begin(element);
+      auto end = graph_dev.end(element);
 
       // each work item takes care of all the neighbors of the vertex he is responsible for
       for (auto i = start; i != end; ++i) {
         auto edge = i.get_index();
-        auto weight = graphDev.getEdgeWeight(edge);
+        auto weight = graph_dev.getEdgeWeight(edge);
         auto neighbor = *i;
         if (functor(element, neighbor, edge, weight)) {
-          bool val = outDevFrontier.insert(neighbor);
+          bool val = out_dev_frontier.insert(neighbor);
           if (!val) { os << "Error inserting " << neighbor << sycl::endl; }
         }
       }
@@ -71,20 +71,20 @@ sygraph::event edge(graph_t& graph,
 
   sygraph::event ret{q.submit([&](sycl::handler& cgh) {
     auto in_dev_frontier = in.getDeviceFrontier();
-    auto outDevFrontier = out.getDeviceFrontier();
-    auto graphDev = graph.getDeviceGraph();
+    auto out_dev_frontier = out.getDeviceFrontier();
+    auto graph_dev = graph.getDeviceGraph();
 
     cgh.parallel_for<class edge_advance_kernel>(sycl::range<1>(active_elements_size), [=](sycl::id<1> idx) {
       auto element = active_elements[idx];
-      auto start = graphDev.begin(element);
-      auto end = graphDev.end(element);
+      auto start = graph_dev.begin(element);
+      auto end = graph_dev.end(element);
 
       // each work item takes care of all the neighbors of the vertex he is responsible for
       for (auto i = start; i != end; ++i) {
         auto edge = i.get_index();
-        auto weight = graphDev.getEdgeWeight(element, edge);
+        auto weight = graph_dev.getEdgeWeight(element, edge);
         auto neighbor = *i;
-        if (functor(element, neighbor, edge, weight)) { outDevFrontier.insert(edge); }
+        if (functor(element, neighbor, edge, weight)) { out_dev_frontier.insert(edge); }
       }
     });
   })};
@@ -106,8 +106,8 @@ sygraph::event vertex(graph_t& graph,
 
   sygraph::event ret{q.submit([&](sycl::handler& cgh) {
     auto in_dev_frontier = in.getDeviceFrontier();
-    auto outDevFrontier = out.getDeviceFrontier();
-    auto graphDev = graph.getDeviceGraph();
+    auto out_dev_frontier = out.getDeviceFrontier();
+    auto graph_dev = graph.getDeviceGraph();
     constexpr size_t LOCAL_MEM_SIZE = types::detail::MAX_LOCAL_MEM_SIZE;
 
     sycl::range<1> local_size(128); // TODO: tune this value
@@ -127,28 +127,28 @@ sygraph::event vertex(graph_t& graph,
 
       if (gid < active_elements_size) {
         auto element = active_elements[gid];
-        auto start = graphDev.begin(element);
-        auto end = graphDev.end(element);
+        auto start = graph_dev.begin(element);
+        auto end = graph_dev.end(element);
 
         // each work item takes care of all the neighbors of the vertex he is responsible for
         for (auto i = start; i != end; ++i) {
           auto edge = i.get_index();
-          auto weight = graphDev.getEdgeWeight(edge);
+          auto weight = graph_dev.getEdgeWeight(edge);
           auto neighbor = *i;
           if (functor(element, neighbor, edge, weight)) {
             if (l_frontier_tail_ref < LOCAL_MEM_SIZE) { // if the local memory is not full, we can use it
               l_frontier[l_frontier_tail_ref++] = neighbor;
             } else { // if the local memory is full, we need to use the global mem
-              outDevFrontier.insert(neighbor);
+              out_dev_frontier.insert(neighbor);
             }
           }
         }
       }
       sycl::group_barrier(item.get_group());
       size_t address_space = 0;
-      if (lid == 0) { address_space = outDevFrontier.prealloc(l_frontier_tail_ref.load()); }
+      if (lid == 0) { address_space = out_dev_frontier.prealloc(l_frontier_tail_ref.load()); }
       address_space = sycl::group_broadcast(item.get_group(), address_space, 0);
-      for (size_t i = lid; i < l_frontier_tail_ref; i += item.get_local_range(0)) { outDevFrontier.insert(l_frontier[i], address_space + i); }
+      for (size_t i = lid; i < l_frontier_tail_ref; i += item.get_local_range(0)) { out_dev_frontier.insert(l_frontier[i], address_space + i); }
     });
   })};
 
