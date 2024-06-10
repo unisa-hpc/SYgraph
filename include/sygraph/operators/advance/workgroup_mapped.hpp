@@ -165,47 +165,40 @@ struct bitmap_kernel {
     if (wgroup.leader()) { work_group_reduce_tail[0] = 0; }
 
     sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::sub_group> sg_tail{active_elements_tail[sgroup_id]};
-    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> wg_tail{active_elements_tail[0]};
+    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> wg_tail{work_group_reduce_tail[0]};
 
     const size_t offset = sgroup_id * sgroup_size;
     if (assigned_vertex < num_nodes && in_dev_frontier.check(assigned_vertex)) {
       size_t n_edges = graph_dev.getDegree(assigned_vertex);
-      // if (n_edges > local_range * 2) { // assign to the workgroup
-      //   work_group_reduce[wg_tail++] = actual_id;
-      // } else { // assign to the subgroup
-      //   size_t loc = sg_tail.fetch_add(1);
-      //   n_edges_local[offset + loc] = n_edges;
-      //   active_elements_local[offset + loc] = actual_id;
-      // }
-      size_t loc = sg_tail.fetch_add(1);
-      n_edges_local[offset + loc] = n_edges;
-      active_elements_local[offset + loc] = assigned_vertex;
+      if (n_edges >= wgroup_size * sgroup_size) { // assign to the workgroup
+        size_t loc = wg_tail.fetch_add(1);
+        work_group_reduce[loc] = assigned_vertex;
+      } else if (n_edges >= sgroup_size) { // assign to the subgroup
+        size_t loc = sg_tail.fetch_add(1);
+        n_edges_local[offset + loc] = n_edges;
+        active_elements_local[offset + loc] = assigned_vertex;
+      }
       visited[lid] = false;
     } else {
       visited[lid] = true;
     }
 
-    // sycl::group_barrier(wgroup);
-    // for (size_t i = 0; i < work_group_reduce_tail[0]; i++) { // TODO: fix this
-    //   auto vertex = work_group_reduce[i];
-    //   size_t n_edges = graph_dev.getDegree(vertex);
-    //   size_t private_slice = n_edges / local_range;
-    //   auto start = graph_dev.begin(vertex) + (private_slice * lid);
-    //   auto end = lid == wgroup_size - 1 ? graph_dev.end(vertex) : start + private_slice;
+    sycl::group_barrier(wgroup);
+    for (size_t i = 0; i < wg_tail.load(); i++) { // TODO: fix this
+      auto vertex = work_group_reduce[i];
+      size_t n_edges = graph_dev.getDegree(vertex);
+      size_t private_slice = n_edges / wgroup_size;
+      auto start = graph_dev.begin(vertex) + (private_slice * lid);
+      auto end = lid == wgroup_size - 1 ? graph_dev.end(vertex) : start + private_slice;
 
-    //   for (auto n = start; n != end; ++n) {
-    //     auto edge = n.get_index();
-    //     auto weight = graph_dev.getEdgeWeight(edge);
-    //     auto neighbor = *n;
-    //     if (functor(vertex, neighbor, edge, weight)) {
-    //       out_dev_frontier.insert(neighbor);
-    //     }
-    //   }
-    //   if (wgroup.leader()) {
-    //     visited[vertex % local_range] = true;
-    //   }
-    //   // sycl::group_barrier(wgroup);
-    // }
+      for (auto n = start; n != end; ++n) {
+        auto edge = n.get_index();
+        auto weight = graph_dev.getEdgeWeight(edge);
+        auto neighbor = *n;
+        if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor); }
+      }
+      if (wgroup.leader()) { visited[vertex % wgroup_size] = true; }
+    }
 
     sycl::group_barrier(sgroup);
 
@@ -213,7 +206,7 @@ struct bitmap_kernel {
       size_t vertex_id = offset + i;
       auto vertex = active_elements_local[vertex_id];
       size_t n_edges = n_edges_local[vertex_id];
-      if (n_edges < sgroup_size) { continue; }
+      // if (n_edges < sgroup_size) { continue; }
       size_t private_slice = n_edges / sgroup_size;
       auto start = graph_dev.begin(vertex) + (private_slice * llid);
       auto end = llid == sgroup_size - 1 ? graph_dev.end(vertex) : start + private_slice;
