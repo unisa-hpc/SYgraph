@@ -184,7 +184,7 @@ struct bitmap_kernel {
     }
 
     sycl::group_barrier(wgroup);
-    for (size_t i = 0; i < wg_tail.load(); i++) { // TODO: fix this
+    for (size_t i = 0; i < wg_tail.load(); i++) {
       auto vertex = work_group_reduce[i];
       size_t n_edges = graph_dev.getDegree(vertex);
       size_t private_slice = n_edges / wgroup_size;
