@@ -85,9 +85,9 @@ execute(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygrap
   auto q = graph.getQueue();
   auto dev_frontier = frontier.getDeviceFrontier();
 
-  if (dev_frontier.useVector()) {
+  if (frontier.useVector()) {
     T* active_elements = dev_frontier.getVector();
-    size_t size = dev_frontier.getVectorSize();
+    size_t size = frontier.getVectorSize();
 
     e = q.submit([&](sycl::handler& cgh) {
       cgh.parallel_for(sycl::range<1>{size}, [=](sycl::id<1> idx) {

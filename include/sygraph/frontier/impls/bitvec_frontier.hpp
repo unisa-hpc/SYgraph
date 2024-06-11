@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sygraph/frontier/impls/bitmap_frontier.hpp>
+#include <sygraph/frontier/impls/vector_frontier.hpp>
 #include <sygraph/sycl/event.hpp>
 #include <sygraph/utils/memory.hpp>
 #include <sygraph/utils/types.hpp>
@@ -39,15 +40,15 @@ public:
   SYCL_EXTERNAL inline bool insert(type_t val) const {
     // call super class insert
     bitmap_device_t<type_t, bitmap_t>::insert(val);
-    insertOnlyVector(val);
+    // insertOnlyVector(val);
 
     return true;
   }
 
   SYCL_EXTERNAL inline bool insertOnlyVector(type_t val) const {
-    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> tail_ref(vector_tail[0]);
-    if (tail_ref < vector_max_size) {
-      vector[tail_ref.fetch_add(1)] = val;
+    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> tail_ref(vector_tail[0]);
+    if (tail_ref.load() < vector_max_size) {
+      vector[tail_ref++] = val;
       return true;
     }
     return false;
@@ -58,6 +59,8 @@ public:
   SYCL_EXTERNAL size_t getVectorMaxSize() const { return vector_max_size; }
 
   SYCL_EXTERNAL size_t getVectorSize() const { return *vector_tail; }
+
+  SYCL_EXTERNAL size_t* getVectorSizePtr() const { return vector_tail; }
 
   friend class frontier_bitvec_t<type_t>;
 
@@ -102,7 +105,7 @@ public:
     using bitmap_type = typename bitvec_device_t<type_t>::bitmap_type;
     bitmap_type* bitmap_ptr = sygraph::memory::detail::memoryAlloc<bitmap_type, memory::space::shared>(bitvec.getBitmapSize(), q);
     type_t* vector_ptr = sygraph::memory::detail::memoryAlloc<type_t, memory::space::shared>(bitvec.getVectorMaxSize(), q);
-    size_t* vector_tail_ptr = sygraph::memory::detail::memoryAlloc<size_t, memory::space::shared>(1, q);
+    size_t* vector_tail_ptr = sygraph::memory::detail::memoryAlloc<size_t, memory::space::device>(1, q);
     int* offsets = sygraph::memory::detail::memoryAlloc<int, memory::space::device>(bitvec.getBitmapSize(), q);
     size_t* offsets_size = sygraph::memory::detail::memoryAlloc<size_t, memory::space::shared>(1, q);
     auto size = bitvec.getBitmapSize();
@@ -210,16 +213,28 @@ public:
    * @note This function should be called only on the host-side.
    */
   inline void clear() {
-    q.fill(bitvec.getData(), static_cast<bitmap_type>(0), bitvec.getBitmapSize()).wait();
-    bitvec.vector_tail[0] = 0;
+    auto e1 = q.fill(bitvec.getData(), static_cast<bitmap_type>(0), bitvec.getBitmapSize());
+    auto e2 = q.fill(bitvec.vector_tail, static_cast<size_t>(0), 1);
+    e1.wait();
+    e2.wait();
   }
 
   const bitvec_device_t<type_t, bitmap_type>& getDeviceFrontier() const { return bitvec; }
 
   static void swap(frontier_bitvec_t<type_t>& a, frontier_bitvec_t<type_t>& b) { std::swap(a.bitvec, b.bitvec); }
 
+  const size_t getVectorSize() const {
+    size_t ret;
+    q.copy(bitvec.vector_tail, &ret, 1).wait();
+    return ret;
+  }
+
+  const type_t* getVector() const { return bitvec.getVector(); }
+
+  const bool useVector() const { return this->getVectorSize() < bitvec.getVectorMaxSize(); }
+
   const size_t computeActiveFrontier() const {
-    sycl::range<1> local_range{128}; // TODO: [!] tune on this value
+    sycl::range<1> local_range{1024}; // TODO: [!] tune on this value
     size_t size = bitvec.getBitmapSize();
     sycl::range<1> global_range{(size > local_range[0] ? size + local_range[0] - (size % local_range[0]) : local_range[0])};
 

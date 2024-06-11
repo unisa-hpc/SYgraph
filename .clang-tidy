@@ -27,15 +27,15 @@ Checks: -*,
 CheckOptions:
   # Naming conventions
   - key: readability-identifier-naming.ClassCase
-    value: lower_case
+    value: CamelCase
   - key: readability-identifier-naming.ClassMethodCase
-    value: lower_case
+    value: camelBack
   - key: readability-identifier-naming.EnumCase
     value: lower_case
   - key: readability-identifier-naming.EnumConstantCase
     value: lower_case
   - key: readability-identifier-naming.FunctionCase
-    value: lower_case
+    value: camelBack
   - key: readability-identifier-naming.LocalVariableCase
     value: lower_case
   - key: readability-identifier-naming.LocalVariableIgnoredRegexp
