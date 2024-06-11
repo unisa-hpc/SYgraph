@@ -170,7 +170,7 @@ struct bitmap_kernel {
     const size_t offset = sgroup_id * sgroup_size;
     if (assigned_vertex < num_nodes && in_dev_frontier.check(assigned_vertex)) {
       size_t n_edges = graph_dev.getDegree(assigned_vertex);
-      if (n_edges >= wgroup_size * sgroup_size) { // assign to the workgroup
+      if (n_edges >= wgroup_size * wgroup_size * wgroup_size) { // assign to the workgroup
         size_t loc = wg_tail.fetch_add(1);
         work_group_reduce[loc] = assigned_vertex;
       } else if (n_edges >= sgroup_size) { // assign to the subgroup
@@ -178,6 +178,9 @@ struct bitmap_kernel {
         n_edges_local[offset + loc] = n_edges;
         active_elements_local[offset + loc] = assigned_vertex;
       }
+      // size_t loc = sg_tail.fetch_add(1);
+      // n_edges_local[offset + loc] = n_edges;
+      // active_elements_local[offset + loc] = assigned_vertex;
       visited[lid] = false;
     } else {
       visited[lid] = true;

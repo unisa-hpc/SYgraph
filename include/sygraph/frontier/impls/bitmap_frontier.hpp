@@ -381,7 +381,7 @@ public:
   const bitmap_device_t<type_t, bitmap_type>& getDeviceFrontier() const { return bitmap; }
 
   const size_t computeActiveFrontier() const {
-    sycl::range<1> local_range{128}; // TODO: [!] tune on this value
+    sycl::range<1> local_range{1024}; // TODO: [!] tune on this value
     size_t size = bitmap.getBitmapSize();
     sycl::range<1> global_range{(size > local_range[0] ? size + local_range[0] - (size % local_range[0]) : local_range[0])};
 
