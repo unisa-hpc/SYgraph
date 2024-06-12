@@ -34,46 +34,55 @@ struct vector_kernel {
 
     // 1. load number of edges in local memory
     sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> pad_tail_ref{pad_tail[0]};
+    sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::sub_group> active_elems_tail_ref{
+        active_elements_local_tail[subgroup_id]};
 
     if (gid == 0) { global_tail[0] = 0; }
     if (group.leader()) { pad_tail_ref.store(0); }
+    if (subgroup.leader()) { active_elems_tail_ref.store(0); }
 
+    const uint32_t offset = subgroup_id * subgroup_size;
     if (gid < active_elements_size) {
       T element = active_elements[gid];
-      n_edges_local[lid] = graph_dev.getDegree(element);
-      active_elements_local[lid] = element;
+      uint32_t n_edges = graph_dev.getDegree(element);
+      if (n_edges >= subgroup_size) {
+        uint32_t loc = active_elems_tail_ref.fetch_add(1);
+        active_elements_local[offset + loc] = element;
+        n_edges_local[offset + loc] = n_edges;
+        ids[offset + loc] = lid;
+      }
+      // active_elements_local[lid] = element;
       visited[lid] = false;
     } else {
       n_edges_local[lid] = 0;
       visited[lid] = true;
     }
-    sycl::group_barrier(group);
+    sycl::group_barrier(subgroup);
 
     // 2. process elements with less than local_range edges but more than one subgroup size edges
-    for (size_t i = 0; i < subgroup_size; i++) {
-      size_t vertex_id = subgroup_id * subgroup_size + i;
-      if (n_edges_local[vertex_id] >= subgroup_size * subgroup_size) {
-        auto vertex = active_elements_local[vertex_id];
-        size_t n_edges = n_edges_local[vertex_id];
-        size_t private_slice = n_edges / subgroup_size;
-        auto start = graph_dev.begin(vertex) + (private_slice * llid);
-        auto end = llid == subgroup_size - 1 ? graph_dev.end(vertex) : start + private_slice;
+    for (uint32_t i = 0; i < active_elems_tail_ref.load(); i++) {
+      size_t vertex_id = offset + i;
+      auto vertex = active_elements_local[vertex_id];
+      size_t n_edges = n_edges_local[vertex_id];
+      size_t private_slice = n_edges / subgroup_size;
+      auto start = graph_dev.begin(vertex) + (private_slice * llid);
+      auto end = llid == subgroup_size - 1 ? graph_dev.end(vertex) : start + private_slice;
 
-        for (auto n = start; n != end; ++n) {
-          auto edge = n.get_index();
-          auto weight = graph_dev.getEdgeWeight(edge);
-          auto neighbor = *n;
-          if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor, pad, pad_tail_ref); }
-          // if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor); }
-        }
-        if (subgroup.leader()) { visited[vertex_id] = true; }
+      for (auto n = start; n != end; ++n) {
+        auto edge = n.get_index();
+        auto weight = graph_dev.getEdgeWeight(edge);
+        auto neighbor = *n;
+        if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor, pad, pad_tail_ref); }
       }
+      if (subgroup.leader()) { visited[ids[vertex_id]] = true; }
+      // if (n_edges_local[vertex_id] >= subgroup_size * subgroup_size) {
+      // }
     }
-    sycl::group_barrier(subgroup);
+    sycl::group_barrier(group);
 
     // 3. process the rest
     if (!visited[lid]) {
-      auto vertex = active_elements_local[lid];
+      auto vertex = active_elements[gid];
       auto start = graph_dev.begin(vertex);
       auto end = graph_dev.end(vertex);
 
@@ -82,7 +91,6 @@ struct vector_kernel {
         auto weight = graph_dev.getEdgeWeight(edge);
         auto neighbor = *n;
         if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor, pad, pad_tail_ref); }
-        // if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor); }
       }
     }
 
@@ -98,7 +106,8 @@ struct vector_kernel {
   const sycl::local_accessor<uint32_t, 1> n_edges_local;
   const sycl::local_accessor<bool, 1> visited;
   const sycl::local_accessor<T, 1> active_elements_local;
-  // const sycl::local_accessor<size_t, 1> active_elements_local_tail;
+  const sycl::local_accessor<uint32_t, 1> active_elements_local_tail;
+  const sycl::local_accessor<uint32_t, 1> ids;
   const sycl::local_accessor<T, 1> pad;
   const sycl::local_accessor<uint32_t, 1> pad_tail;
   const LambdaT functor;
@@ -129,8 +138,8 @@ struct bitmap_kernel {
     if (sgroup.leader()) { active_elements_tail[sgroup_id] = 0; }
     if (wgroup.leader()) { work_group_reduce_tail[0] = 0; }
 
-    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::sub_group> sg_tail{active_elements_tail[sgroup_id]};
-    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> wg_tail{work_group_reduce_tail[0]};
+    sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::sub_group> sg_tail{active_elements_tail[sgroup_id]};
+    sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> wg_tail{work_group_reduce_tail[0]};
 
     const size_t offset = sgroup_id * sgroup_size;
     if (assigned_vertex < num_nodes && in_dev_frontier.check(assigned_vertex)) {
@@ -207,12 +216,12 @@ struct bitmap_kernel {
   FrontierDevT in_dev_frontier;
   FrontierDevT out_dev_frontier;
   GraphDevT graph_dev;
-  sycl::local_accessor<size_t, 1> n_edges_local;
+  sycl::local_accessor<uint32_t, 1> n_edges_local;
   sycl::local_accessor<T, 1> active_elements_local;
-  sycl::local_accessor<size_t, 1> active_elements_tail;
+  sycl::local_accessor<uint32_t, 1> active_elements_tail;
   sycl::local_accessor<bool, 1> visited;
   sycl::local_accessor<T, 1> work_group_reduce;
-  sycl::local_accessor<size_t, 1> work_group_reduce_tail;
+  sycl::local_accessor<uint32_t, 1> work_group_reduce_tail;
   LambdaT functor;
 };
 
@@ -246,12 +255,12 @@ sygraph::event launchBitmapKernel(GraphT& graph,
     size_t global_size = offsets_size * bitmap_range;
     sycl::range<1> global_range{global_size > local_range[0] ? global_size + (local_range[0] - (global_size % local_range[0])) : local_range[0]};
 
-    sycl::local_accessor<size_t, 1> n_edges_local{local_range, cgh};
+    sycl::local_accessor<uint32_t, 1> n_edges_local{local_range, cgh};
     sycl::local_accessor<T, 1> active_elements_local{local_range, cgh};
-    sycl::local_accessor<size_t, 1> active_elements_tail{types::detail::MAX_SUBGROUPS, cgh};
+    sycl::local_accessor<uint32_t, 1> active_elements_tail{types::detail::MAX_SUBGROUPS, cgh};
     sycl::local_accessor<bool, 1> visited{local_range, cgh};
     sycl::local_accessor<T, 1> work_group_reduce{local_range, cgh};
-    sycl::local_accessor<size_t, 1> work_group_reduce_tail{1, cgh};
+    sycl::local_accessor<uint32_t, 1> work_group_reduce_tail{1, cgh};
 
 
     cgh.parallel_for<class workgroup_mapped_advance_kernel>(sycl::nd_range<1>{global_range, local_range},
@@ -287,13 +296,15 @@ sygraph::event launchVectorKernel(GraphT& graph,
   using vector_kernel_t = vector_kernel<T, decltype(inDevFrontier), decltype(graphDev), LambdaT>;
 
   auto e = q.submit([&](sycl::handler& cgh) {
-    sycl::range<1> local_range{128}; // TODO: [!] Tune on this value, or compute it dynamically
+    sycl::range<1> local_range{512}; // TODO: [!] Tune on this value, or compute it dynamically
     sycl::range<1> global_range{
         active_elements_size > local_range[0] ? active_elements_size + (local_range[0] - (active_elements_size % local_range[0])) : local_range[0]};
 
     sycl::local_accessor<uint32_t, 1> n_edges_local{local_range, cgh};
     sycl::local_accessor<bool, 1> visited{local_range, cgh};
     sycl::local_accessor<T, 1> active_elements_local{local_range, cgh};
+    sycl::local_accessor<uint32_t, 1> ids{local_range, cgh};
+    sycl::local_accessor<uint32_t, 1> active_elements_local_tail{types::detail::MAX_SUBGROUPS, cgh};
     sycl::local_accessor<T, 1> pad{outDevFrontier.getVectorMaxSize(), cgh};
     sycl::local_accessor<uint32_t, 1> pad_tail{1, cgh};
 
@@ -306,6 +317,8 @@ sygraph::event launchVectorKernel(GraphT& graph,
                                      n_edges_local,
                                      visited,
                                      active_elements_local,
+                                     active_elements_local_tail,
+                                     ids,
                                      pad,
                                      pad_tail,
                                      std::forward<LambdaT>(functor)));

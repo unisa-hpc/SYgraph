@@ -25,7 +25,7 @@ public:
   using bitmap_type = bitmap_t;
 
   bitvec_device_t(size_t num_elems) : bitmap_device_t<type_t, bitmap_t>(num_elems) {
-    vector_max_size = 8192; // TODO ! tune on vector size
+    vector_max_size = 22000; // TODO ! tune on vector size
   }
 
   SYCL_EXTERNAL inline bool useVector() const { return *vector_tail < vector_max_size; }
