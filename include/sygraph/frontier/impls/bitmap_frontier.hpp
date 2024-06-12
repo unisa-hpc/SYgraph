@@ -149,12 +149,12 @@ public:
 
   SYCL_EXTERNAL inline int* getOffsets() const { return offsets; }
 
-  SYCL_EXTERNAL inline size_t* getOffsetsSize() const { return offsets_size; }
+  SYCL_EXTERNAL inline uint32_t* getOffsetsSize() const { return offsets_size; }
 
   friend class frontier_bitmap_t<type_t>;
 
 protected:
-  void setPtr(bitmap_type* ptr, int* offsets, size_t* offsets_size) {
+  void setPtr(bitmap_type* ptr, int* offsets, uint32_t* offsets_size) {
     data = ptr;
     this->offsets = offsets;
     this->offsets_size = offsets_size;
@@ -166,7 +166,7 @@ protected:
   bitmap_type* data; ///< Pointer to the bitmap.
 
   int* offsets;
-  size_t* offsets_size;
+  uint32_t* offsets_size;
 };
 
 template<typename type_t>
@@ -198,7 +198,7 @@ public:
     using bitmap_type = typename bitmap_device_t<type_t>::bitmap_type;
     bitmap_type* ptr = sygraph::memory::detail::memoryAlloc<bitmap_type, memory::space::shared>(bitmap.getBitmapSize(), q);
     int* offsets = sygraph::memory::detail::memoryAlloc<int, memory::space::device>(bitmap.getBitmapSize(), q);
-    size_t* offsets_size = sygraph::memory::detail::memoryAlloc<size_t, memory::space::shared>(1, q);
+    uint32_t* offsets_size = sygraph::memory::detail::memoryAlloc<uint32_t, memory::space::shared>(1, q);
     auto size = bitmap.getBitmapSize();
     q.memset(ptr, static_cast<bitmap_type>(0), size).wait();
     q.fill(offsets_size, 0, size).wait();
@@ -389,7 +389,7 @@ public:
       auto bitmap = this->getDeviceFrontier();
 
       sycl::local_accessor<int, 1> local_offsets(local_range[0], cgh);
-      sycl::local_accessor<size_t, 1> local_size(1, cgh);
+      sycl::local_accessor<uint32_t, 1> local_size(1, cgh);
       bitmap.offsets_size[0] = 0;
 
       cgh.parallel_for(sycl::nd_range<1>{global_range, local_range},
@@ -398,8 +398,8 @@ public:
                          size_t lid = item.get_local_linear_id();
                          auto group = item.get_group();
 
-                         sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> local_size_ref(local_size[0]);
-                         sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> offsets_size_ref{offsets_size[0]};
+                         sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> local_size_ref(local_size[0]);
+                         sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device> offsets_size_ref{offsets_size[0]};
 
                          if (group.leader()) { local_size_ref.store(0); }
                          sycl::group_barrier(group);

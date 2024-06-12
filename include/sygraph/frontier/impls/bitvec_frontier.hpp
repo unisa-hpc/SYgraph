@@ -60,7 +60,7 @@ public:
   finalize(sycl::nd_item<1> item, const sycl::local_accessor<type_t, 1>& pad, const sycl::atomic_ref<T, MO, MS>& pad_tail_ref) const {
     auto group = item.get_group();
     auto lid = item.get_local_linear_id();
-    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> tail_ref(vector_tail[0]);
+    sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device> tail_ref(vector_tail[0]);
 
     size_t data_offset = vector_max_size;
     if (group.leader()) { data_offset = tail_ref.fetch_add(pad_tail_ref.load()); }
@@ -71,7 +71,7 @@ public:
   }
 
   SYCL_EXTERNAL inline bool insertOnlyVector(type_t val) const {
-    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> tail_ref(vector_tail[0]);
+    sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device> tail_ref(vector_tail[0]);
     if (tail_ref.load() < vector_max_size) {
       vector[tail_ref++] = val;
       return true;
@@ -83,21 +83,21 @@ public:
 
   SYCL_EXTERNAL size_t getVectorMaxSize() const { return vector_max_size; }
 
-  SYCL_EXTERNAL size_t getVectorSize() const { return *vector_tail; }
+  SYCL_EXTERNAL uint32_t getVectorSize() const { return *vector_tail; }
 
-  SYCL_EXTERNAL size_t* getVectorSizePtr() const { return vector_tail; }
+  SYCL_EXTERNAL uint32_t* getVectorSizePtr() const { return vector_tail; }
 
   friend class frontier_bitvec_t<type_t>;
 
 protected:
-  void setPtr(bitmap_type* bitmap_ptr, int* offsets_ptr, size_t* offsets_size_ptr, type_t* vector_ptr, size_t* tail_ptr) {
+  void setPtr(bitmap_type* bitmap_ptr, int* offsets_ptr, uint32_t* offsets_size_ptr, type_t* vector_ptr, uint32_t* tail_ptr) {
     bitmap_device_t<type_t, bitmap_t>::setPtr(bitmap_ptr, offsets_ptr, offsets_size_ptr);
     vector = vector_ptr;
     vector_tail = tail_ptr;
   }
 
   size_t vector_max_size;
-  size_t* vector_tail;
+  uint32_t* vector_tail;
   type_t* vector;
 };
 
@@ -130,9 +130,9 @@ public:
     using bitmap_type = typename bitvec_device_t<type_t>::bitmap_type;
     bitmap_type* bitmap_ptr = sygraph::memory::detail::memoryAlloc<bitmap_type, memory::space::shared>(bitvec.getBitmapSize(), q);
     type_t* vector_ptr = sygraph::memory::detail::memoryAlloc<type_t, memory::space::device>(bitvec.getVectorMaxSize(), q);
-    size_t* vector_tail_ptr = sygraph::memory::detail::memoryAlloc<size_t, memory::space::device>(1, q);
+    uint32_t* vector_tail_ptr = sygraph::memory::detail::memoryAlloc<uint32_t, memory::space::device>(1, q);
     int* offsets = sygraph::memory::detail::memoryAlloc<int, memory::space::device>(bitvec.getBitmapSize(), q);
-    size_t* offsets_size = sygraph::memory::detail::memoryAlloc<size_t, memory::space::shared>(1, q);
+    uint32_t* offsets_size = sygraph::memory::detail::memoryAlloc<uint32_t, memory::space::shared>(1, q);
     auto size = bitvec.getBitmapSize();
     q.memset(bitmap_ptr, static_cast<bitmap_type>(0), size).wait();
     bitvec.setPtr(bitmap_ptr, offsets, offsets_size, vector_ptr, vector_tail_ptr);
@@ -249,7 +249,7 @@ public:
   static void swap(frontier_bitvec_t<type_t>& a, frontier_bitvec_t<type_t>& b) { std::swap(a.bitvec, b.bitvec); }
 
   const size_t getVectorSize() const {
-    size_t ret;
+    uint32_t ret;
     q.copy(bitvec.vector_tail, &ret, 1).wait();
     return ret;
   }
@@ -279,7 +279,7 @@ public:
                          auto group = item.get_group();
 
                          sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> local_size_ref(local_size[0]);
-                         sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> offsets_size_ref{offsets_size[0]};
+                         sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device> offsets_size_ref{offsets_size[0]};
 
                          if (group.leader()) { local_size_ref.store(0); }
                          sycl::group_barrier(group);
@@ -287,7 +287,7 @@ public:
                          if (bitmap.getData()[gid] != 0) { local_offsets[local_size_ref++] = gid; }
                          sycl::group_barrier(group);
 
-                         size_t data_offset = 0;
+                         uint32_t data_offset = 0;
                          if (group.leader()) { data_offset = offsets_size_ref.fetch_add(local_size_ref.load()); }
                          data_offset = sycl::group_broadcast(group, data_offset, 0);
                          if (lid < local_size_ref.load()) { offsets[data_offset + lid] = local_offsets[lid]; }
