@@ -30,15 +30,12 @@ struct vector_kernel {
     const size_t subgroup_size = subgroup.get_local_range()[0];
     const size_t llid = subgroup.get_local_linear_id();
 
-    T* global_vector = out_dev_frontier.getVector();
     size_t* global_tail = out_dev_frontier.getVectorSizePtr();
-    const size_t vector_max_size = out_dev_frontier.getVectorMaxSize();
 
     // 1. load number of edges in local memory
-    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> pad_tail_ref{pad_tail[0]};
-    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> global_tail_ref{global_tail[0]};
+    sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> pad_tail_ref{pad_tail[0]};
 
-    if (gid == 0) { global_tail_ref.store(0); }
+    if (gid == 0) { global_tail[0] = 0; }
     if (group.leader()) { pad_tail_ref.store(0); }
 
     if (gid < active_elements_size) {
@@ -55,7 +52,7 @@ struct vector_kernel {
     // 2. process elements with less than local_range edges but more than one subgroup size edges
     for (size_t i = 0; i < subgroup_size; i++) {
       size_t vertex_id = subgroup_id * subgroup_size + i;
-      if (n_edges_local[vertex_id] >= subgroup_size) {
+      if (n_edges_local[vertex_id] >= subgroup_size * subgroup_size) {
         auto vertex = active_elements_local[vertex_id];
         size_t n_edges = n_edges_local[vertex_id];
         size_t private_slice = n_edges / subgroup_size;
@@ -66,10 +63,8 @@ struct vector_kernel {
           auto edge = n.get_index();
           auto weight = graph_dev.getEdgeWeight(edge);
           auto neighbor = *n;
-          if (functor(vertex, neighbor, edge, weight)) {
-            out_dev_frontier.insert(neighbor);
-            if (pad_tail_ref.load() < vector_max_size) pad[pad_tail_ref++] = neighbor;
-          }
+          if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor, pad, pad_tail_ref); }
+          // if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor); }
         }
         if (subgroup.leader()) { visited[vertex_id] = true; }
       }
@@ -86,28 +81,13 @@ struct vector_kernel {
         auto edge = n.get_index();
         auto weight = graph_dev.getEdgeWeight(edge);
         auto neighbor = *n;
-        if (functor(vertex, neighbor, edge, weight)) {
-          out_dev_frontier.insert(neighbor);
-          if (pad_tail_ref.load() < vector_max_size) pad[pad_tail_ref++] = neighbor;
-        }
+        if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor, pad, pad_tail_ref); }
+        // if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor); }
       }
     }
 
     sycl::group_barrier(group);
-
-    // 4. Copy to the vector
-    int offset = -1;
-    if (group.leader()) {
-      if (global_tail_ref.load() < vector_max_size) {
-        if (pad_tail_ref.load() < vector_max_size && pad_tail_ref.load() + global_tail_ref.load() < vector_max_size) {
-          offset = global_tail_ref.fetch_add(pad_tail_ref.load());
-        } else {
-          global_tail_ref.store(pad_tail_ref.load());
-        }
-      }
-    }
-    offset = sycl::group_broadcast(group, offset);
-    if (offset >= 0 && lid < pad_tail_ref.load()) { global_vector[offset + lid] = pad[lid]; }
+    out_dev_frontier.finalize(item, pad, pad_tail_ref);
   }
 
   const T* active_elements;
@@ -115,11 +95,12 @@ struct vector_kernel {
   const FrontierDevT in_dev_frontier;
   const FrontierDevT out_dev_frontier;
   const GraphDevT graph_dev;
-  const sycl::local_accessor<size_t, 1> n_edges_local;
+  const sycl::local_accessor<uint32_t, 1> n_edges_local;
   const sycl::local_accessor<bool, 1> visited;
   const sycl::local_accessor<T, 1> active_elements_local;
+  // const sycl::local_accessor<size_t, 1> active_elements_local_tail;
   const sycl::local_accessor<T, 1> pad;
-  const sycl::local_accessor<size_t, 1> pad_tail;
+  const sycl::local_accessor<uint32_t, 1> pad_tail;
   const LambdaT functor;
 };
 
@@ -306,15 +287,15 @@ sygraph::event launchVectorKernel(GraphT& graph,
   using vector_kernel_t = vector_kernel<T, decltype(inDevFrontier), decltype(graphDev), LambdaT>;
 
   auto e = q.submit([&](sycl::handler& cgh) {
-    sycl::range<1> local_range{64}; // TODO: [!] Tune on this value, or compute it dynamically
+    sycl::range<1> local_range{128}; // TODO: [!] Tune on this value, or compute it dynamically
     sycl::range<1> global_range{
         active_elements_size > local_range[0] ? active_elements_size + (local_range[0] - (active_elements_size % local_range[0])) : local_range[0]};
 
-    sycl::local_accessor<size_t, 1> n_edges_local{local_range, cgh};
+    sycl::local_accessor<uint32_t, 1> n_edges_local{local_range, cgh};
     sycl::local_accessor<bool, 1> visited{local_range, cgh};
     sycl::local_accessor<T, 1> active_elements_local{local_range, cgh};
     sycl::local_accessor<T, 1> pad{outDevFrontier.getVectorMaxSize(), cgh};
-    sycl::local_accessor<size_t, 1> pad_tail{1, cgh};
+    sycl::local_accessor<uint32_t, 1> pad_tail{1, cgh};
 
     cgh.parallel_for(sycl::nd_range<1>{global_range, local_range},
                      vector_kernel_t(active_elements,

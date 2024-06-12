@@ -40,13 +40,38 @@ public:
   SYCL_EXTERNAL inline bool insert(type_t val) const {
     // call super class insert
     bitmap_device_t<type_t, bitmap_t>::insert(val);
-    // insertOnlyVector(val);
+    insertOnlyVector(val);
+
+    return true;
+  }
+
+  template<typename T, sycl::memory_order MO, sycl::memory_scope MS>
+  SYCL_EXTERNAL inline bool insert(type_t val, const sycl::local_accessor<type_t, 1>& pad, const sycl::atomic_ref<T, MO, MS>& pad_tail) const {
+    bitmap_device_t<type_t, bitmap_t>::insert(val);
+    if (pad_tail.load() < vector_max_size) {
+      pad[pad_tail++] = val;
+      return true;
+    }
+    return false;
+  }
+
+  template<typename T, sycl::memory_order MO, sycl::memory_scope MS>
+  SYCL_EXTERNAL inline bool
+  finalize(sycl::nd_item<1> item, const sycl::local_accessor<type_t, 1>& pad, const sycl::atomic_ref<T, MO, MS>& pad_tail_ref) const {
+    auto group = item.get_group();
+    auto lid = item.get_local_linear_id();
+    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> tail_ref(vector_tail[0]);
+
+    size_t data_offset = vector_max_size;
+    if (group.leader()) { data_offset = tail_ref.fetch_add(pad_tail_ref.load()); }
+    data_offset = sycl::group_broadcast(group, data_offset, 0);
+    for (int i = lid; i < pad_tail_ref.load() && i < vector_max_size; i += item.get_local_range(0)) { vector[data_offset + i] = pad[i]; }
 
     return true;
   }
 
   SYCL_EXTERNAL inline bool insertOnlyVector(type_t val) const {
-    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> tail_ref(vector_tail[0]);
+    sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> tail_ref(vector_tail[0]);
     if (tail_ref.load() < vector_max_size) {
       vector[tail_ref++] = val;
       return true;
@@ -104,7 +129,7 @@ public:
   frontier_bitvec_t(sycl::queue& q, size_t num_elems) : q(q), bitvec(num_elems) { // TODO: [!] tune on bitmap size
     using bitmap_type = typename bitvec_device_t<type_t>::bitmap_type;
     bitmap_type* bitmap_ptr = sygraph::memory::detail::memoryAlloc<bitmap_type, memory::space::shared>(bitvec.getBitmapSize(), q);
-    type_t* vector_ptr = sygraph::memory::detail::memoryAlloc<type_t, memory::space::shared>(bitvec.getVectorMaxSize(), q);
+    type_t* vector_ptr = sygraph::memory::detail::memoryAlloc<type_t, memory::space::device>(bitvec.getVectorMaxSize(), q);
     size_t* vector_tail_ptr = sygraph::memory::detail::memoryAlloc<size_t, memory::space::device>(1, q);
     int* offsets = sygraph::memory::detail::memoryAlloc<int, memory::space::device>(bitvec.getBitmapSize(), q);
     size_t* offsets_size = sygraph::memory::detail::memoryAlloc<size_t, memory::space::shared>(1, q);
@@ -229,9 +254,11 @@ public:
     return ret;
   }
 
+  const size_t getVectorMaxSize() const { return bitvec.getVectorMaxSize(); }
+
   const type_t* getVector() const { return bitvec.getVector(); }
 
-  const bool useVector() const { return this->getVectorSize() < bitvec.getVectorMaxSize(); }
+  const bool useVector() const { return this->getVectorSize() < this->getVectorMaxSize(); }
 
   const size_t computeActiveFrontier() const {
     sycl::range<1> local_range{1024}; // TODO: [!] tune on this value
