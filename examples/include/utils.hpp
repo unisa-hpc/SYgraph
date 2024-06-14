@@ -2,6 +2,7 @@
 #include <iostream>
 #include <random>
 #include <string>
+#include <unistd.h>
 
 #include <sygraph/sygraph.hpp>
 
@@ -126,4 +127,22 @@ void print_device_info(sycl::queue& queue, std::string prefix = "") {
   std::string device_name = queue.get_device().get_info<sycl::info::device::name>();
   std::string device_backend = queue.get_device().get_platform().get_info<sycl::info::platform::name>();
   std::cerr << prefix << "Running on: " << "[" << device_backend << "] " << device_name << std::endl;
+}
+
+bool is_console_output() { return isatty(STDOUT_FILENO); }
+
+std::string success_string() {
+  if (!is_console_output()) {
+    return "Success";
+  } else {
+    return "\033[1;32mSuccess\033[0m";
+  }
+}
+
+std::string fail_string() {
+  if (!is_console_output()) {
+    return "Failed";
+  } else {
+    return "\033[1;31mFailed\033[0m";
+  }
 }

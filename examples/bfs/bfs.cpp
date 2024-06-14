@@ -44,7 +44,7 @@ bool validate(const GraphT& graph, BfsT& bfs, uint source) {
     out_frontier.clear();
     iter++;
   }
-  if (mismatches) { std::cout << "Mismatches: " << mismatches << std::endl; }
+  if (mismatches) { std::cerr << "Mismatches: " << mismatches << std::endl; }
   return mismatches == 0;
 }
 
@@ -72,22 +72,22 @@ int main(int argc, char** argv) {
   if (args.random_source) { args.source = get_random_source(size); }
   bfs.init(args.source);
 
-  std::cerr << "[*] Running BFS on source " << args.source << std::endl;
+  std::cout << "[*] Running BFS on source " << args.source << std::endl;
   bfs.run<true>();
 
   std::cerr << "[!] Done" << std::endl;
 
   if (args.validate) {
-    std::cerr << "Validation: [";
+    std::cout << "Validation: [";
     auto validation_start = std::chrono::high_resolution_clock::now();
     if (!validate(G, bfs, args.source)) {
-      std::cerr << "\033[1;31mFailed\033[0m";
+      std::cout << fail_string();
     } else {
-      std::cerr << "\033[1;32mSuccess\033[0m";
+      std::cout << success_string();
     }
-    std::cerr << "] | ";
+    std::cout << "] | ";
     auto validation_end = std::chrono::high_resolution_clock::now();
-    std::cerr << "Validation Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(validation_end - validation_start).count() << " ms"
+    std::cout << "Validation Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(validation_end - validation_start).count() << " ms"
               << std::endl;
   }
 
