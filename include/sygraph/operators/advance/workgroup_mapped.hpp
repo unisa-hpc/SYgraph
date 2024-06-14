@@ -296,7 +296,7 @@ sygraph::event launchVectorKernel(GraphT& graph,
   using vector_kernel_t = vector_kernel<T, decltype(inDevFrontier), decltype(graphDev), LambdaT>;
 
   auto e = q.submit([&](sycl::handler& cgh) {
-    sycl::range<1> local_range{512}; // TODO: [!] Tune on this value, or compute it dynamically
+    sycl::range<1> local_range{1024}; // TODO: [!] Tune on this value, or compute it dynamically
     sycl::range<1> global_range{
         active_elements_size > local_range[0] ? active_elements_size + (local_range[0] - (active_elements_size % local_range[0])) : local_range[0]};
 
@@ -305,7 +305,7 @@ sygraph::event launchVectorKernel(GraphT& graph,
     sycl::local_accessor<T, 1> active_elements_local{local_range, cgh};
     sycl::local_accessor<uint32_t, 1> ids{local_range, cgh};
     sycl::local_accessor<uint32_t, 1> active_elements_local_tail{types::detail::MAX_SUBGROUPS, cgh};
-    sycl::local_accessor<T, 1> pad{outDevFrontier.getVectorMaxSize(), cgh};
+    sycl::local_accessor<T, 1> pad{22000 /*outDevFrontier.getVectorMaxSize()*/, cgh};
     sycl::local_accessor<uint32_t, 1> pad_tail{1, cgh};
 
     cgh.parallel_for(sycl::nd_range<1>{global_range, local_range},

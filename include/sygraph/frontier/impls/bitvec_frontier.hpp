@@ -25,7 +25,7 @@ public:
   using bitmap_type = bitmap_t;
 
   bitvec_device_t(size_t num_elems) : bitmap_device_t<type_t, bitmap_t>(num_elems) {
-    vector_max_size = 22000; // TODO ! tune on vector size
+    vector_max_size = 32000; // TODO ! tune on vector size
   }
 
   SYCL_EXTERNAL inline bool useVector() const { return *vector_tail < vector_max_size; }
@@ -50,9 +50,10 @@ public:
     bitmap_device_t<type_t, bitmap_t>::insert(val);
     if (pad_tail.load() < vector_max_size) {
       pad[pad_tail++] = val;
-      return true;
+    } else {
+      return insertOnlyVector(val);
     }
-    return false;
+    return true;
   }
 
   template<typename T, sycl::memory_order MO, sycl::memory_scope MS>
