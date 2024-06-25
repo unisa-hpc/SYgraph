@@ -1,0 +1,18 @@
+---
+name: hollywood-2009
+url: https://unisalerno-my.sharepoint.com/:u:/g/personal/antdecaro_unisa_it/EaLgKW6TA0JBnkHRZCBh3ZEBXRxvf0hWWQVhwcVwRZKFLA?download=1
+metadata:
+  author: Laboratory for Web Algorithmics (LAW), Universita degli Studi di Milano, http
+  date: 2009
+  tags:
+  description: 3 "UbiCrawler
+structure:
+  nodes: 1_139_905
+  edges: 56_945_663
+  weighted: False
+  labeled: False
+  directed: False
+  optional:
+    max-degree: 11500
+    min-degree: 1
+    avg-degree: 50.4564994451

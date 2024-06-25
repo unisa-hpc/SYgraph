@@ -1,0 +1,23 @@
+---
+name: indochina-2004
+url: https://unisalerno-my.sharepoint.com/:u:/g/personal/antdecaro_unisa_it/Ec7LrC-bzEBAuJFwKTpPV_wBQivS9SD9unX4y3BCJcqffw?download=1
+metadata:
+  author: Laboratory for Web Algorithmics (LAW), Universita degli Studi di Milano, http://law.di.unimi.it/index.php
+  date: 2004
+  tags:
+  description: A fairly large crawl of the country domains of Indochina performed for the Nagaoka University of Technology.
+structure:
+  nodes: 7_414_866
+  edges: 194_109_311
+  weighted: False
+  labeled: False
+  directed: True
+  optional:
+    density: 4.14006e-05
+    avg-degree: 26.178
+    max-indegree: 256_425
+    max-outdegree: 6_985
+    largest_component: 3_806_327
+citations:
+  - "Boldi, P., & Vigna, S. (2004). The WebGraph Framework I: Compression Techniques. Proc. of the Thirteenth International World Wide Web Conference (WWW 2004), 595-601. Manhattan, USA: ACM Press."
+  - "Boldi, P., Rosa, M., Santini, M., & Vigna, S. (2011). Layered Label Propagation: A MultiResolution Coordinate-Free Ordering for Compressing Social Networks. In S. Srinivasan, K. Ramamritham, A. Kumar, M. P. Ravindra, E. Bertino, & R. Kumar (Eds.), Proceedings of the 20th international conference on World Wide Web (pp. 587-596). ACM Press."

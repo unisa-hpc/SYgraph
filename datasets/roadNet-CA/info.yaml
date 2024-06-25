@@ -1,0 +1,28 @@
+---
+name: roadNet-CA
+url: https://unisalerno-my.sharepoint.com/:u:/g/personal/antdecaro_unisa_it/ESlJACLJ4d5IkKJDzgRZ6xEBrJZybjygd8zWaeQxk6kkvw?download=1
+metadata:
+  author: J. Leskovec, K. Lang, A. Dasgupta, M. Mahoney
+  date: 2008
+  tags:
+    - undirected graph
+  description: Road network of California
+structure:
+  nodes: 2_000_000
+  edges: 2_800_000
+  weighted: False
+  labeled: False
+  directed: False
+  optional:
+    density: 1.4239e-06
+    max-degree: 12
+    min-degree: 0
+    avg-degree: 2
+    assortativity: 0.126042
+    n-triangles: 362_000
+    avg-n-triangles: 0
+    max-n-triangles: 7
+    clustering-coefficient: 0.0462274
+    fraction-closed-triangles: 0.0603874
+    max-k-core: 4
+    lw-bound-max-clique: 4

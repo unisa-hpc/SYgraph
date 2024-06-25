@@ -44,3 +44,12 @@
 build/
 
 data/
+
+# Python
+__pycache__/
+.venv
+
+# Files
+.DS_Store
+*.mtx
+*.tar.gz

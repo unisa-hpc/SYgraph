@@ -1,0 +1,29 @@
+---
+name: kron-g500-logn20
+url: https://unisalerno-my.sharepoint.com/:u:/g/personal/antdecaro_unisa_it/EQTga77-AWdCuC-CYf-32JoBKt1zqfkzIrXQl1jd_iLzeg?download=1
+metadata:
+  author: D. Bader, J. Berry, S. Kahan, R. Murphy, E. Reidy, J. Willcock
+  date: 2010
+  tags:
+    - undirected multigraph
+    - weighted network
+  description: DIMACS10 set
+structure:
+  nodes: 1_000_000
+  edges: 44_600_000
+  weighted: True
+  labeled: False
+  directed: False
+  optional:
+    density: 8.11623e-05
+    max-degree: 131_500
+    min-degree: 0
+    avg-degree: 85
+    assortativity: -0.509874
+    n-triangles: 11_400_000_000
+    avg-n-triangles: 10_900
+    max-n-triangles: 30_100_000
+    clustering-coefficient: 0.134983
+    fraction-closed-triangles: 0.0520687
+    max-k-core: 1_300
+    lw-bound-max-clique: 232

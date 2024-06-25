@@ -1,0 +1,20 @@
+---
+name: soc-orkut
+url: https://unisalerno-my.sharepoint.com/:u:/g/personal/antdecaro_unisa_it/EeQ5tRGBpSpGjGSfL6WEKNkBubpgVUzA3erRVhJLtkuEDg?download=1
+metadata:
+  author: J. Yang and J. Leskovec.
+  date: 2012
+  tags:
+    - heterogeneous graph
+    - heterogeneous network
+  description:
+structure:
+  nodes: 2_997_166
+  edges: 106_349_209
+  weighted: False
+  labeled: False
+  directed: False
+  optional:
+    diameter: 9
+    average_cluster_coefficient: 0.1666
+
