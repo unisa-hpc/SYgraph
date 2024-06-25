@@ -78,20 +78,20 @@ def main():
   # set a list of graphs as argument of the download command
   download_parser.set_defaults(func=download_command)
   download_parser.add_argument('-a', '--all', action='store_true', help='Download all graphs')
-  download_parser.add_argument('graph', nargs='*', choices=list(graphs.keys()), help='graph(s) to download', metavar='GRAPH', default=[])
+  download_parser.add_argument('graph', nargs='*', help='graph(s) to download', metavar='GRAPH')
 
   # add info command
   info_parser = subparsers.add_parser('info', help='Get info of a graph', description='Get info of a graph')
   info_parser.set_defaults(func=info_command)
   # set a list of graphs as argument of the info command
-  info_parser.add_argument('graph', choices=list(graphs.keys()), help='graph to analyze', metavar='GRAPH')
+  info_parser.add_argument('graph', help='graph to analyze', metavar='GRAPH')
   info_parser.add_argument('--json', action='store_true', help='Print info in json format')
   
   # add clean command
   clean_parser = subparsers.add_parser('clean', help='Clean downloaded graphs', description='Clean one or more downloaded graphs')
   clean_parser.set_defaults(func=clean_command)
   clean_parser.add_argument('-a', '--all', action='store_true', help='Clean all graphs')
-  clean_parser.add_argument('graph', nargs='*', choices=list(graphs.keys()), help='Graph(s) to clean', metavar='GRAPH', default=[])
+  clean_parser.add_argument('graph', nargs='*', help='Graph(s) to clean', metavar='GRAPH')
   
   # autocomplete
   autocomplete(parser)
