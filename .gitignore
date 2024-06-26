@@ -52,4 +52,5 @@ __pycache__/
 # Files
 .DS_Store
 *.mtx
+*.bin
 *.tar.gz
