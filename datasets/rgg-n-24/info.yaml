@@ -1,0 +1,29 @@
+---
+name: rgg-n-2-24-s0
+url: https://unisalerno-my.sharepoint.com/:u:/g/personal/antdecaro_unisa_it/EZlWDKdHHYlCsTOt6PNUrr8BPOtPdSCgavMdNB_lyVFl5Q?download=1
+metadata:
+  author: M. Holtgrewe, P. Sanders, C. Schulz
+  date: 2011
+  tags:
+    - undirected random graph
+  description: DIMACS10 set
+structure:
+  nodes: 16_800_000
+  edges: 132_600_000
+  weighted: False
+  labeled: False
+  directed: False
+  optional:
+    density: 9.41876e-07
+    max-degree: 40
+    min-degree: 0
+    avg-degree: 15
+    assortativity: 0.586638
+    n-triangles: 1_200_000_000
+    avg-n-triangles: 73
+    max-n-triangles: 496
+    clustering-coefficient: 0.586685
+    fraction-closed-triangles: 0.586574
+    max-k-core: 21
+    lw-bound-max-clique: 21
+

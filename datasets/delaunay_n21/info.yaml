@@ -1,0 +1,30 @@
+---
+name: delaunay_n21
+url: https://unisalerno-my.sharepoint.com/:u:/g/personal/antdecaro_unisa_it/EVKctiuQ1zpOq0Pt7lMV4Z0BfgybQBgkgl-OZsVdkFRGeQ?download=1
+metadata:
+  author: M. Holtgrewe, P. Sanders, C. Schulz
+  date: 2011
+  tags:
+    - undirected graph
+  description: 10th DIMACS Implementation Challenge Graph
+structure:
+  nodes: 2_097_152
+  edges: 6_291_408
+  weighted: False
+  labeled: False
+  directed: False
+  optional:
+    density: 2.861e-06
+    max-degree: 23
+    min-degree: 3
+    avg-degree: 5
+    assortativity: -0.145511
+    n-triangles: 12_700_000
+    avg-n-triangles: 6
+    max-n-triangles: 22
+    clustering-coefficient: 0.433393
+    fraction-closed-triangles: 0.3797
+    max-k-core: 5
+    lw-bound-max-clique: 4
+citations:
+  - "Engineering a scalable high quality graph partitioner, M. Holtgrewe, P. Sanders, C. Schulz, IPDPS 2010 http://dx.doi.org/10.1109/IPDPS.2010.5470485"

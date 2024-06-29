@@ -1,0 +1,12 @@
+# requirements.txt
+
+argcomplete==3.3.0
+certifi==2024.2.2
+charset-normalizer==3.3.2
+idna==3.7
+pyaml==24.4.0
+PyYAML==6.0.1
+requests==2.31.0
+termcolor==2.4.0
+tqdm==4.66.4
+urllib3==1.26.18

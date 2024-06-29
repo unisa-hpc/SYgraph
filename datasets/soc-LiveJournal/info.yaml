@@ -1,0 +1,24 @@
+---
+name: soc-LiveJournal1
+url: https://unisalerno-my.sharepoint.com/:u:/g/personal/antdecaro_unisa_it/EZfvUIF1c15Mu4z6ZN5y_CoB3-9EHtPsRLhUndLk8j2xJg?download=1
+metadata:
+  author: L. Backstrom, D. Huttenlocher, J. Kleinberg, X. Lan
+  date: 2006
+  tags:
+    - undirected random graph
+  description: LiveJournal is a free on-line community with almost 10 million members; a significant fraction of these members are highly active. (For example, roughly 300,000 update their content in any given 24-hour period.) LiveJournal allows members to maintain journals, individual and group blogs, and it allows people to declare which other members are their friends they belong. 
+structure:
+  nodes: 4_847_571
+  edges: 68_993_773
+  weighted: False
+  labeled: False
+  directed: True
+  optional:
+    number_of_triangles: 285730264
+    average_cluster_coefficient: 0.3123
+    diameter: 18
+citations:
+  - "L. Backstrom, D. Huttenlocher, J. Kleinberg, X. Lan. Group Formation in Large Social Networks: Membership, Growth, and Evolution. KDD, 2006."
+  - "J. Leskovec, K. Lang, A. Dasgupta, M. Mahoney. Community Structure in Large Networks: Natural Cluster Sizes and the Absence of Large Well-Defined Clusters. arXiv.org:0810.1355, 2008."
+
+
