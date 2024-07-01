@@ -23,26 +23,26 @@ namespace compute {
 inline namespace v1 {
 template<graph::detail::GraphConcept GraphT,
          typename T,
-         typename sygraph::frontier::FrontierView FrontierView,
-         typename sygraph::frontier::FrontierType FrontierType,
+         typename sygraph::frontier::frontier_view FrontierView,
+         typename sygraph::frontier::frontier_type FrontierType,
          typename LambdaT>
-sygraph::event execute(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& frontier, LambdaT&& functor) {
+sygraph::Event execute(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& frontier, LambdaT&& functor) {
   return sygraph::operators::compute::detail::execute(graph, frontier, std::forward<LambdaT>(functor));
 }
 } // namespace v1
 
 namespace v0 {
-template<typename GraphT, typename frontier_t, typename LambdaT>
-sygraph::event execute(GraphT& graph, frontier_t& frontier, LambdaT&& functor) {
+template<typename GraphT, typename FrontierT, typename LambdaT>
+sygraph::Event execute(GraphT& graph, FrontierT& frontier, LambdaT&& functor) {
   auto q = graph.getQueue();
 
-  using type_t = typename frontier_t::type_t;
+  using type_t = typename FrontierT::type_t;
   size_t active_elements_size = types::detail::MAX_ACTIVE_ELEMS_SIZE;
   type_t* active_elements;
   if (!frontier.selfAllocated()) { active_elements = memory::detail::memoryAlloc<type_t, memory::space::shared>(active_elements_size, q); }
   frontier.getActiveElements(active_elements, active_elements_size);
 
-  sygraph::event e = q.submit([&](sycl::handler& cgh) {
+  sygraph::Event e = q.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<class for_kernel>(sycl::range<1>{active_elements_size}, [=](sycl::id<1> idx) {
       auto element = active_elements[idx];
       functor(element);

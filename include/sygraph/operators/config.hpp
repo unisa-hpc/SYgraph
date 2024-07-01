@@ -4,13 +4,13 @@ namespace sygraph {
 inline namespace v0 {
 namespace operators {
 
-enum class LoadBalancer {
+enum class load_balancer {
   workitem_mapped,
   subgroup_mapped,
   workgroup_mapped,
 };
 
-enum class Direction {
+enum class direction {
   push,
   pull,
 };

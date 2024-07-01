@@ -13,10 +13,10 @@ inline namespace v0 {
 namespace graph {
 namespace build {
 
-template<memory::space space, typename index_t, typename offset_t, typename value_t>
-auto fromCSR(sycl::queue& q, sygraph::formats::CSR<value_t, index_t, offset_t> csr, graph::Properties properties = graph::Properties()) {
-  using csr_t = graph::detail::graph_csr_t<space, index_t, offset_t, value_t>;
-  using GraphT = detail::graph_csr_t<space, index_t, offset_t, value_t>;
+template<memory::space Space, typename IndexT, typename OffsetT, typename ValueT>
+auto fromCSR(sycl::queue& q, sygraph::formats::CSR<ValueT, IndexT, OffsetT> csr, graph::Properties properties = graph::Properties()) {
+  using csr_t = graph::detail::GraphCSR<Space, IndexT, OffsetT, ValueT>;
+  using GraphT = detail::GraphCSR<Space, IndexT, OffsetT, ValueT>;
   return GraphT{q, csr, properties};
 };
 

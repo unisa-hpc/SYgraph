@@ -5,21 +5,21 @@
 namespace sygraph {
 inline namespace v0 {
 
-class event : public sycl::event {
+class Event : public sycl::event {
 public:
-  event() = default;
-  event(const sycl::event& e) : sycl::event(e) {}
-  event(const event& e) : sycl::event(e) {}
-  event(event&& e) : sycl::event(e) {}
-  event& operator=(const event& e) {
+  Event() = default;
+  Event(const sycl::event& e) : sycl::event(e) {}
+  Event(const Event& e) : sycl::event(e) {}
+  Event(Event&& e) : sycl::event(e) {}
+  Event& operator=(const Event& e) {
     sycl::event::operator=(e);
     return *this;
   }
-  event& operator=(event&& e) {
+  Event& operator=(Event&& e) {
     sycl::event::operator=(e);
     return *this;
   }
-  ~event() = default;
+  ~Event() = default;
 
   void wait() { sycl::event::wait(); }
 

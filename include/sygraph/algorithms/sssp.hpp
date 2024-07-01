@@ -45,7 +45,7 @@ struct SSSPInstance {
     queue.fill(visited, -1, size).wait();
   }
 
-  const size_t getVisitedVertices() const {
+  size_t getVisitedVertices() const {
     size_t vertex_count = G.getVertexCount();
     size_t visited_nodes = 0;
     for (size_t i = 0; i < G.getVertexCount(); i++) {
@@ -54,7 +54,7 @@ struct SSSPInstance {
     return visited_nodes;
   }
 
-  const size_t getVisitedEdges() const {
+  size_t getVisitedEdges() const {
     size_t vertex_count = G.getVertexCount();
     size_t visited_edges = 0;
     for (size_t i = 0; i < G.getVertexCount(); i++) {
@@ -92,7 +92,7 @@ public:
   void reset() { _instance.reset(); }
 
 
-  template<bool enable_profiling = false>
+  template<bool EnableProfiling = false>
   void run() {
     if (!_instance) { throw std::runtime_error("SSSP instance not initialized"); }
 
@@ -104,22 +104,22 @@ public:
 
     sycl::queue& queue = G.getQueue();
 
-    using load_balance_t = sygraph::operators::LoadBalancer;
-    using direction_t = sygraph::operators::Direction;
-    using frontier_view_t = sygraph::frontier::FrontierView;
-    using frontier_impl_t = sygraph::frontier::FrontierType;
+    using load_balance_t = sygraph::operators::load_balancer;
+    using direction_t = sygraph::operators::direction;
+    using frontier_view_t = sygraph::frontier::frontier_view;
+    using frontier_impl_t = sygraph::frontier::frontier_type;
 
-    auto inFrontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
-    auto outFrontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
+    auto in_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
+    auto out_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
 
     size_t size = G.getVertexCount();
 
     int iter = 0;
-    inFrontier.insert(source);
+    in_frontier.insert(source);
 
-    while (!inFrontier.empty()) {
+    while (!in_frontier.empty()) {
       auto e1 = sygraph::operators::advance::vertex<load_balance_t::workgroup_mapped>(
-          G, inFrontier, outFrontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
+          G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
             weight_t source_distance = sygraph::sync::load(&distances[src]);
             weight_t distance_to_neighbor = source_distance + weight;
 
@@ -131,7 +131,7 @@ public:
           });
       e1.wait();
 
-      auto e2 = sygraph::operators::filter::inplace(G, outFrontier, [=](auto vertex) -> bool {
+      auto e2 = sygraph::operators::filter::inplace(G, out_frontier, [=](auto vertex) -> bool {
         if (visited[vertex] == iter) return false;
         visited[vertex] = iter;
         return true;
@@ -139,22 +139,22 @@ public:
       e2.wait();
 
 #ifdef ENABLE_PROFILING
-      sygraph::profiler::addEvent(e1, "advance");
-      sygraph::profiler::addEvent(e2, "filter");
+      sygraph::Profiler::addEvent(e1, "advance");
+      sygraph::Profiler::addEvent(e2, "filter");
 #endif
 
-      sygraph::frontier::swap(inFrontier, outFrontier);
-      outFrontier.clear();
+      sygraph::frontier::swap(in_frontier, out_frontier);
+      out_frontier.clear();
       iter++;
     }
 #ifdef ENABLE_PROFILING
-    sygraph::profiler::addVisitedEdges(_instance->getVisitedEdges());
+    sygraph::Profiler::addVisitedEdges(_instance->getVisitedEdges());
 #endif
   }
 
-  const weight_t getDistance(size_t vertex) const { return _instance->distances[vertex]; }
+  weight_t getDistance(size_t vertex) const { return _instance->distances[vertex]; }
 
-  const vertex_t getParents(size_t vertex) const {
+  vertex_t getParents(size_t vertex) const {
     throw std::runtime_error("Not implemented");
     return _instance->parents[vertex];
   }

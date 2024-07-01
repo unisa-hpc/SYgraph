@@ -18,9 +18,9 @@ namespace operators {
 namespace filter {
 namespace detail {
 
-template<graph::detail::GraphConcept GraphT, typename T, typename sygraph::frontier::FrontierView FrontierView, typename LambdaT>
-sygraph::event
-inplace(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::vector>& frontier, LambdaT&& functor) {
+template<graph::detail::GraphConcept GraphT, typename T, typename sygraph::frontier::frontier_view FrontierView, typename LambdaT>
+sygraph::Event
+inplace(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::vector>& frontier, LambdaT&& functor) {
   auto q = graph.getQueue();
 
   using type_t = T;
@@ -29,12 +29,12 @@ inplace(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygrap
   type_t* active_elements;
   if (!frontier.selfAllocated()) { active_elements = memory::detail::memoryAlloc<type_t, memory::space::shared>(active_elements_size, q); }
   frontier.getActiveElements(active_elements, active_elements_size);
-  auto outDev = frontier.getDeviceFrontier();
+  auto out_dev = frontier.getDeviceFrontier();
 
-  sygraph::event e = q.submit([&](sycl::handler& cgh) {
+  sygraph::Event e = q.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<class inplace_filter_kernel>(sycl::range<1>{active_elements_size}, [=](sycl::id<1> idx) {
       auto element = active_elements[idx];
-      if (!functor(element)) { outDev.remove(element); }
+      if (!functor(element)) { out_dev.remove(element); }
     });
   });
 
@@ -43,10 +43,10 @@ inplace(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygrap
   return e;
 }
 
-template<typename GraphT, typename T, typename sygraph::frontier::FrontierView FrontierView, typename LambdaT>
-sygraph::event external(GraphT& graph,
-                        const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::vector>& in,
-                        const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::vector>& out,
+template<typename GraphT, typename T, typename sygraph::frontier::frontier_view FrontierView, typename LambdaT>
+sygraph::Event external(GraphT& graph,
+                        const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::vector>& in,
+                        const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::vector>& out,
                         LambdaT&& functor) {
   auto q = graph.getQueue();
   out.clear();
@@ -58,7 +58,7 @@ sygraph::event external(GraphT& graph,
   if (!in.selfAllocated()) { active_elements = memory::detail::memoryAlloc<type_t, memory::space::shared>(active_elements_size, q); }
   in.getActiveElements(active_elements, active_elements_size);
 
-  sygraph::event e = q.submit([&](sycl::handler& cgh) {
+  sygraph::Event e = q.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<class external_filter_kernel>(sycl::range<1>{active_elements_size}, [=](sycl::id<1> idx) {
       auto element = active_elements[idx];
       if (functor(element)) { out.insert(element); }

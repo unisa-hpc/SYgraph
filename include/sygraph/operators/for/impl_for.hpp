@@ -19,9 +19,9 @@ namespace compute {
 
 namespace detail {
 
-template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::FrontierView FW, sygraph::frontier::FrontierType FT, typename LambdaT>
-sygraph::event launchBitmapKernel(GraphT& graph, const sygraph::frontier::Frontier<T, FW, FT>& frontier, LambdaT&& functor) {
-  if constexpr (FT != sygraph::frontier::FrontierType::bitmap && FT != sygraph::frontier::FrontierType::bitvec) {
+template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_view FW, sygraph::frontier::frontier_type FT, typename LambdaT>
+sygraph::Event launchBitmapKernel(GraphT& graph, const sygraph::frontier::Frontier<T, FW, FT>& frontier, LambdaT&& functor) {
+  if constexpr (FT != sygraph::frontier::frontier_type::bitmap && FT != sygraph::frontier::frontier_type::bitvec) {
     throw std::runtime_error("Invalid frontier type");
   }
   auto q = graph.getQueue();
@@ -50,15 +50,15 @@ sygraph::event launchBitmapKernel(GraphT& graph, const sygraph::frontier::Fronti
   });
 }
 
-template<graph::detail::GraphConcept GraphT, typename T, typename sygraph::frontier::FrontierView FrontierView, typename LambdaT>
-sygraph::event
-execute(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& frontier, LambdaT&& functor) {
+template<graph::detail::GraphConcept GraphT, typename T, typename sygraph::frontier::frontier_view FrontierView, typename LambdaT>
+sygraph::Event
+execute(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::bitmap>& frontier, LambdaT&& functor) {
   return launchBitmapKernel(graph, frontier, functor);
 }
 
-template<typename GraphT, typename T, typename sygraph::frontier::FrontierView FrontierView, typename LambdaT>
-sygraph::event
-execute(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::vector>& frontier, LambdaT&& functor) {
+template<typename GraphT, typename T, typename sygraph::frontier::frontier_view FrontierView, typename LambdaT>
+sygraph::Event
+execute(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::vector>& frontier, LambdaT&& functor) {
   auto q = graph.getQueue();
 
   size_t active_elements_size = types::detail::MAX_ACTIVE_ELEMS_SIZE;
@@ -66,7 +66,7 @@ execute(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygrap
   if (!frontier.selfAllocated()) { active_elements = memory::detail::memoryAlloc<T, memory::space::shared>(active_elements_size, q); }
   frontier.getActiveElements(active_elements, active_elements_size);
 
-  sygraph::event e = q.submit([&](sycl::handler& cgh) {
+  sygraph::Event e = q.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<class for_kernel>(sycl::range<1>{active_elements_size}, [=](sycl::id<1> idx) {
       auto element = active_elements[idx];
       functor(element);
@@ -78,10 +78,10 @@ execute(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygrap
   return e;
 }
 
-template<graph::detail::GraphConcept GraphT, typename T, typename sygraph::frontier::FrontierView FrontierView, typename LambdaT>
-sygraph::event
-execute(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitvec>& frontier, LambdaT&& functor) {
-  sygraph::event e;
+template<graph::detail::GraphConcept GraphT, typename T, typename sygraph::frontier::frontier_view FrontierView, typename LambdaT>
+sygraph::Event
+execute(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::bitvec>& frontier, LambdaT&& functor) {
+  sygraph::Event e;
   auto q = graph.getQueue();
   auto dev_frontier = frontier.getDeviceFrontier();
 

@@ -11,32 +11,32 @@ inline namespace v0 {
 namespace graph {
 
 
-template<typename vertex_t, typename edge_t, typename weight_t>
+template<typename VertexT, typename EdgeT, typename WeightT>
 class Graph {
 public:
-  Graph(Properties properties) : properties(properties) {}
+  Graph(Properties properties) : _properties(properties) {}
   Graph() = default;
 
   ~Graph() = default;
 
-  const Properties& getProperties() const { return properties; }
+  const Properties& getProperties() const { return _properties; }
 
   virtual inline size_t getVertexCount() const = 0;
 
   virtual inline size_t getEdgeCount() const = 0;
 
-  virtual inline size_t getDegree(vertex_t vertex) const = 0;
+  virtual inline size_t getDegree(VertexT vertex) const = 0;
 
-  virtual inline vertex_t getFirstNeighbor(vertex_t vertex) const = 0;
+  virtual inline VertexT getFirstNeighbor(VertexT vertex) const = 0;
 
-  virtual inline vertex_t getSourceVertex(edge_t edge) const = 0;
+  virtual inline VertexT getSourceVertex(EdgeT edge) const = 0;
 
-  virtual inline vertex_t getDestinationVertex(edge_t edge) const = 0;
+  virtual inline VertexT getDestinationVertex(EdgeT edge) const = 0;
 
-  virtual inline weight_t getEdgeWeight(edge_t edge) const = 0;
+  virtual inline WeightT getEdgeWeight(EdgeT edge) const = 0;
 
 private:
-  graph::Properties properties;
+  graph::Properties _properties;
 };
 
 namespace detail {

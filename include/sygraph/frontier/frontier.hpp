@@ -9,52 +9,52 @@ namespace sygraph {
 inline namespace v0 {
 namespace frontier {
 namespace detail {
-template<typename type_t, FrontierType _type>
+template<typename T, frontier_type Type>
 class frontier_impl_t;
 
-template<typename type_t>
-class frontier_impl_t<type_t, FrontierType::bitmap> : public frontier_bitmap_t<type_t> {
-  using frontier_bitmap_t<type_t>::frontier_bitmap_t;
+template<typename T>
+class frontier_impl_t<T, frontier_type::bitmap> : public FrontierBitmap<T> {
+  using FrontierBitmap<T>::FrontierBitmap;
 };
 
-template<typename type_t>
-class frontier_impl_t<type_t, FrontierType::vector> : public frontier_vector_t<type_t> {
-  using frontier_vector_t<type_t>::frontier_vector_t;
+template<typename T>
+class frontier_impl_t<T, frontier_type::vector> : public FrontierVector<T> {
+  using FrontierVector<T>::FrontierVector;
 };
 
-template<typename type_t>
-class frontier_impl_t<type_t, FrontierType::bitvec> : public frontier_bitvec_t<type_t> {
-  using frontier_bitvec_t<type_t>::frontier_bitvec_t;
+template<typename T>
+class frontier_impl_t<T, frontier_type::bitvec> : public FrontierBitvec<T> {
+  using FrontierBitvec<T>::FrontierBitvec;
 };
 } // namespace detail
 
-template<typename T, FrontierView view = FrontierView::vertex, FrontierType type = FrontierType::bitmap>
-class Frontier : public detail::frontier_impl_t<T, type> {
+template<typename T, frontier_view View = frontier_view::vertex, frontier_type Type = frontier_type::bitmap>
+class Frontier : public detail::frontier_impl_t<T, Type> {
 public:
-  using detail::frontier_impl_t<T, type>::frontier_impl_t;
+  using detail::frontier_impl_t<T, Type>::frontier_impl_t;
   using type_t = T;
 };
 
-template<FrontierView view, FrontierType type, typename GraphType>
+template<frontier_view View, frontier_type Type, typename GraphType>
 auto makeFrontier(sycl::queue& q, const GraphType& graph) {
   size_t frontier_size = 0;
-  if constexpr (view == FrontierView::vertex) {
+  if constexpr (View == frontier_view::vertex) {
     frontier_size = graph.getVertexCount();
-    return Frontier<typename GraphType::vertex_t, view, type>(q, frontier_size);
+    return Frontier<typename GraphType::vertex_t, View, Type>(q, frontier_size);
   } else {
     frontier_size = graph.getEdgeCount();
-    return Frontier<typename GraphType::edge_t, view, type>(q, frontier_size);
+    return Frontier<typename GraphType::edge_t, View, Type>(q, frontier_size);
   }
 }
 
-template<typename type_t, FrontierView view, FrontierType type>
-void swap(Frontier<type_t, view, type>& a, Frontier<type_t, view, type>& b) {
-  if constexpr (type == FrontierType::bitmap) {
-    detail::frontier_bitmap_t<type_t>::swap(a, b);
-  } else if constexpr (type == FrontierType::vector) {
-    detail::frontier_vector_t<type_t>::swap(a, b);
-  } else if constexpr (type == FrontierType::bitvec) {
-    detail::frontier_bitvec_t<type_t>::swap(a, b);
+template<typename T, frontier_view View, frontier_type FT>
+void swap(Frontier<T, View, FT>& a, Frontier<T, View, FT>& b) {
+  if constexpr (FT == frontier_type::bitmap) {
+    detail::FrontierBitmap<T>::swap(a, b);
+  } else if constexpr (FT == frontier_type::vector) {
+    detail::FrontierVector<T>::swap(a, b);
+  } else if constexpr (FT == frontier_type::bitvec) {
+    detail::FrontierBitvec<T>::swap(a, b);
   }
 }
 

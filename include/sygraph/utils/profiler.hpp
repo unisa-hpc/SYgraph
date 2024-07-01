@@ -12,16 +12,16 @@ inline namespace v0 {
 
 namespace details {
 
-static std::unordered_map<std::string, std::vector<sygraph::event>> events;
+static std::unordered_map<std::string, std::vector<sygraph::Event>> events;
 static size_t num_visited_edges = 0;
 
 } // namespace details
 
-class profiler {
+class Profiler {
 public:
-  static void addEvent(sygraph::event event, std::string tag = "") {
+  static void addEvent(sygraph::Event event, std::string tag = "") {
     if (tag.empty()) { tag = "default"; }
-    if (details::events.find(tag) == details::events.end()) { details::events[tag] = std::vector<sygraph::event>(); }
+    if (details::events.find(tag) == details::events.end()) { details::events[tag] = std::vector<sygraph::Event>(); }
     details::events[tag].push_back(event);
   }
 

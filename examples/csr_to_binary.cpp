@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
     std::cerr << "Error: could not open file " << argv[2] << std::endl;
     return 1;
   }
-  sygraph::io::csr::to_binary(csr, out_file);
+  sygraph::io::csr::toBinary(csr, out_file);
 
   std::cout << "[!] Done" << std::endl;
 }

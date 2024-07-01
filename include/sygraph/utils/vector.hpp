@@ -13,17 +13,17 @@ inline namespace v0 {
 template<typename T>
 class Vector {
 public:
-  Vector(sycl::queue& q, size_t size) : q(q), _size{size} { data = sycl::malloc_shared<T>(size, q); }
+  Vector(sycl::queue& q, size_t size) : _q(q), _size{size} { _data = sycl::malloc_shared<T>(size, q); }
 
-  ~Vector() { sycl::free(data, q); }
+  ~Vector() { sycl::free(_data, _q); }
 
-  T* getData() const { return data; }
+  T* getData() const { return _data; }
 
   size_t size() const { return _size; }
 
 private:
-  sycl::queue& q;
-  T* data;
+  sycl::queue& _q;
+  T* _data;
   size_t _size;
 };
 

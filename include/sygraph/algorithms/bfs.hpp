@@ -55,7 +55,7 @@ struct BFSInstance {
     queue.fill(parents, static_cast<vertex_t>(-1), size).wait();
   }
 
-  const size_t getVisitedVertices() const {
+  size_t getVisitedVertices() const {
     size_t vertex_count = G.getVertexCount();
     size_t visited_nodes = 0;
     for (size_t i = 0; i < G.getVertexCount(); i++) {
@@ -64,7 +64,7 @@ struct BFSInstance {
     return visited_nodes;
   }
 
-  const size_t getVisitedEdges() const {
+  size_t getVisitedEdges() const {
     size_t vertex_count = G.getVertexCount();
     size_t visited_edges = 0;
     for (size_t i = 0; i < G.getVertexCount(); i++) {
@@ -119,10 +119,10 @@ public:
   /**
    * @brief Runs the BFS algorithm.
    *
-   * @tparam enable_profiling A boolean flag to enable profiling.
+   * @tparam EnableProfiling A boolean flag to enable profiling.
    * @throws std::runtime_error if the BFS instance is not initialized.
    */
-  template<bool enable_profiling = false>
+  template<bool EnableProfiling = false>
   void run() {
     if (!_instance) { throw std::runtime_error("BFS instance not initialized"); }
 
@@ -133,39 +133,39 @@ public:
 
     sycl::queue& queue = G.getQueue();
 
-    using load_balance_t = sygraph::operators::LoadBalancer;
-    using direction_t = sygraph::operators::Direction;
-    using frontier_view_t = sygraph::frontier::FrontierView;
-    using frontier_impl_t = sygraph::frontier::FrontierType;
+    using load_balance_t = sygraph::operators::load_balancer;
+    using direction_t = sygraph::operators::direction;
+    using frontier_view_t = sygraph::frontier::frontier_view;
+    using frontier_impl_t = sygraph::frontier::frontier_type;
 
-    auto inFrontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
-    auto outFrontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
+    auto in_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
+    auto out_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
 
-    inFrontier.insert(source);
+    in_frontier.insert(source);
 
     size_t size = G.getVertexCount();
     int iter = 0;
 
     // TODO: Add automatic load_balancing for the type of graph.
-    while (!inFrontier.empty()) {
+    while (!in_frontier.empty()) {
       auto e1 = sygraph::operators::advance::vertex<load_balance_t::workgroup_mapped>(
-          G, inFrontier, outFrontier, [=](auto src, auto dst, auto edge, auto weight) -> bool { return (iter + 1) < distances[dst]; });
+          G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool { return (iter + 1) < distances[dst]; });
       e1.waitAndThrow();
-      auto e2 = sygraph::operators::compute::execute(G, outFrontier, [=](auto v) { distances[v] = iter + 1; });
+      auto e2 = sygraph::operators::compute::execute(G, out_frontier, [=](auto v) { distances[v] = iter + 1; });
       e2.waitAndThrow();
 
 #ifdef ENABLE_PROFILING
-      sygraph::profiler::addEvent(e1, "advance");
-      sygraph::profiler::addEvent(e2, "for");
+      sygraph::Profiler::addEvent(e1, "advance");
+      sygraph::Profiler::addEvent(e2, "for");
 #endif
 
-      sygraph::frontier::swap(inFrontier, outFrontier);
-      outFrontier.clear();
+      sygraph::frontier::swap(in_frontier, out_frontier);
+      out_frontier.clear();
       iter++;
     }
 
 #ifdef ENABLE_PROFILING
-    sygraph::profiler::addVisitedEdges(_instance->getVisitedEdges());
+    sygraph::Profiler::addVisitedEdges(_instance->getVisitedEdges());
 #endif
   }
 
@@ -175,7 +175,7 @@ public:
    * @param vertex The vertex for which to get the distance.
    * @return A pointer to the array of distances.
    */
-  const edge_t getDistance(size_t vertex) const { return _instance->distances[vertex]; }
+  edge_t getDistance(size_t vertex) const { return _instance->distances[vertex]; }
 
   /**
    * @brief Returns the parent vertices for a vertex in the graph.
@@ -183,7 +183,7 @@ public:
    * @param vertex The vertex for which to get the parent vertices.
    * @return A pointer to the array of parent vertices.
    */
-  const vertex_t getParents(size_t vertex) const {
+  vertex_t getParents(size_t vertex) const {
     throw std::runtime_error("Not implemented");
     return _instance->parents[vertex];
   }

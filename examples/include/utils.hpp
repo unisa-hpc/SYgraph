@@ -7,17 +7,17 @@
 #include <sygraph/sygraph.hpp>
 
 
-template<typename index_t>
-struct args_t {
+template<typename IndexT>
+struct ArgsT {
   bool print_output = false;
   bool validate = false;
   bool binary_format = false;
   bool random_source = true;
   bool undirected = false;
   std::string path;
-  index_t source;
+  IndexT source;
 
-  void print_usage() {
+  void printUsage() {
     std::cerr << "Usage: " << path << " [-b] <path-to-graph> [-p] [-v] [-u] [-s <source>]" << std::endl;
     std::cerr << "Options:" << std::endl;
     std::cerr << "  -h: show this message" << std::endl;
@@ -28,16 +28,16 @@ struct args_t {
     std::cerr << "  -s <source>: source vertex" << std::endl;
   }
 
-  args_t(int argc, char** argv) {
+  ArgsT(int argc, char** argv) {
     if (argc < 2) {
-      print_usage();
+      printUsage();
       exit(1);
     } else {
       if (std::string(argv[1]) == "-b") {
         binary_format = true;
         path = argv[2];
       } else if (std::string(argv[1]) == "-h") {
-        print_usage();
+        printUsage();
         exit(0);
       } else {
         path = argv[1];
@@ -59,7 +59,7 @@ struct args_t {
           exit(1);
         }
       } else if (std::string(argv[i]) == "-h") {
-        print_usage();
+        printUsage();
         exit(0);
       } else {
         continue;
@@ -69,7 +69,7 @@ struct args_t {
 };
 
 template<typename T>
-void PRINT_FRONTIER(T& f, std::string prefix = "") {
+void printFrontier(T& f, std::string prefix = "") {
   using type_t = typename T::type_t;
   auto size = f.getBitmapSize() * f.getBitmapRange();
   std::cout << prefix;
@@ -78,30 +78,30 @@ void PRINT_FRONTIER(T& f, std::string prefix = "") {
   std::cout << std::endl;
 }
 
-uint get_random_source(size_t size) {
+uint getRandomSource(size_t size) {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_int_distribution<> dis(0, size - 1);
   return dis(gen);
 }
 
-template<typename value_t, typename index_t, typename offset_t>
-sygraph::formats::CSR<value_t, index_t, offset_t> read_csr(const args_t<index_t>& args) {
-  sygraph::formats::CSR<value_t, index_t, offset_t> csr;
+template<typename ValueT, typename IndexT, typename OffsetT>
+sygraph::formats::CSR<ValueT, IndexT, OffsetT> readCSR(const ArgsT<IndexT>& args) {
+  sygraph::formats::CSR<ValueT, IndexT, OffsetT> csr;
   if (args.binary_format) {
     std::ifstream file(args.path, std::ios::binary);
     if (!file.is_open()) {
       std::cerr << "Error: could not open file " << args.path << std::endl;
       exit(1);
     }
-    csr = sygraph::io::csr::fromBinary<value_t, index_t, offset_t>(file);
+    csr = sygraph::io::csr::fromBinary<ValueT, IndexT, OffsetT>(file);
   } else {
     std::ifstream file(args.path);
     if (!file.is_open()) {
       std::cerr << "Error: could not open file " << args.path << std::endl;
       exit(1);
     }
-    auto coo = sygraph::io::coo::fromCOO<value_t, index_t, offset_t>(file, args.undirected);
+    auto coo = sygraph::io::coo::fromCOO<ValueT, IndexT, OffsetT>(file, args.undirected);
     csr = sygraph::io::csr::fromCOO(coo);
   }
 
@@ -114,7 +114,7 @@ sygraph::formats::CSR<value_t, index_t, offset_t> read_csr(const args_t<index_t>
 }
 
 template<typename GraphT>
-void print_graph_info(const GraphT& g) {
+void printGraphInfo(const GraphT& g) {
   std::cerr << "-----------------------------------" << std::endl;
   std::cerr << std::left;
   std::cerr << std::setw(17) << "Vertex count:" << std::setw(10) << g.getVertexCount() << std::endl;
@@ -123,26 +123,20 @@ void print_graph_info(const GraphT& g) {
   std::cerr << "-----------------------------------" << std::endl;
 }
 
-void print_device_info(sycl::queue& queue, std::string prefix = "") {
+void printDeviceInfo(sycl::queue& queue, std::string prefix = "") {
   std::string device_name = queue.get_device().get_info<sycl::info::device::name>();
   std::string device_backend = queue.get_device().get_platform().get_info<sycl::info::platform::name>();
   std::cerr << prefix << "Running on: " << "[" << device_backend << "] " << device_name << std::endl;
 }
 
-bool is_console_output() { return isatty(STDOUT_FILENO); }
+bool isConsoleOutput() { return static_cast<int>(static_cast<int>(isatty(STDOUT_FILENO) != 0)) != 0; }
 
-std::string success_string() {
-  if (!is_console_output()) {
-    return "Success";
-  } else {
-    return "\033[1;32mSuccess\033[0m";
-  }
+std::string successString() {
+  if (!isConsoleOutput()) { return "Success"; }
+  return "\033[1;32mSuccess\033[0m";
 }
 
-std::string fail_string() {
-  if (!is_console_output()) {
-    return "Failed";
-  } else {
-    return "\033[1;31mFailed\033[0m";
-  }
+std::string failString() {
+  if (!isConsoleOutput()) { return "Failed"; }
+  return "\033[1;31mFailed\033[0m";
 }

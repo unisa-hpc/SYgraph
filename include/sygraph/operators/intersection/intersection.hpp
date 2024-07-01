@@ -18,17 +18,17 @@ namespace intersection {
 
 template<graph::detail::GraphConcept GraphT,
          typename T,
-         typename sygraph::frontier::FrontierView FrontierView,
-         typename sygraph::frontier::FrontierType FrontierType,
+         typename sygraph::frontier::frontier_view FrontierView,
+         typename sygraph::frontier::frontier_type FrontierType,
          typename LambdaT>
-sygraph::event execute(GraphT& graph,
+sygraph::Event execute(GraphT& graph,
                        const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& in1,
                        const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& in2,
                        const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& out,
                        LambdaT&& functor) {
-  if constexpr (FrontierType == sygraph::frontier::FrontierType::bitmap) {
+  if constexpr (FrontierType == sygraph::frontier::frontier_type::bitmap) {
     return sygraph::operators::intersection::detail::bitmapExecute(graph, in1, in2, out, std::forward<LambdaT>(functor));
-  } else if constexpr (FrontierType == sygraph::frontier::FrontierType::vector) {
+  } else if constexpr (FrontierType == sygraph::frontier::frontier_type::vector) {
     throw std::runtime_error("Frontier type not implemented");
   } else {
     throw std::runtime_error("Frontier type not implemented");

@@ -19,33 +19,33 @@ public:
   using offset_t = OffsetT;
 
   COO(std::vector<index_t> row_indices, std::vector<index_t> column_indices, std::vector<value_t> nnz_values)
-      : row_indices(row_indices), column_indices(column_indices), nnz_values(nnz_values) {}
+      : _row_indices(row_indices), _column_indices(column_indices), _nnz_values(nnz_values) {}
 
   COO(size_t values) {
-    row_indices.reserve(values);
-    column_indices.reserve(values);
-    nnz_values.reserve(values);
+    _row_indices.reserve(values);
+    _column_indices.reserve(values);
+    _nnz_values.reserve(values);
   }
 
   ~COO() = default;
 
   // Getters
-  const std::vector<offset_t>& get_row_indices() const { return row_indices; }
-  const std::vector<index_t>& getColumnIndices() const { return column_indices; }
-  const std::vector<value_t>& getValues() const { return nnz_values; }
-  std::vector<offset_t>& get_row_indices() { return row_indices; }
-  std::vector<index_t>& getColumnIndices() { return column_indices; }
-  std::vector<value_t>& getValues() { return nnz_values; }
-  const size_t get_size() const { return row_indices.size(); }
+  const std::vector<offset_t>& getRowIndices() const { return _row_indices; }
+  const std::vector<index_t>& getColumnIndices() const { return _column_indices; }
+  const std::vector<value_t>& getValues() const { return _nnz_values; }
+  std::vector<offset_t>& getRowIndices() { return _row_indices; }
+  std::vector<index_t>& getColumnIndices() { return _column_indices; }
+  std::vector<value_t>& getValues() { return _nnz_values; }
+  size_t getSize() const { return _row_indices.size(); }
 
 
   // static methods
 
 
 private:
-  std::vector<index_t> row_indices;
-  std::vector<index_t> column_indices;
-  std::vector<value_t> nnz_values;
+  std::vector<index_t> _row_indices;
+  std::vector<index_t> _column_indices;
+  std::vector<value_t> _nnz_values;
 };
 
 } // namespace formats

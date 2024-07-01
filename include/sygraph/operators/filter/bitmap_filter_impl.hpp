@@ -18,30 +18,30 @@ namespace operators {
 namespace filter {
 namespace detail {
 
-template<graph::detail::GraphConcept GraphT, typename T, typename sygraph::frontier::FrontierView FrontierView, typename LambdaT>
-sygraph::event
-inplace(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& frontier, LambdaT&& functor) {
+template<graph::detail::GraphConcept GraphT, typename T, typename sygraph::frontier::frontier_view FrontierView, typename LambdaT>
+sygraph::Event
+inplace(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::bitmap>& frontier, LambdaT&& functor) {
   auto q = graph.getQueue();
 
   using type_t = T;
   size_t num_nodes = graph.getVertexCount();
 
-  sygraph::event e = q.submit([&](sycl::handler& cgh) {
-    auto outDev = frontier.getDeviceFrontier();
+  sygraph::Event e = q.submit([&](sycl::handler& cgh) {
+    auto out_dev = frontier.getDeviceFrontier();
 
     cgh.parallel_for<class inplace_filter_kernel>(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) {
       type_t element = idx[0];
-      if (outDev.check(element) && !functor(element)) { outDev.remove(element); }
+      if (out_dev.check(element) && !functor(element)) { out_dev.remove(element); }
     });
   });
 
   return e;
 }
 
-template<graph::detail::GraphConcept GraphT, typename T, typename sygraph::frontier::FrontierView FrontierView, typename LambdaT>
-sygraph::event external(GraphT& graph,
-                        const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& in,
-                        const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::FrontierType::bitmap>& out,
+template<graph::detail::GraphConcept GraphT, typename T, typename sygraph::frontier::frontier_view FrontierView, typename LambdaT>
+sygraph::Event external(GraphT& graph,
+                        const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::bitmap>& in,
+                        const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::bitmap>& out,
                         LambdaT&& functor) {
   auto q = graph.getQueue();
   out.clear();
@@ -49,13 +49,13 @@ sygraph::event external(GraphT& graph,
   using type_t = T;
   size_t num_nodes = graph.getVertexCount();
 
-  auto outDev = out.getDeviceFrontier();
-  auto inDev = in.getDeviceFrontier();
+  auto out_dev = out.getDeviceFrontier();
+  auto in_dev = in.getDeviceFrontier();
 
-  sygraph::event e = q.submit([&](sycl::handler& cgh) {
+  sygraph::Event e = q.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<class external_filter_kernel>(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) {
       type_t element = idx[0];
-      if (inDev.check(element) && functor(element)) { out.insert(element); }
+      if (in_dev.check(element) && functor(element)) { out_dev.insert(element); }
     });
   });
 

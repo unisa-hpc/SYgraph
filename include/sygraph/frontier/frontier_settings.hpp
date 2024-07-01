@@ -7,7 +7,7 @@ namespace frontier {
 /**
  * @brief Enumeration representing the different views of the frontier.
  */
-enum class FrontierView {
+enum class frontier_view {
   vertex, /**< View representing only the vertices in the frontier. */
   edge,   /**< View representing only the edges in the frontier. */
 };
@@ -15,7 +15,7 @@ enum class FrontierView {
 /**
  * @brief Enumeration representing the different types of frontiers.
  */
-enum class FrontierType {
+enum class frontier_type {
   bitmap, /**< Frontier implemented as a bitmap. */
   vector, /**< Frontier implemented as a vector. */
   bitvec, /**< Frontier implemented as a bit vector. */

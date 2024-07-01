@@ -50,10 +50,10 @@ bool validate(const GraphT& graph, BfsT& bfs, uint source) {
 
 int main(int argc, char** argv) {
   using type_t = unsigned int;
-  args_t<type_t> args{argc, argv};
+  ArgsT<type_t> args{argc, argv};
 
   std::cerr << "[*] Reading CSR" << std::endl;
-  auto csr = read_csr<type_t, type_t, type_t>(args);
+  auto csr = readCSR<type_t, type_t, type_t>(args);
 
 #ifdef ENABLE_PROFILING
   sycl::queue q{sycl::gpu_selector_v, sycl::property::queue::enable_profiling()};
@@ -61,15 +61,15 @@ int main(int argc, char** argv) {
   sycl::queue q{sycl::gpu_selector_v};
 #endif
 
-  print_device_info(q, "[*] ");
+  printDeviceInfo(q, "[*] ");
 
   std::cerr << "[*] Building Graph" << std::endl;
   auto G = sygraph::graph::build::fromCSR<sygraph::memory::space::shared>(q, csr);
-  print_graph_info(G);
+  printGraphInfo(G);
   size_t size = G.getVertexCount();
 
   sygraph::algorithms::BFS bfs{G};
-  if (args.random_source) { args.source = get_random_source(size); }
+  if (args.random_source) { args.source = getRandomSource(size); }
   bfs.init(args.source);
 
   std::cout << "[*] Running BFS on source " << args.source << std::endl;
@@ -81,9 +81,9 @@ int main(int argc, char** argv) {
     std::cout << "Validation: [";
     auto validation_start = std::chrono::high_resolution_clock::now();
     if (!validate(G, bfs, args.source)) {
-      std::cout << fail_string();
+      std::cout << failString();
     } else {
-      std::cout << success_string();
+      std::cout << successString();
     }
     std::cout << "] | ";
     auto validation_end = std::chrono::high_resolution_clock::now();
@@ -101,6 +101,6 @@ int main(int argc, char** argv) {
   }
 
 #ifdef ENABLE_PROFILING
-  sygraph::profiler::print();
+  sygraph::Profiler::print();
 #endif
 }
