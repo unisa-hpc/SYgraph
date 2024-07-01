@@ -23,8 +23,8 @@ namespace compute {
 inline namespace v1 {
 template<graph::detail::GraphConcept GraphT,
          typename T,
-         typename sygraph::frontier::frontier_view FrontierView,
-         typename sygraph::frontier::frontier_type FrontierType,
+         sygraph::frontier::frontier_view FrontierView,
+         sygraph::frontier::frontier_type FrontierType,
          typename LambdaT>
 sygraph::Event execute(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& frontier, LambdaT&& functor) {
   return sygraph::operators::compute::detail::execute(graph, frontier, std::forward<LambdaT>(functor));

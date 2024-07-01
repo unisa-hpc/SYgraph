@@ -18,7 +18,7 @@ namespace operators {
 namespace filter {
 namespace detail {
 
-template<graph::detail::GraphConcept GraphT, typename T, typename sygraph::frontier::frontier_view FrontierView, typename LambdaT>
+template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_view FrontierView, typename LambdaT>
 sygraph::Event
 inplace(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::bitmap>& frontier, LambdaT&& functor) {
   auto q = graph.getQueue();
@@ -38,7 +38,7 @@ inplace(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygrap
   return e;
 }
 
-template<graph::detail::GraphConcept GraphT, typename T, typename sygraph::frontier::frontier_view FrontierView, typename LambdaT>
+template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_view FrontierView, typename LambdaT>
 sygraph::Event external(GraphT& graph,
                         const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::bitmap>& in,
                         const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::bitmap>& out,

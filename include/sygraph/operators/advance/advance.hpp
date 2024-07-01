@@ -18,7 +18,7 @@ namespace operators {
 
 namespace advance {
 
-template<sygraph::operators::load_balancer Lb, typename GraphT, typename LambdaT, typename T, typename frontier::frontier_type FrontierType>
+template<sygraph::operators::load_balancer Lb, typename GraphT, typename LambdaT, typename T, frontier::frontier_type FrontierType>
 sygraph::Event vertex(GraphT& graph,
                       sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, FrontierType>& in,
                       sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, FrontierType>& out,
@@ -32,7 +32,7 @@ sygraph::Event vertex(GraphT& graph,
   }
 }
 
-template<sygraph::operators::load_balancer Lb, typename GraphT, typename LambdaT, typename T, typename frontier::frontier_type FrontierType>
+template<sygraph::operators::load_balancer Lb, typename GraphT, typename LambdaT, typename T, frontier::frontier_type FrontierType>
 sygraph::Event edge(GraphT& graph, sygraph::frontier::Frontier<T>& in, sygraph::frontier::Frontier<T>& out, LambdaT&& functor) {
   if constexpr (Lb == sygraph::operators::load_balancer::workitem_mapped) {
     return sygraph::operators::advance::detail::workitem_mapped::edge(graph, in, out, std::forward<LambdaT>(functor));

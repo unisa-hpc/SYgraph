@@ -50,13 +50,13 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const sygraph::frontier::Fronti
   });
 }
 
-template<graph::detail::GraphConcept GraphT, typename T, typename sygraph::frontier::frontier_view FrontierView, typename LambdaT>
+template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_view FrontierView, typename LambdaT>
 sygraph::Event
 execute(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::bitmap>& frontier, LambdaT&& functor) {
   return launchBitmapKernel(graph, frontier, functor);
 }
 
-template<typename GraphT, typename T, typename sygraph::frontier::frontier_view FrontierView, typename LambdaT>
+template<typename GraphT, typename T, sygraph::frontier::frontier_view FrontierView, typename LambdaT>
 sygraph::Event
 execute(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::vector>& frontier, LambdaT&& functor) {
   auto q = graph.getQueue();
@@ -78,7 +78,7 @@ execute(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygrap
   return e;
 }
 
-template<graph::detail::GraphConcept GraphT, typename T, typename sygraph::frontier::frontier_view FrontierView, typename LambdaT>
+template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_view FrontierView, typename LambdaT>
 sygraph::Event
 execute(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::bitvec>& frontier, LambdaT&& functor) {
   sygraph::Event e;

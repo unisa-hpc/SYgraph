@@ -22,18 +22,14 @@ namespace filter {
 
 template<graph::detail::GraphConcept GraphT,
          typename T,
-         typename sygraph::frontier::frontier_view FrontierView,
-         typename sygraph::frontier::frontier_type FrontierType,
+         sygraph::frontier::frontier_view FrontierView,
+         sygraph::frontier::frontier_type FrontierType,
          typename LambdaT>
 sygraph::Event inplace(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& frontier, LambdaT&& functor) {
   return sygraph::operators::filter::detail::inplace(graph, frontier, std::forward<LambdaT>(functor));
 }
 
-template<typename GraphT,
-         typename T,
-         typename sygraph::frontier::frontier_view FrontierView,
-         typename sygraph::frontier::frontier_type FrontierType,
-         typename LambdaT>
+template<typename GraphT, typename T, sygraph::frontier::frontier_view FrontierView, sygraph::frontier::frontier_type FrontierType, typename LambdaT>
 sygraph::Event external(GraphT& graph,
                         const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& in,
                         const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& out,
