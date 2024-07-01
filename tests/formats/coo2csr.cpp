@@ -1,26 +1,26 @@
+#include <iostream>
 #include <sycl/sycl.hpp>
 #include <sygraph/sygraph.hpp>
-#include <iostream>
 
 int main() {
-  sycl::queue q {sycl::gpu_selector_v};
+  sycl::queue q{sycl::gpu_selector_v};
 
   std::string mat = "4 4 8\n"
-    "1 2 2\n"
-    "1 0 3\n"
-    "0 2 1\n"
-    "2 0 1\n"
-    "1 3 2\n"
-    "2 1 2\n"
-    "3 1 2\n"
-    "0 1 1";
+                    "1 2 2\n"
+                    "1 0 3\n"
+                    "0 2 1\n"
+                    "2 0 1\n"
+                    "1 3 2\n"
+                    "2 1 2\n"
+                    "3 1 2\n"
+                    "0 1 1";
   std::istringstream iss(mat.data());
-  auto coo = sygraph::io::coo::from_coo<uint, uint, uint>(iss);
+  auto coo = sygraph::io::coo::fromCOO<uint, uint, uint>(iss);
 
-  auto csr = sygraph::io::csr::from_coo(coo);
-  auto row_offsets = csr.get_row_offsets();
-  auto col_indices = csr.get_column_indices();
-  auto values = csr.get_values();
+  auto csr = sygraph::io::csr::fromCOO(coo);
+  auto row_offsets = csr.getRowOffsets();
+  auto col_indices = csr.getColumnIndices();
+  auto values = csr.getValues();
 
   assert(row_offsets.size() - 1 == 4);
   assert(row_offsets[0] == 0);
@@ -32,22 +32,14 @@ int main() {
   assert(values.size() == 8);
 
   std::cout << "             ";
-  for (int i = 0; i < row_offsets.size(); ++i) {
-    std::cout << i << " ";
-  }
+  for (int i = 0; i < row_offsets.size(); ++i) { std::cout << i << " "; }
   std::cout << std::endl << "row_offsets: ";
-  for (int i = 0; i < row_offsets.size(); ++i) {
-    std::cout << row_offsets[i] << " ";
-  }
+  for (int i = 0; i < row_offsets.size(); ++i) { std::cout << row_offsets[i] << " "; }
   std::cout << std::endl;
 
   std::cout << "col_indices: ";
-  for (int i = 0; i < col_indices.size(); ++i) {
-    std::cout << col_indices[i] << " ";
-  }
+  for (int i = 0; i < col_indices.size(); ++i) { std::cout << col_indices[i] << " "; }
   std::cout << std::endl << "      values:";
-  for (int i = 0; i < values.size(); ++i) {
-    std::cout << values[i] << " ";
-  }
+  for (int i = 0; i < values.size(); ++i) { std::cout << values[i] << " "; }
   std::cout << std::endl;
 }
