@@ -3,6 +3,7 @@
 #include <sygraph/frontier/frontier_settings.hpp>
 #include <sygraph/frontier/impls/bitmap_frontier.hpp>
 #include <sygraph/frontier/impls/bitvec_frontier.hpp>
+#include <sygraph/frontier/impls/hierarchic_bitmap_frontier.hpp>
 #include <sygraph/frontier/impls/vector_frontier.hpp>
 
 namespace sygraph {
@@ -15,6 +16,11 @@ class frontier_impl_t;
 template<typename T>
 class frontier_impl_t<T, frontier_type::bitmap> : public FrontierBitmap<T> {
   using FrontierBitmap<T>::FrontierBitmap;
+};
+
+template<typename T>
+class frontier_impl_t<T, frontier_type::hierachic_bitmap> : public FrontierHierarchicBitmap<T> {
+  using FrontierHierarchicBitmap<T>::FrontierHierarchicBitmap;
 };
 
 template<typename T>
@@ -55,6 +61,8 @@ void swap(Frontier<T, View, FT>& a, Frontier<T, View, FT>& b) {
     detail::FrontierVector<T>::swap(a, b);
   } else if constexpr (FT == frontier_type::bitvec) {
     detail::FrontierBitvec<T>::swap(a, b);
+  } else if constexpr (FT == frontier_type::hierachic_bitmap) {
+    detail::FrontierHierarchicBitmap<T>::swap(a, b);
   }
 }
 

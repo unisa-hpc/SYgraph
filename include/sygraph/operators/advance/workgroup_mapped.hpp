@@ -233,7 +233,8 @@ sygraph::Event launchBitmapKernel(GraphT& graph,
                                   const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, F>& in,
                                   const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, F>& out,
                                   LambdaT&& functor) {
-  if constexpr (F != sygraph::frontier::frontier_type::bitmap && F != sygraph::frontier::frontier_type::bitvec) {
+  if constexpr (F != sygraph::frontier::frontier_type::bitmap && F != sygraph::frontier::frontier_type::bitvec
+                && F != sygraph::frontier::frontier_type::hierachic_bitmap) {
     throw std::runtime_error("Invalid frontier type");
   }
 
@@ -336,12 +337,19 @@ sygraph::Event vertex(GraphT& graph,
   return launchBitmapKernel(graph, in, out, std::forward<LambdaT>(functor));
 }
 
-
 template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
 sygraph::Event vertex(GraphT& graph,
                       const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::bitmap>& in,
                       const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::bitmap>& out,
                       LambdaT&& functor) {
+  return launchBitmapKernel(graph, in, out, std::forward<LambdaT>(functor));
+}
+template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
+sygraph::Event
+vertex(GraphT& graph,
+       const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::hierachic_bitmap>& in,
+       const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::hierachic_bitmap>& out,
+       LambdaT&& functor) {
   return launchBitmapKernel(graph, in, out, std::forward<LambdaT>(functor));
 }
 
