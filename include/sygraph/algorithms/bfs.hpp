@@ -138,8 +138,8 @@ public:
     using frontier_view_t = sygraph::frontier::frontier_view;
     using frontier_impl_t = sygraph::frontier::frontier_type;
 
-    auto in_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::hierachic_bitmap>(queue, G);
-    auto out_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::hierachic_bitmap>(queue, G);
+    auto in_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitvec>(queue, G);
+    auto out_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitvec>(queue, G);
 
     in_frontier.insert(source);
 
