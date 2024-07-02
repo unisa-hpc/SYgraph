@@ -30,7 +30,7 @@ struct VectorKernel {
     const size_t subgroup_size = subgroup.get_local_range()[0];
     const size_t llid = subgroup.get_local_linear_id();
 
-    uint32_t* global_tail = out_dev_frontier.getVectorSizePtr();
+    uint32_t* global_tail = out_dev_frontier.getVectorTail();
 
     // 1. load number of edges in local memory
     sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> pad_tail_ref{pad_tail[0]};
