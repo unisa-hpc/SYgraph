@@ -14,7 +14,25 @@ namespace frontier {
 namespace detail {
 
 
-template<typename T, size_t Levels, typename DeviceFrontier>
+template<typename DeviceFrontier>
+concept DeviceFrontierConcept = requires(DeviceFrontier f) {
+  { f.getBitmapSize() } -> std::convertible_to<size_t>;
+  { f.getNumElems() } -> std::convertible_to<size_t>;
+  { f.getBitmapRange() } -> std::convertible_to<size_t>;
+  { f.getData() } -> std::convertible_to<typename DeviceFrontier::bitmap_type*>;
+  { f.set(0, true) } -> std::convertible_to<void>;
+  { f.insert(0) } -> std::convertible_to<bool>;
+  { f.remove(0) } -> std::convertible_to<bool>;
+  { f.reset() } -> std::convertible_to<void>;
+  { f.reset(0) } -> std::convertible_to<void>;
+  { f.check(0) } -> std::convertible_to<bool>;
+  { f.empty() } -> std::convertible_to<bool>;
+  { f.getBitmapIndex(0) } -> std::convertible_to<size_t>;
+  { f.getOffsets() } -> std::convertible_to<int*>;
+  { f.getOffsetsSize() } -> std::convertible_to<uint32_t*>;
+};
+
+template<typename T, size_t Levels, DeviceFrontierConcept DeviceFrontier>
 class FrontierHierarchicBitmap;
 
 
@@ -113,7 +131,7 @@ protected:
   uint32_t* _offsets_size;
 };
 
-template<typename T, size_t Levels = 2, typename DeviceFrontier = HierarchicBitmapDevice<T, Levels>>
+template<typename T, size_t Levels = 2, DeviceFrontierConcept DeviceFrontier = HierarchicBitmapDevice<T, Levels>>
 class FrontierHierarchicBitmap {
 public:
   using bitmap_type = typename DeviceFrontier::bitmap_type;
