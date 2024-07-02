@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sygraph/frontier/impls/kernels.hpp>
 #include <sygraph/sycl/event.hpp>
 #include <sygraph/utils/memory.hpp>
 #include <sygraph/utils/types.hpp>
@@ -88,6 +89,14 @@ public:
 
   SYCL_EXTERNAL inline uint32_t* getOffsetsSize() const { return _offsets_size; }
 
+  SYCL_EXTERNAL inline size_t getBitmapSize(const uint level) const { return _size[level]; }
+
+  SYCL_EXTERNAL inline bitmap_type* getData(const uint level) const { return _data[level]; }
+
+  SYCL_EXTERNAL inline bool check(const uint level, size_t idx) const {
+    return _data[level][idx / _range] & (static_cast<bitmap_type>(1) << (idx % _range));
+  }
+
   friend class FrontierHierarchicBitmap<T, Levels>;
 
 protected:
@@ -97,13 +106,6 @@ protected:
     this->_offsets_size = offsets_size;
   }
 
-  SYCL_EXTERNAL inline size_t getBitmapSize(const uint level) const { return _size[level]; }
-
-  SYCL_EXTERNAL inline bitmap_type* getData(const uint level) const { return _data[level]; }
-
-  SYCL_EXTERNAL inline bool check(const uint level, size_t idx) const {
-    return _data[level][idx / _range] & (static_cast<bitmap_type>(1) << (idx % _range));
-  }
 
   uint _range;                ///< The range of the bitmap.
   size_t _num_elems;          ///< The number of elements in the bitmap.
@@ -118,6 +120,7 @@ template<typename T, size_t Levels = 2>
 class FrontierHierarchicBitmap {
 public:
   using bitmap_type = typename HierarchicBitmapDevice<T, Levels>::bitmap_type;
+  using device_frontier_type = HierarchicBitmapDevice<T, Levels>;
 
   FrontierHierarchicBitmap(sycl::queue& q, size_t num_elems) : _queue(q), _bitmap(num_elems) { // TODO: [!] tune on bitmap size
 
@@ -214,48 +217,8 @@ public:
   const HierarchicBitmapDevice<T, Levels, bitmap_type>& getDeviceFrontier() const { return _bitmap; }
 
   size_t computeActiveFrontier() const { // TODO: Only works with 2 levels now
-    sycl::range<1> local_range{128};     // TODO: [!] tune on this value
-    size_t size = _bitmap.getBitmapSize(1);
-    uint32_t range = _bitmap.getBitmapRange();
-    sycl::range<1> global_range{(size > local_range[0] ? size + local_range[0] - (size % local_range[0]) : local_range[0])};
+    auto e = kernels::computeActiveFrontier(*this, _queue);
 
-    auto e = _queue.submit([&](sycl::handler& cgh) {
-      auto bitmap = this->getDeviceFrontier();
-
-      sycl::local_accessor<int, 1> local_offsets(local_range[0] * range, cgh);
-      sycl::local_accessor<uint32_t, 1> local_size(1, cgh);
-      bitmap._offsets_size[0] = 0;
-
-
-      cgh.parallel_for(sycl::nd_range<1>{global_range, local_range},
-                       [=, offsets_size = bitmap._offsets_size, offsets = bitmap._offsets](sycl::nd_item<1> item) {
-                         int gid = item.get_global_linear_id();
-                         size_t lid = item.get_local_linear_id();
-                         auto group = item.get_group();
-
-                         sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> local_size_ref(local_size[0]);
-                         sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device> offsets_size_ref{offsets_size[0]};
-
-                         if (group.leader()) { local_size_ref.store(0); }
-                         sycl::group_barrier(group);
-
-                         if (gid < size) {
-                           bitmap_type data = bitmap.getData(1)[gid];
-                           for (size_t i = 0; i < range; i++) {
-                             if (data & (static_cast<bitmap_type>(1) << i)) { local_offsets[local_size_ref++] = i + gid * range; }
-                           }
-                         }
-
-                         sycl::group_barrier(group);
-
-                         size_t data_offset = 0;
-                         if (group.leader()) { data_offset = offsets_size_ref.fetch_add(local_size_ref.load()); }
-                         data_offset = sycl::group_broadcast(group, data_offset, 0);
-                         for (size_t i = lid; i < local_size_ref.load(); i += item.get_local_range(0)) {
-                           offsets[data_offset + i] = local_offsets[i];
-                         }
-                       });
-    });
     e.wait();
 
 #ifdef ENABLE_PROFILING
