@@ -18,7 +18,7 @@ template<typename T, size_t Levels>
 class FrontierHierarchicBitmap;
 
 
-template<typename T, size_t Levels, typename B = uint64_t>
+template<typename T, size_t Levels, typename B = uint32_t>
 class HierarchicBitmapDevice {
 public:
   using bitmap_type = B;
@@ -117,8 +117,9 @@ protected:
 template<typename T, size_t Levels = 2>
 class FrontierHierarchicBitmap {
 public:
+  using bitmap_type = typename HierarchicBitmapDevice<T, Levels>::bitmap_type;
+
   FrontierHierarchicBitmap(sycl::queue& q, size_t num_elems) : _queue(q), _bitmap(num_elems) { // TODO: [!] tune on bitmap size
-    using bitmap_type = typename BitmapDevice<T>::bitmap_type;
 
     bitmap_type* ptr[Levels];
 #pragma unroll
@@ -134,9 +135,6 @@ public:
     _queue.fill(offsets_size, 0, size).wait();
     _bitmap.setPtr(ptr, offsets, offsets_size);
   }
-
-  using bitmap_type = typename BitmapDevice<T>::bitmap_type;
-
 
   ~FrontierHierarchicBitmap() {
     for (size_t i = 0; i < Levels; i++) { sycl::free(_bitmap.getData(i), _queue); }
