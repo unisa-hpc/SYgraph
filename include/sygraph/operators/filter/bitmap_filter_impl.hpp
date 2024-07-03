@@ -29,19 +29,39 @@ sygraph::Event launchBitmapKernelExternal(GraphT& graph,
   }
 
   auto q = graph.getQueue();
+
+  size_t num_nodes = graph.getVertexCount();
+
+  size_t bitmap_range = in.getBitmapRange();
+  size_t offsets_size = in.computeActiveFrontier();
+
   out.clear();
 
   using type_t = T;
-  size_t num_nodes = graph.getVertexCount();
 
   auto out_dev = out.getDeviceFrontier();
   auto in_dev = in.getDeviceFrontier();
 
   sygraph::Event e = q.submit([&](sycl::handler& cgh) {
-    cgh.parallel_for<class external_filter_kernel>(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) {
-      type_t element = idx[0];
-      if (in_dev.check(element) && functor(element)) { out_dev.insert(element); }
+    sycl::range<1> local_range{bitmap_range};
+    size_t global_size = offsets_size * local_range[0];
+    sycl::range<1> global_range{global_size > local_range[0] ? global_size + (local_range[0] - (global_size % local_range[0])) : local_range[0]};
+
+    cgh.parallel_for(sycl::nd_range<1>{global_range, local_range}, [=](sycl::nd_item<1> item) {
+      auto lid = item.get_local_id();
+      auto group_id = item.get_group_linear_id();
+      auto local_size = item.get_local_range()[0];
+      int* bitmap_offsets = in_dev.getOffsets();
+
+      size_t actual_id = bitmap_offsets[group_id] * bitmap_range + lid;
+
+      if (actual_id < num_nodes && in_dev.check(actual_id) && functor(actual_id)) { out_dev.insert(actual_id); }
     });
+
+    // cgh.parallel_for<class external_filter_kernel>(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) { // TODO: check if it works
+    //   type_t element = idx[0];
+    //   if (in_dev.check(element) && functor(element)) { out_dev.insert(element); }
+    // });
   });
 
   return e;
@@ -55,17 +75,35 @@ sygraph::Event launchBitmapKernelInplace(GraphT& graph, const sygraph::frontier:
   }
 
   auto q = graph.getQueue();
+  auto dev_frontier = frontier.getDeviceFrontier();
 
-  using type_t = T;
   size_t num_nodes = graph.getVertexCount();
 
-  sygraph::Event e = q.submit([&](sycl::handler& cgh) {
-    auto out_dev = frontier.getDeviceFrontier();
+  size_t bitmap_range = frontier.getBitmapRange();
+  size_t offsets_size = frontier.computeActiveFrontier();
 
-    cgh.parallel_for<class inplace_filter_kernel>(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) {
-      type_t element = idx[0];
-      if (out_dev.check(element) && !functor(element)) { out_dev.remove(element); }
+  using type_t = T;
+
+  sygraph::Event e = q.submit([&](sycl::handler& cgh) {
+    sycl::range<1> local_range{bitmap_range};
+    size_t global_size = offsets_size * local_range[0];
+    sycl::range<1> global_range{global_size > local_range[0] ? global_size + (local_range[0] - (global_size % local_range[0])) : local_range[0]};
+
+    cgh.parallel_for(sycl::nd_range<1>{global_range, local_range}, [=](sycl::nd_item<1> item) {
+      auto lid = item.get_local_id();
+      auto group_id = item.get_group_linear_id();
+      auto local_size = item.get_local_range()[0];
+      int* bitmap_offsets = dev_frontier.getOffsets();
+
+      size_t actual_id = bitmap_offsets[group_id] * bitmap_range + lid;
+
+      if (actual_id < num_nodes && dev_frontier.check(actual_id) && functor(actual_id)) { dev_frontier.remove(actual_id); }
     });
+
+    // cgh.parallel_for<class inplace_filter_kernel>(sycl::range<1>{num_nodes}, [=](sycl::id<1> idx) { // TODO: check if it works
+    //   type_t element = idx[0];
+    //   if (out_dev.check(element) && !functor(element)) { out_dev.remove(element); }
+    // });
   });
 
   return e;
