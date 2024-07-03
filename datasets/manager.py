@@ -4,8 +4,6 @@
 from typing import Dict
 import yaml
 import argparse
-from argcomplete import autocomplete
-import sys
 import glob
 import os
 import _utils as utl
@@ -30,7 +28,9 @@ def get_available_graphs() -> Dict[str, Dict]:
 
 
 def list_command(args: argparse.Namespace, graphs: Dict[str, Dict]):
-  utl.list_items(graphs, order_by=args.order_by, desc=args.desc)
+  if not args.filter:
+    args.filter = []
+  utl.list_items(graphs, order_by=args.order_by, desc=args.desc, filters=args.filter)
 
 def download_command(args: argparse.Namespace, graphs: Dict[str, Dict]):
   to_download = []
@@ -72,6 +72,7 @@ def main():
   list_parser.set_defaults(func=list_command)
   list_parser.add_argument('--order-by', choices=['name', 'date', 'nodes', 'edges'], default='name', help='Order by field')
   list_parser.add_argument('--desc', action='store_true', help='Order in decreasing order')
+  list_parser.add_argument('-f', '--filter', nargs='*', help='Filter graphs by parameter. Format: field[=,<,>,<=,>=]value', metavar='FIELD[=,<,>,<=,>=]VALUE')
   
   # add download command
   download_parser = subparsers.add_parser('download', help='Download a graph', description='Download one or more graph')
@@ -93,8 +94,6 @@ def main():
   clean_parser.add_argument('-a', '--all', action='store_true', help='Clean all graphs')
   clean_parser.add_argument('graph', nargs='*', help='Graph(s) to clean', metavar='GRAPH')
   
-  # autocomplete
-  autocomplete(parser)
   # parse arguments
   args = parser.parse_args()
   args.func(args, graphs)
