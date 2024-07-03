@@ -18,14 +18,14 @@ namespace detail {
 template<typename T, size_t Levels>
 class FrontierBitvec;
 
-template<typename T, size_t Levels = 2, typename B = uint64_t>     // TODO [!!!] There are too many copies from host to device that degrade the
+template<typename T, size_t Levels = 2, typename B = types::bitmap_type_t>     // TODO [!!!] There are too many copies from host to device that degrade the
                                                                    // performance
 class BitvecDevice : public HierarchicBitmapDevice<T, Levels, B> { // TODO modify the code in order to select the number of levels
 public:
   using bitmap_type = B;
 
   BitvecDevice(size_t num_elems) : HierarchicBitmapDevice<T, Levels, B>(num_elems) {
-    _vector_max_size = 16000; // TODO ! tune on vector size
+    _vector_max_size = 12000; // TODO ! tune on vector size
   }
 
   SYCL_EXTERNAL bool useVector() const { return static_cast<int>(*_vector_tail < _vector_max_size); }

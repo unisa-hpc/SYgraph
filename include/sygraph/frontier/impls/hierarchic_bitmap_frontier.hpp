@@ -36,7 +36,7 @@ template<typename T, size_t Levels, DeviceFrontierConcept DeviceFrontier>
 class FrontierHierarchicBitmap;
 
 
-template<typename T, size_t Levels, typename B = uint32_t>
+template<typename T, size_t Levels, typename B = types::bitmap_type_t>
 class HierarchicBitmapDevice {
 public:
   using bitmap_type = B;
@@ -229,7 +229,9 @@ public:
 
 
   void clear() {
-    for (size_t i = 0; i < Levels; i++) { _queue.fill(_bitmap.getData(i), static_cast<bitmap_type>(0), _bitmap.getBitmapSize(i)).wait(); }
+    for (size_t i = 0; i < Levels; i++) { _queue.fill(_bitmap.getData(i), static_cast<bitmap_type>(0), _bitmap.getBitmapSize(i)); }
+    _queue.fill(_bitmap.getOffsetsSize(), static_cast<uint32_t>(0), 1);
+    _queue.wait();
   }
 
   const DeviceFrontier& getDeviceFrontier() const { return _bitmap; }
@@ -240,6 +242,9 @@ public:
     size_t size = bitmap.getBitmapSize(1);
     uint32_t range = bitmap.getBitmapRange();
     sycl::range<1> global_range{(size > local_range[0] ? size + local_range[0] - (size % local_range[0]) : local_range[0])};
+
+    size_t size_offsets = bitmap.getOffsetsSize()[0];
+    if (size_offsets > 0) { return size_offsets; }
 
     auto e = this->_queue.submit([&](sycl::handler& cgh) {
       sycl::local_accessor<int, 1> local_offsets(local_range[0] * range, cgh);

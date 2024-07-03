@@ -8,7 +8,7 @@ namespace types {
 
 typedef unsigned int index_t;
 typedef size_t offset_t;
-typedef uint64_t bitmap_type_t;
+typedef uint32_t bitmap_type_t;
 
 namespace detail {
 
