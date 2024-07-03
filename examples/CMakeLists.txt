@@ -3,6 +3,7 @@ link_libraries(sygraph)
 add_executable(csr_to_binary csr_to_binary.cpp)
 add_executable(bfs bfs/bfs.cpp)
 add_executable(sssp sssp/sssp.cpp)
+add_executable(tc tc/tc.cpp)
 
 set_property(DIRECTORY ${CMAKE_SOURCE_DIR}/ PROPERTY CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
