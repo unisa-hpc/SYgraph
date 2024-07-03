@@ -50,7 +50,17 @@ def clean_command(args: argparse.Namespace, graphs: Dict[str, Dict]):
     to_clean = args.graph
   for name in to_clean:
     info = graphs[name]
-    utl.clean_graph(info['folder'])
+    utl.clean_graph(info['folder'], args.only_installation)
+    
+def convert_command(args: argparse.Namespace, graphs: Dict[str, Dict]):
+  to_convert = []
+  if args.all:
+    to_convert = list(graphs.keys())
+  else:
+    to_convert = args.graph
+  for name in to_convert:
+    info = graphs[name]
+    utl.convert_graph(args.converter_path, info['folder'], args.undirected, args.always)
   
 
 def info_command(args: argparse.Namespace, graphs: Dict[str, Dict]):
@@ -92,7 +102,17 @@ def main():
   clean_parser = subparsers.add_parser('clean', help='Clean downloaded graphs', description='Clean one or more downloaded graphs')
   clean_parser.set_defaults(func=clean_command)
   clean_parser.add_argument('-a', '--all', action='store_true', help='Clean all graphs')
+  clean_parser.add_argument('--only-installation', action='store_true', help='Clean only installation files')
   clean_parser.add_argument('graph', nargs='*', help='Graph(s) to clean', metavar='GRAPH')
+  
+  # add convert command
+  convert_parser = subparsers.add_parser('convert', help='Convert a graph', description='Convert a graph to binary format')
+  convert_parser.set_defaults(func=convert_command)
+  convert_parser.add_argument('converter_path', help='Path to the converter')
+  convert_parser.add_argument('-a', '--all', action='store_true', help='Download all graphs')
+  convert_parser.add_argument('-u', '--undirected', action='store_true', help='Convert to undirected graph')
+  convert_parser.add_argument('-y', '--always', action='store_true', help='Always convert the graph')
+  convert_parser.add_argument('graph', nargs='*', help='graph(s) to download', metavar='GRAPH')
   
   # parse arguments
   args = parser.parse_args()
