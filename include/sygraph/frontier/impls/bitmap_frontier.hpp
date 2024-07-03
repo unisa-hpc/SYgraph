@@ -17,9 +17,8 @@ namespace detail {
 template<typename T>
 class FrontierBitmap;
 
-
 template<typename T, typename B = types::bitmap_type_t>
-class BitmapDevice {
+class [[deprecated("BitmapDevice is deprecated, use HierarchicBitmapDevice instead")]] BitmapDevice {
 public:
   using bitmap_type = B;
 
@@ -168,7 +167,6 @@ protected:
   uint32_t* _offsets_size;
 };
 
-template<typename T>
 /**
  * @class frontier_bitmap_t
  * @brief Represents a bitmap frontier used in SYgraph.
@@ -185,7 +183,8 @@ template<typename T>
  *
  * @tparam bitmap_type The type of the bitmap.
  */
-class FrontierBitmap {
+template<typename T>
+class [[deprecated("BitmapDevice is deprecated, use FrontierHierarchicBitmap instead")]] FrontierBitmap {
 public:
   /**
    * @brief Constructs a frontier_bitmap_t object.
@@ -389,6 +388,9 @@ public:
     sycl::range<1> local_range{1024}; // TODO: [!] tune on this value
     size_t size = _bitmap.getBitmapSize();
     sycl::range<1> global_range{(size > local_range[0] ? size + local_range[0] - (size % local_range[0]) : local_range[0])};
+
+    size_t size_offsets = _bitmap.getOffsetsSize()[0];
+    if (size_offsets > 0) { return size_offsets; }
 
     auto e = _queue.submit([&](sycl::handler& cgh) {
       auto bitmap = this->getDeviceFrontier();
