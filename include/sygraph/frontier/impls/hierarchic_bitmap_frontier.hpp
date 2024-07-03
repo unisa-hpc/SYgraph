@@ -1,6 +1,5 @@
 #pragma once
 
-#include <sygraph/frontier/impls/kernels.hpp>
 #include <sygraph/sycl/event.hpp>
 #include <sygraph/utils/memory.hpp>
 #include <sygraph/utils/types.hpp>
@@ -15,7 +14,25 @@ namespace frontier {
 namespace detail {
 
 
-template<typename T, size_t Levels>
+template<typename DeviceFrontier>
+concept DeviceFrontierConcept = requires(DeviceFrontier f) {
+  { f.getBitmapSize() } -> std::convertible_to<size_t>;
+  { f.getNumElems() } -> std::convertible_to<size_t>;
+  { f.getBitmapRange() } -> std::convertible_to<size_t>;
+  { f.getData() } -> std::convertible_to<typename DeviceFrontier::bitmap_type*>;
+  { f.set(0, true) } -> std::convertible_to<void>;
+  { f.insert(0) } -> std::convertible_to<bool>;
+  { f.remove(0) } -> std::convertible_to<bool>;
+  { f.reset() } -> std::convertible_to<void>;
+  { f.reset(0) } -> std::convertible_to<void>;
+  { f.check(0) } -> std::convertible_to<bool>;
+  { f.empty() } -> std::convertible_to<bool>;
+  { f.getBitmapIndex(0) } -> std::convertible_to<size_t>;
+  { f.getOffsets() } -> std::convertible_to<int*>;
+  { f.getOffsetsSize() } -> std::convertible_to<uint32_t*>;
+};
+
+template<typename T, size_t Levels, DeviceFrontierConcept DeviceFrontier>
 class FrontierHierarchicBitmap;
 
 
@@ -24,7 +41,6 @@ class HierarchicBitmapDevice {
 public:
   using bitmap_type = B;
 
-  template<typename... Args>
   HierarchicBitmapDevice(size_t num_elems) : _num_elems(num_elems) {
     _range = sizeof(bitmap_type) * sygraph::types::detail::byte_size;
     _size[0] = num_elems / _range + (num_elems % _range != 0);
@@ -97,16 +113,15 @@ public:
     return _data[level][idx / _range] & (static_cast<bitmap_type>(1) << (idx % _range));
   }
 
-  friend class FrontierHierarchicBitmap<T, Levels>;
-
-protected:
-  void setPtr(bitmap_type* ptr[Levels], int* offsets, uint32_t* offsets_size) {
-    for (size_t i = 0; i < Levels; i++) { this->_data[i] = ptr[i]; }
-    this->_offsets = offsets;
-    this->_offsets_size = offsets_size;
+  void setData(bitmap_type* data[Levels]) {
+    for (size_t i = 0; i < Levels; i++) { this->_data[i] = data[i]; }
   }
 
+  void setOffsets(int* offsets) { this->_offsets = offsets; }
 
+  void setOffsetsSize(uint32_t* offsets_size) { this->_offsets_size = offsets_size; }
+
+protected:
   uint _range;                ///< The range of the bitmap.
   size_t _num_elems;          ///< The number of elements in the bitmap.
   size_t _size[Levels];       ///< The size of the bitmap.
@@ -116,11 +131,11 @@ protected:
   uint32_t* _offsets_size;
 };
 
-template<typename T, size_t Levels = 2>
+template<typename T, size_t Levels = 2, DeviceFrontierConcept DeviceFrontier = HierarchicBitmapDevice<T, Levels>>
 class FrontierHierarchicBitmap {
 public:
-  using bitmap_type = typename HierarchicBitmapDevice<T, Levels>::bitmap_type;
-  using device_frontier_type = HierarchicBitmapDevice<T, Levels>;
+  using bitmap_type = typename DeviceFrontier::bitmap_type;
+  using device_frontier_type = DeviceFrontier;
 
   FrontierHierarchicBitmap(sycl::queue& q, size_t num_elems) : _queue(q), _bitmap(num_elems) { // TODO: [!] tune on bitmap size
 
@@ -136,7 +151,10 @@ public:
     uint32_t* offsets_size = sygraph::memory::detail::memoryAlloc<uint32_t, memory::space::shared>(1, _queue);
     auto size = _bitmap.getBitmapSize();
     _queue.fill(offsets_size, 0, size).wait();
-    _bitmap.setPtr(ptr, offsets, offsets_size);
+
+    _bitmap.setData(ptr);
+    _bitmap.setOffsets(offsets);
+    _bitmap.setOffsetsSize(offsets_size);
   }
 
   ~FrontierHierarchicBitmap() {
@@ -214,24 +232,64 @@ public:
     for (size_t i = 0; i < Levels; i++) { _queue.fill(_bitmap.getData(i), static_cast<bitmap_type>(0), _bitmap.getBitmapSize(i)).wait(); }
   }
 
-  const HierarchicBitmapDevice<T, Levels, bitmap_type>& getDeviceFrontier() const { return _bitmap; }
+  const DeviceFrontier& getDeviceFrontier() const { return _bitmap; }
 
   size_t computeActiveFrontier() const { // TODO: Only works with 2 levels now
-    auto e = kernels::computeActiveFrontier(*this, _queue);
+    sycl::range<1> local_range{128};
+    auto bitmap = this->getDeviceFrontier();
+    size_t size = bitmap.getBitmapSize(1);
+    uint32_t range = bitmap.getBitmapRange();
+    sycl::range<1> global_range{(size > local_range[0] ? size + local_range[0] - (size % local_range[0]) : local_range[0])};
+
+    auto e = this->_queue.submit([&](sycl::handler& cgh) {
+      sycl::local_accessor<int, 1> local_offsets(local_range[0] * range, cgh);
+      sycl::local_accessor<uint32_t, 1> local_size(1, cgh);
+      bitmap.getOffsetsSize()[0] = 0;
+
+
+      cgh.parallel_for(sycl::nd_range<1>{global_range, local_range},
+                       [=, offsets_size = bitmap.getOffsetsSize(), offsets = bitmap.getOffsets()](sycl::nd_item<1> item) {
+                         int gid = item.get_global_linear_id();
+                         size_t lid = item.get_local_linear_id();
+                         auto group = item.get_group();
+
+                         sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> local_size_ref(local_size[0]);
+                         sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device> offsets_size_ref{offsets_size[0]};
+
+                         if (group.leader()) { local_size_ref.store(0); }
+                         sycl::group_barrier(group);
+
+                         if (gid < size) {
+                           bitmap_type data = bitmap.getData(1)[gid];
+                           for (size_t i = 0; i < range; i++) {
+                             if (data & (static_cast<bitmap_type>(1) << i)) { local_offsets[local_size_ref++] = i + gid * range; }
+                           }
+                         }
+
+                         sycl::group_barrier(group);
+
+                         size_t data_offset = 0;
+                         if (group.leader()) { data_offset = offsets_size_ref.fetch_add(local_size_ref.load()); }
+                         data_offset = sycl::group_broadcast(group, data_offset, 0);
+                         for (size_t i = lid; i < local_size_ref.load(); i += item.get_local_range(0)) {
+                           offsets[data_offset + i] = local_offsets[i];
+                         }
+                       });
+    });
 
     e.wait();
 
 #ifdef ENABLE_PROFILING
     sygraph::Profiler::addEvent(e, "computeActiveFrontier");
 #endif
-    return _bitmap._offsets_size[0];
+    return _bitmap.getOffsetsSize()[0];
   }
 
   static void swap(FrontierHierarchicBitmap<T>& a, FrontierHierarchicBitmap<T>& b) { std::swap(a._bitmap, b._bitmap); }
 
-private:
-  sycl::queue& _queue;                                    ///< The SYCL queue used for memory allocation.
-  HierarchicBitmapDevice<T, Levels, bitmap_type> _bitmap; ///< The bitmap.
+protected:
+  sycl::queue& _queue;    ///< The SYCL queue used for memory allocation.
+  DeviceFrontier _bitmap; ///< The bitmap.
 };
 
 

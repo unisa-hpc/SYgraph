@@ -1,7 +1,6 @@
 #pragma once
 
 #include <sygraph/frontier/impls/hierarchic_bitmap_frontier.hpp>
-#include <sygraph/frontier/impls/vector_frontier.hpp>
 #include <sygraph/sycl/event.hpp>
 #include <sygraph/utils/memory.hpp>
 #include <sygraph/utils/types.hpp>
@@ -87,17 +86,13 @@ public:
 
   SYCL_EXTERNAL uint32_t getVectorSize() const { return *_vector_tail; }
 
-  SYCL_EXTERNAL uint32_t* getVectorSizePtr() const { return _vector_tail; }
+  SYCL_EXTERNAL uint32_t* getVectorTail() const { return _vector_tail; }
 
-  friend class FrontierBitvec<T, Levels>;
+  void setVector(T* vector) { this->_vector = vector; }
+
+  void setVectorTail(uint32_t* vector_tail) { this->_vector_tail = vector_tail; }
 
 protected:
-  void setPtr(bitmap_type* ptr[2], int* offsets, uint32_t* offsets_size, T* vector_ptr, uint32_t* tail_ptr) {
-    HierarchicBitmapDevice<T, Levels, B>::setPtr(ptr, offsets, offsets_size);
-    _vector = vector_ptr;
-    _vector_tail = tail_ptr;
-  }
-
   size_t _vector_max_size;
   uint32_t* _vector_tail;
   T* _vector;
@@ -120,7 +115,7 @@ protected:
  * @tparam bitmap_type The type of the bitmap.
  */
 template<typename T, size_t Levels = 2>
-class FrontierBitvec {
+class FrontierBitvec : public FrontierHierarchicBitmap<T, Levels, BitvecDevice<T, Levels>> {
 public:
   using bitmap_type = typename HierarchicBitmapDevice<T, 2>::bitmap_type;
   using device_frontier_type = BitvecDevice<T, Levels, bitmap_type>;
@@ -130,101 +125,20 @@ public:
    * @param q The SYCL queue to use for memory allocation.
    * @param num_elems The number of elements in the bitmap.
    */
-  FrontierBitvec(sycl::queue& q, size_t num_elems) : _queue(q), _bitvec(num_elems) { // TODO: [!] tune on bitmap size
-    T* vector_ptr = sygraph::memory::detail::memoryAlloc<T, memory::space::device>(_bitvec.getVectorMaxSize(), _queue);
-    uint32_t* vector_tail_ptr = sygraph::memory::detail::memoryAlloc<uint32_t, memory::space::device>(1, _queue);
+  FrontierBitvec(sycl::queue& q, size_t num_elems) : FrontierHierarchicBitmap<T, Levels, BitvecDevice<T, 2>>{q, num_elems} {
+    T* vector_ptr = sygraph::memory::detail::memoryAlloc<T, memory::space::device>(this->_bitmap.getVectorMaxSize(), this->_queue);
+    uint32_t* vector_tail_ptr = sygraph::memory::detail::memoryAlloc<uint32_t, memory::space::device>(1, this->_queue);
 
-    bitmap_type* ptr[Levels];
-#pragma unroll
-    for (size_t i = 0; i < Levels; i++) {
-      size_t size = _bitvec.getBitmapSize(i);
-      ptr[i] = sygraph::memory::detail::memoryAlloc<bitmap_type, memory::space::shared>(size, _queue);
-      _queue.fill(ptr[i], static_cast<bitmap_type>(0), size);
-    }
-    _queue.wait();
-    int* offsets = sygraph::memory::detail::memoryAlloc<int, memory::space::device>(_bitvec.getBitmapSize(), _queue);
-    uint32_t* offsets_size = sygraph::memory::detail::memoryAlloc<uint32_t, memory::space::shared>(1, _queue);
-    auto size = _bitvec.getBitmapSize();
-    _queue.fill(offsets_size, 0, size).wait();
-    _bitvec.setPtr(ptr, offsets, offsets_size, vector_ptr, vector_tail_ptr);
+    this->_bitmap.setVector(vector_ptr);
+    this->_bitmap.setVectorTail(vector_tail_ptr);
   }
 
   /**
    * @brief Destroys the frontier_bitvec_t object and frees the allocated memory.
    */
   ~FrontierBitvec() {
-    sycl::free(_bitvec.getData(), _queue);
-    sycl::free(_bitvec._vector, _queue);
-    sycl::free(_bitvec._vector_tail, _queue);
-  }
-
-  size_t getBitmapSize() const { return _bitvec.getBitmapSize(); }
-
-  size_t getNumElems() const { return _bitvec.getNumElems(); }
-
-  size_t getBitmapRange() const { return _bitvec.getBitmapRange(); }
-
-  bool empty() const { return _bitvec.empty(); }
-
-  bool check(size_t idx) const { return _bitvec.check(idx); }
-
-  bool insert(size_t idx) {
-    _queue
-        .submit([&](sycl::handler& cgh) {
-          auto bitmap = this->getDeviceFrontier();
-          cgh.single_task([=]() { bitmap.insert(idx); });
-        })
-        .wait();
-    return true;
-  }
-
-  bool remove(size_t idx) {
-    _queue
-        .submit([&](sycl::handler& cgh) {
-          auto bitmap = this->getDeviceFrontier();
-          cgh.single_task([=]() { bitmap.remove(idx); });
-        })
-        .wait();
-    return true;
-  }
-
-  // operator =
-  FrontierBitvec& operator=(const FrontierBitvec& other) {
-    if (this == &other) { return *this; }
-    _queue.copy(other._bitvec.bitmap, this->_bitvec.bitmap, _bitvec.bitmap_size).wait();
-    return *this;
-  }
-
-  /**
-   * Merges the contents of the current bitmap frontier with the specified frontier.
-   *
-   * @param other The frontier to merge with.
-   * @return The event associated with the operation.
-   * @post The current frontier contains the union of the current frontier and the specified frontier. The specified frontier is not modified.
-   */
-  sygraph::Event merge(FrontierBitvec<T>& other) {
-    return _queue.submit([&](sycl::handler& cgh) {
-      auto bitmap = this->getDeviceFrontier();
-      auto other_bitmap = other.getDeviceFrontier();
-      cgh.parallel_for<class merge_bitmap_frontier_kernel>(sycl::range<1>(bitmap.size),
-                                                           [=](sycl::id<1> idx) { bitmap.data[idx] |= other_bitmap.data[idx]; });
-    });
-  }
-
-  /**
-   * @brief Intersects the contents of the current bitmap frontier with the specified frontier.
-   *
-   * @param other The frontier to intersect with.
-   * @return The event associated with the operation.
-   * @post The current frontier contains the intersection of the current frontier and the specified frontier. The specified frontier is not modified.
-   */
-  sygraph::Event intersect(FrontierBitvec<T>& other) {
-    return _queue.submit([&](sycl::handler& cgh) {
-      auto bitmap = this->getDeviceFrontier();
-      auto other_bitmap = other.getDeviceFrontier();
-      cgh.parallel_for<class intersect_bitmap_frontier_kernel>(sycl::range<1>(bitmap.size),
-                                                               [=](sycl::id<1> idx) { bitmap.data[idx] &= other_bitmap.data[idx]; });
-    });
+    sycl::free(this->_bitmap.getVector(), this->_queue);
+    sycl::free(this->_bitmap.getVectorTail(), this->_queue);
   }
 
   /**
@@ -232,44 +146,23 @@ public:
    * @note This function should be called only on the host-side.
    */
   void clear() {
-    for (size_t i = 0; i < Levels; i++) { _queue.fill(_bitvec.getData(i), static_cast<bitmap_type>(0), _bitvec.getBitmapSize(i)).wait(); }
-    auto e1 = _queue.fill(_bitvec.getData(), static_cast<bitmap_type>(0), _bitvec.getBitmapSize());
-    auto e2 = _queue.fill(_bitvec._vector_tail, static_cast<size_t>(0), 1);
-    _queue.fill(_bitvec._offsets_size, static_cast<uint32_t>(0), 1).wait();
-    e1.wait();
-    e2.wait();
+    FrontierHierarchicBitmap<T, Levels, BitvecDevice<T, Levels>>::clear();
+    this->_queue.fill(this->_bitmap.getVectorTail(), static_cast<bitmap_type>(0), 1).wait();
   }
 
-  const device_frontier_type& getDeviceFrontier() const { return _bitvec; }
-
-  static void swap(FrontierBitvec<T>& a, FrontierBitvec<T>& b) { std::swap(a._bitvec, b._bitvec); }
+  static void swap(FrontierBitvec<T, Levels>& a, FrontierBitvec<T, Levels>& b) { std::swap(a._bitmap, b._bitmap); }
 
   size_t getVectorSize() const {
     uint32_t ret;
-    _queue.copy(_bitvec._vector_tail, &ret, 1).wait();
+    this->_queue.copy(this->_bitmap.getVectorTail(), &ret, 1).wait();
     return ret;
   }
 
-  size_t getVectorMaxSize() const { return _bitvec.getVectorMaxSize(); }
+  size_t getVectorMaxSize() const { return this->_bitmap.getVectorMaxSize(); }
 
-  const T* getVector() const { return _bitvec.getVector(); }
+  const T* getVector() const { return this->_bitmap.getVector(); }
 
   bool useVector() const { return this->getVectorSize() < this->getVectorMaxSize(); }
-
-  size_t computeActiveFrontier() const { // TODO: Only works with 2 levels now
-    auto e = kernels::computeActiveFrontier(*this, _queue);
-
-    e.wait();
-
-#ifdef ENABLE_PROFILING
-    sygraph::Profiler::addEvent(e, "computeActiveFrontier");
-#endif
-    return _bitvec.getOffsetsSize()[0];
-  }
-
-private:
-  sycl::queue& _queue;                       ///< The SYCL queue used for memory allocation.
-  BitvecDevice<T, Levels, uint32_t> _bitvec; ///< The bitmap.
 };
 
 

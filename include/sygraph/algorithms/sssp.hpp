@@ -109,8 +109,8 @@ public:
     using frontier_view_t = sygraph::frontier::frontier_view;
     using frontier_impl_t = sygraph::frontier::frontier_type;
 
-    auto in_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
-    auto out_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitmap>(queue, G);
+    auto in_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitvec>(queue, G);
+    auto out_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::bitvec>(queue, G);
 
     size_t size = G.getVertexCount();
 
@@ -131,7 +131,7 @@ public:
           });
       e1.wait();
 
-      auto e2 = sygraph::operators::filter::inplace(G, out_frontier, [=](auto vertex) -> bool {
+      auto e2 = sygraph::operators::filter::external(G, out_frontier, in_frontier, [=](auto vertex) -> bool {
         if (visited[vertex] == iter) return false;
         visited[vertex] = iter;
         return true;
@@ -143,7 +143,6 @@ public:
       sygraph::Profiler::addEvent(e2, "filter");
 #endif
 
-      sygraph::frontier::swap(in_frontier, out_frontier);
       out_frontier.clear();
       iter++;
     }

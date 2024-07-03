@@ -32,7 +32,7 @@ sygraph::Event inplace(GraphT& graph, const sygraph::frontier::Frontier<T, Front
 template<typename GraphT, typename T, sygraph::frontier::frontier_view FrontierView, sygraph::frontier::frontier_type FrontierType, typename LambdaT>
 sygraph::Event external(GraphT& graph,
                         const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& in,
-                        const sygraph::frontier::Frontier<T, FrontierView, FrontierType>& out,
+                        sygraph::frontier::Frontier<T, FrontierView, FrontierType>& out,
                         LambdaT&& functor) {
   return sygraph::operators::filter::detail::external(graph, in, out, std::forward<LambdaT>(functor));
 }
