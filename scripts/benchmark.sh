@@ -155,13 +155,13 @@ for graph in "${!graph_sources[@]}"; do
     echo "Running benchmark on graph: $graph with sources: ${sources[@]}"
     for source in "${sources[@]}"; do
       echo "Using source: $source"
-      $build_dir/$benchmark -b $graph_dir/$graph/$graph.bin -s $source $validate >> $out_dir/$benchmark-$graph-$source.log
+      $build_dir/$benchmark -b $graph_dir/$graph/$graph.bin -s $source $validate >> $out_dir/$benchmark-$graph.log
     done
   else
     echo "Running benchmark on graph: $graph"
     for i in $(seq 1 $n_reps); do
       echo "Repetition: $i"
-      $build_dir/$benchmark -b $graph_dir/$graph/$graph.bin $validate >> $out_dir/$benchmark-$graph-$i.log
+      $build_dir/$benchmark -b $graph_dir/$graph/$graph.bin $validate >> $out_dir/$benchmark-$graph.log
     done
   fi
 done
