@@ -19,10 +19,14 @@ option(SYGRAPH_SAMPLE_DATA "Generate samples data" OFF)
 option(SYGRAPH_ENABLE_PROFILING "Enable profiling" OFF)
 option(SYGRAPH_ENABLE_PREFETCH "Enable runtime to prefetch shared memory allocation. Turn it OFF for compatibility" OFF)
 
+set(SYGRAPH_BITMAP_SIZE 32 CACHE STRING "Bitmap size in bits. (32, 64)")
+
 if (SYGRAPH_BUILD_TESTS)
   add_subdirectory(tests)
   set(SYGRAPH_SAMPLE_DATA ON)
 endif()
+
+target_compile_definitions(sygraph INTERFACE "BITMAP_SIZE=${SYGRAPH_BITMAP_SIZE}")
 
 if (SYGRAPH_SAMPLE_DATA)
   target_compile_definitions(sygraph INTERFACE "GENERATE_SAMPLE_DATA")
