@@ -202,6 +202,29 @@ public:
     return true;
   }
 
+  inline const size_t size() const {
+    sycl::buffer<size_t, 1> size_buf(sycl::range<1>(1));
+    size_t frontier_size = this->getBitmapSize();
+    size_t bitmap_range = this->getBitmapRange();
+    _queue.submit([&](sycl::handler& cgh) {
+      auto bitmap = this->getDeviceFrontier();
+      auto size_acc = size_buf.get_access<sycl::access::mode::write>(cgh);
+      cgh.parallel_for(sycl::range<1>{frontier_size}, [=](sycl::id<1> idx) {
+        if (idx == 0) { size_acc[0] = 0; }
+        sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(size_acc[0]);
+        size_t num_active_nodes = 0;
+        bitmap_type t = bitmap.getData()[idx];
+        for (size_t i = 0; i < bitmap_range; i++) {
+          if (t & (static_cast<bitmap_type>(1) << i)) { num_active_nodes++; }
+        }
+        ref += num_active_nodes;
+      });
+    });
+    _queue.wait();
+    sycl::host_accessor<size_t, 1> size_acc(size_buf);
+    return size_acc[0];
+  }
+
   // operator =
   FrontierHierarchicBitmap& operator=(const FrontierHierarchicBitmap& other) {
     if (this == &other) { return *this; }
