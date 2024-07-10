@@ -1,0 +1,30 @@
+---
+name: graph500-scale22-ef16
+url: https://unisalerno-my.sharepoint.com/:u:/g/personal/antdecaro_unisa_it/ESEx1dHhmjhKklLBq4PrK4wBSfdEMPVWC-ELA2pU2FDsZA?download=1
+metadata:
+  author: Graph500
+  date: "-"
+  tags:
+    - undirected graph
+  description: This network dataset is in the category of Graph 500
+structure:
+  nodes: 2_393_285
+  edges: 128_194_008
+  weighted: False
+  labeled: False
+  directed: False
+  optional:
+    density: 4.4762e-05
+    max-degree: 341_100
+    min-degree: 2
+    avg-degree: 107
+    assortativity: 0.415371
+    n-triangles: 24_800_000_000
+    avg-n-triangles: 10_400
+    max-n-triangles: 110_300_000
+    clustering-coefficient: 0.0578591
+    fraction-closed-triangles: 0.0241767
+    max-k-core: 1_700
+    lw-bound-max-clique: 193
+citations:
+  
