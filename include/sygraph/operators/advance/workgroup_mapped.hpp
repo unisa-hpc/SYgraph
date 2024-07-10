@@ -306,7 +306,7 @@ sygraph::Event launchVectorKernel(GraphT& graph,
     sycl::local_accessor<T, 1> active_elements_local{local_range, cgh};
     sycl::local_accessor<uint32_t, 1> ids{local_range, cgh};
     sycl::local_accessor<uint32_t, 1> active_elements_local_tail{types::detail::MAX_SUBGROUPS, cgh};
-    sycl::local_accessor<T, 1> pad{22000 /*outDevFrontier.getVectorMaxSize()*/, cgh};
+    sycl::local_accessor<T, 1> pad{out_dev_frontier.getVectorMaxSize(), cgh};
     sycl::local_accessor<uint32_t, 1> pad_tail{1, cgh};
 
     cgh.parallel_for(sycl::nd_range<1>{global_range, local_range},
