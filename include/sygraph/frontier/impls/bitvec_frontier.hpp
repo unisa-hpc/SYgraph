@@ -18,14 +18,14 @@ namespace detail {
 template<typename T, size_t Levels>
 class FrontierBitvec;
 
-template<typename T, size_t Levels = 2, typename B = types::bitmap_type_t>     // TODO [!!!] There are too many copies from host to device that degrade the
-                                                                   // performance
-class BitvecDevice : public HierarchicBitmapDevice<T, Levels, B> { // TODO modify the code in order to select the number of levels
+template<typename T, size_t Levels = 2, typename B = types::bitmap_type_t> // TODO [!!!] There are too many copies from host to device that degrade
+                                                                           // the performance
+class BitvecDevice : public HierarchicBitmapDevice<T, Levels, B> {         // TODO modify the code in order to select the number of levels
 public:
   using bitmap_type = B;
 
   BitvecDevice(size_t num_elems) : HierarchicBitmapDevice<T, Levels, B>(num_elems) {
-    _vector_max_size = 12000; // TODO ! tune on vector size
+    _vector_max_size = 8000; // TODO ! tune on vector size
   }
 
   SYCL_EXTERNAL bool useVector() const { return static_cast<int>(*_vector_tail < _vector_max_size); }
@@ -128,6 +128,7 @@ public:
   FrontierBitvec(sycl::queue& q, size_t num_elems) : FrontierHierarchicBitmap<T, Levels, BitvecDevice<T, 2>>{q, num_elems} {
     T* vector_ptr = sygraph::memory::detail::memoryAlloc<T, memory::space::device>(this->_bitmap.getVectorMaxSize(), this->_queue);
     uint32_t* vector_tail_ptr = sygraph::memory::detail::memoryAlloc<uint32_t, memory::space::device>(1, this->_queue);
+    q.fill(vector_tail_ptr, static_cast<bitmap_type>(0), 1).wait();
 
     this->_bitmap.setVector(vector_ptr);
     this->_bitmap.setVectorTail(vector_tail_ptr);
