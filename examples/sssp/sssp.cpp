@@ -2,13 +2,61 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <queue>
 #include <random>
 #include <sycl/sycl.hpp>
 #include <sygraph/sygraph.hpp>
+#include <utility>
+#include <vector>
+
+template<typename VertexT, typename WeightT>
+class Prioritize {
+public:
+  bool operator()(std::pair<VertexT, WeightT>& p1, std::pair<VertexT, WeightT>& p2) { return p1.second > p2.second; }
+};
 
 template<typename GraphT, typename BenchT>
-bool validate(const GraphT& graph, BenchT& bfs, uint source) {
-  // TODO: implement validation
+bool validate(const GraphT& graph, BenchT& sssp, uint source) {
+  using vertex_t = typename GraphT::vertex_t;
+  using weight_t = typename GraphT::weight_t;
+  using edge_t = typename GraphT::edge_t;
+  auto* row_offsets = graph.getRowOffsets();
+  auto* column_indices = graph.getColumnIndices();
+  auto* nonzero_values = graph.getValues();
+
+  std::vector<uint> distances(graph.getVertexCount(), graph.getVertexCount() + 1);
+  distances[source] = 0;
+
+  std::priority_queue<std::pair<vertex_t, weight_t>, std::vector<std::pair<vertex_t, weight_t>>, Prioritize<vertex_t, weight_t>> pq;
+  pq.push(std::make_pair(source, 0.0));
+
+  while (!pq.empty()) {
+    std::pair<vertex_t, weight_t> curr = pq.top();
+    pq.pop();
+
+    vertex_t curr_node = curr.first;
+    weight_t curr_dist = curr.second;
+
+    vertex_t start = row_offsets[curr_node];
+    vertex_t end = row_offsets[curr_node + 1];
+
+    for (vertex_t offset = start; offset < end; offset++) {
+      vertex_t neib = column_indices[offset];
+      weight_t new_dist = curr_dist + nonzero_values[offset];
+      if (new_dist < distances[neib]) {
+        distances[neib] = new_dist;
+        pq.push(std::make_pair(neib, new_dist));
+      }
+    }
+  }
+
+  for (auto i = 0; i < graph.getVertexCount(); i++) {
+    if (distances[i] != sssp.getDistance(i)) {
+      std::cerr << "Mismatch at vertex " << i << " | Expected: " << distances[i] << " | Got: " << sssp.getDistance(i) << std::endl;
+      return false;
+    }
+  }
+
   return true;
 }
 
