@@ -15,7 +15,6 @@ namespace build {
 
 template<memory::space Space, typename IndexT, typename OffsetT, typename ValueT>
 auto fromCSR(sycl::queue& q, sygraph::formats::CSR<ValueT, IndexT, OffsetT> csr, graph::Properties properties = graph::Properties()) {
-  using csr_t = graph::detail::GraphCSR<Space, IndexT, OffsetT, ValueT>;
   using GraphT = detail::GraphCSR<Space, IndexT, OffsetT, ValueT>;
   return GraphT{q, csr, properties};
 };
