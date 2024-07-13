@@ -2,7 +2,7 @@
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-BENCHMARK_LIST=("bfs")
+BENCHMARK_LIST=("bfs" "sssp")
 GRAPHS=("road_usa" "hollywood-2009" "indochina-2004" "roadNet-CA" "kron_g500-logn21" "uk-2002" "rgg_n_2_24_s0" "soc-LiveJournal1" "soc-orkut" "delaunay_n13" "delaunay_n21" "delaunay_n24")
 
 benchmark="bfs"

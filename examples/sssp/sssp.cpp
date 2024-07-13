@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
   using type_t = unsigned int;
   ArgsT<type_t> args{argc, argv};
 
-  std::cerr << "[*  ] Reading CSR" << std::endl;
+  std::cerr << "[*] Reading CSR" << std::endl;
   auto csr = readCSR<float, type_t, type_t>(args);
 
 #ifdef ENABLE_PROFILING
@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
   sycl::queue q{sycl::gpu_selector_v};
 #endif
 
-  std::cerr << "[** ] Building Graph" << std::endl;
+  std::cerr << "[*] Building Graph" << std::endl;
   auto G = sygraph::graph::build::fromCSR<sygraph::memory::space::shared>(q, csr);
   printGraphInfo(G);
   size_t size = G.getVertexCount();
@@ -82,22 +82,22 @@ int main(int argc, char** argv) {
   if (args.random_source) { args.source = getRandomSource(size); }
   sssp.init(args.source);
 
-  std::cerr << "[***] Running SSSP on source " << args.source << std::endl;
+  std::cout << "[*] Running SSSP on source " << args.source << std::endl;
   sssp.run<true>();
 
   std::cerr << "[!] Done" << std::endl;
 
   if (args.validate) {
-    std::cerr << "Validation: [";
+    std::cout << "Validation: [";
     auto validation_start = std::chrono::high_resolution_clock::now();
     if (!validate(G, sssp, args.source)) {
-      std::cerr << "\033[1;32mFailed\033[0m";
+      std::cout << failString();
     } else {
-      std::cerr << "\033[1;32mSuccess\033[0m";
+      std::cout << successString();
     }
-    std::cerr << "] | ";
+    std::cout << "] | ";
     auto validation_end = std::chrono::high_resolution_clock::now();
-    std::cerr << "Validation Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(validation_end - validation_start).count() << " ms"
+    std::cout << "Validation Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(validation_end - validation_start).count() << " ms"
               << std::endl;
   }
 
