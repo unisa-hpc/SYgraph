@@ -125,9 +125,9 @@ template<memory::space Space, typename IndexT, typename OffsetT, typename ValueT
  */
 class GraphCSR : public Graph<IndexT, OffsetT, ValueT> {
 public:
-  using vertex_t = IndexT;  ///< The type used to represent vertices of the graph.
-  using edge_t = OffsetT;   ///< The type used to represent edges of the graph.
-  using weight_t = OffsetT; ///< The type used to represent weights of the graph.
+  using vertex_t = IndexT; ///< The type used to represent vertices of the graph.
+  using edge_t = OffsetT;  ///< The type used to represent edges of the graph.
+  using weight_t = ValueT; ///< The type used to represent weights of the graph.
 
   /**
    * @brief Constructs a graph_csr_t object.
@@ -139,8 +139,8 @@ public:
       : Graph<IndexT, OffsetT, ValueT>(properties), _queue(q) {
     IndexT n_rows = csr.getRowOffsetsSize();
     OffsetT n_nonzeros = csr.getNumNonzeros();
-    IndexT* row_offsets = memory::detail::memoryAlloc<OffsetT, Space>(n_rows + 1, _queue);
-    OffsetT* column_indices = memory::detail::memoryAlloc<IndexT, Space>(n_nonzeros, _queue);
+    IndexT* row_offsets = memory::detail::memoryAlloc<IndexT, Space>(n_rows + 1, _queue);
+    OffsetT* column_indices = memory::detail::memoryAlloc<OffsetT, Space>(n_nonzeros, _queue);
     ValueT* nnz_values = memory::detail::memoryAlloc<ValueT, Space>(n_nonzeros, _queue);
 
     auto e1 = _queue.copy(csr.getRowOffsets().data(), row_offsets, n_rows + 1);

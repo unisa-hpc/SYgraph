@@ -132,29 +132,31 @@ struct BitmapKernel {
 
     const size_t coarsening_factor = wgroup_size / bitmap_range;
     const size_t acutal_id_offset = (wgroup_id * coarsening_factor) + (lid / bitmap_range);
-    const size_t assigned_vertex = (bitmap_offsets[acutal_id_offset] * bitmap_range) + (lid % bitmap_range);
+    const auto assigned_vertex = (bitmap_offsets[acutal_id_offset] * bitmap_range) + (lid % bitmap_range);
 
     // 1. load number of edges in local memory
-    if (sgroup.leader()) { active_elements_tail[sgroup_id] = 0; }
-    if (wgroup.leader()) { work_group_reduce_tail[0] = 0; }
+    if (sgroup.leader()) { subgroup_reduce_tail[sgroup_id] = 0; }
+    if (wgroup.leader()) { workgroup_reduce_tail[0] = 0; }
 
-    sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::sub_group> sg_tail{active_elements_tail[sgroup_id]};
-    sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> wg_tail{work_group_reduce_tail[0]};
+    sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::sub_group> sg_tail{subgroup_reduce_tail[sgroup_id]};
+    sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> wg_tail{workgroup_reduce_tail[0]};
+
+    // TODO: maybe remove n_edges_wg and n_edges_sg
 
     const size_t offset = sgroup_id * sgroup_size;
     if (assigned_vertex < num_nodes && in_dev_frontier.check(assigned_vertex)) {
       size_t n_edges = graph_dev.getDegree(assigned_vertex);
-      if (n_edges >= wgroup_size * wgroup_size * wgroup_size) { // assign to the workgroup
+      if (n_edges >= wgroup_size * wgroup_size) { // assign to the workgroup
         size_t loc = wg_tail.fetch_add(1);
-        work_group_reduce[loc] = assigned_vertex;
+        n_edges_wg[loc] = n_edges;
+        workgroup_reduce[loc] = assigned_vertex;
+        workgroup_ids[loc] = lid;
       } else if (n_edges >= sgroup_size) { // assign to the subgroup
         size_t loc = sg_tail.fetch_add(1);
-        n_edges_local[offset + loc] = n_edges;
-        active_elements_local[offset + loc] = assigned_vertex;
+        n_edges_sg[offset + loc] = n_edges;
+        subgroup_reduce[offset + loc] = assigned_vertex;
+        subgroup_ids[offset + loc] = lid;
       }
-      // size_t loc = sg_tail.fetch_add(1);
-      // n_edges_local[offset + loc] = n_edges;
-      // active_elements_local[offset + loc] = assigned_vertex;
       visited[lid] = false;
     } else {
       visited[lid] = true;
@@ -162,39 +164,39 @@ struct BitmapKernel {
 
     sycl::group_barrier(wgroup);
     for (size_t i = 0; i < wg_tail.load(); i++) {
-      auto vertex = work_group_reduce[i];
-      size_t n_edges = graph_dev.getDegree(vertex);
-      size_t private_slice = n_edges / wgroup_size;
-      auto start = graph_dev.begin(vertex) + (private_slice * lid);
-      auto end = lid == wgroup_size - 1 ? graph_dev.end(vertex) : start + private_slice;
+      auto vertex = workgroup_reduce[i];
+      size_t n_edges = n_edges_wg[i];
+      auto start = graph_dev.begin(vertex);
 
-      for (auto n = start; n != end; ++n) {
+      for (auto j = lid; j < n_edges; j += wgroup_size) {
+        auto n = start + j;
         auto edge = n.getIndex();
         auto weight = graph_dev.getEdgeWeight(edge);
         auto neighbor = *n;
         if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor); }
       }
-      if (wgroup.leader()) { visited[vertex % wgroup_size] = true; }
+
+      if (wgroup.leader()) { visited[workgroup_ids[i]] = true; }
     }
 
     sycl::group_barrier(sgroup);
 
-    for (size_t i = 0; i < active_elements_tail[sgroup_id]; i++) { // active_elements_tail[subgroup_id] is always less or equal than subgroup_size
+    for (size_t i = 0; i < subgroup_reduce_tail[sgroup_id]; i++) { // active_elements_tail[subgroup_id] is always less or equal than subgroup_size
       size_t vertex_id = offset + i;
-      auto vertex = active_elements_local[vertex_id];
-      size_t n_edges = n_edges_local[vertex_id];
-      // if (n_edges < sgroup_size) { continue; }
-      size_t private_slice = n_edges / sgroup_size;
-      auto start = graph_dev.begin(vertex) + (private_slice * llid);
-      auto end = llid == sgroup_size - 1 ? graph_dev.end(vertex) : start + private_slice;
+      auto vertex = subgroup_reduce[vertex_id];
+      size_t n_edges = n_edges_sg[vertex_id];
 
-      for (auto n = start; n != end; ++n) {
+      auto start = graph_dev.begin(vertex);
+
+      for (auto j = llid; j < n_edges; j += sgroup_size) {
+        auto n = start + j;
         auto edge = n.getIndex();
         auto weight = graph_dev.getEdgeWeight(edge);
         auto neighbor = *n;
         if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor); }
       }
-      if (sgroup.leader()) { visited[vertex % wgroup_size] = true; }
+
+      if (sgroup.leader()) { visited[subgroup_ids[vertex_id]] = true; }
     }
     sycl::group_barrier(sgroup);
 
@@ -216,12 +218,15 @@ struct BitmapKernel {
   FrontierDevT in_dev_frontier;
   FrontierDevT out_dev_frontier;
   GraphDevT graph_dev;
-  sycl::local_accessor<uint32_t, 1> n_edges_local;
-  sycl::local_accessor<T, 1> active_elements_local;
-  sycl::local_accessor<uint32_t, 1> active_elements_tail;
+  sycl::local_accessor<uint32_t, 1> n_edges_wg;
+  sycl::local_accessor<uint32_t, 1> n_edges_sg;
   sycl::local_accessor<bool, 1> visited;
-  sycl::local_accessor<T, 1> work_group_reduce;
-  sycl::local_accessor<uint32_t, 1> work_group_reduce_tail;
+  sycl::local_accessor<T, 1> subgroup_reduce;
+  sycl::local_accessor<uint32_t, 1> subgroup_reduce_tail;
+  sycl::local_accessor<uint32_t, 1> subgroup_ids;
+  sycl::local_accessor<T, 1> workgroup_reduce;
+  sycl::local_accessor<uint32_t, 1> workgroup_reduce_tail;
+  sycl::local_accessor<uint32_t, 1> workgroup_ids;
   LambdaT functor;
 };
 
@@ -252,16 +257,21 @@ sygraph::Event launchBitmapKernel(GraphT& graph,
   size_t offsets_size = in.computeActiveFrontier();
 
   auto e = q.submit([&](sycl::handler& cgh) {
-    sycl::range<1> local_range{bitmap_range};
+    size_t coarsening_factor = 4;
+
+    sycl::range<1> local_range{bitmap_range * coarsening_factor};
     size_t global_size = offsets_size * bitmap_range;
     sycl::range<1> global_range{global_size > local_range[0] ? global_size + (local_range[0] - (global_size % local_range[0])) : local_range[0]};
 
-    sycl::local_accessor<uint32_t, 1> n_edges_local{local_range, cgh};
-    sycl::local_accessor<T, 1> active_elements_local{local_range, cgh};
-    sycl::local_accessor<uint32_t, 1> active_elements_tail{types::detail::MAX_SUBGROUPS, cgh};
+    sycl::local_accessor<uint32_t, 1> n_edges_wg{local_range, cgh};
+    sycl::local_accessor<uint32_t, 1> n_edges_sg{local_range, cgh};
     sycl::local_accessor<bool, 1> visited{local_range, cgh};
-    sycl::local_accessor<T, 1> work_group_reduce{local_range, cgh};
-    sycl::local_accessor<uint32_t, 1> work_group_reduce_tail{1, cgh};
+    sycl::local_accessor<T, 1> subgroup_reduce{local_range, cgh};
+    sycl::local_accessor<uint32_t, 1> subgroup_reduce_tail{types::detail::MAX_SUBGROUPS, cgh};
+    sycl::local_accessor<uint32_t, 1> subgroup_ids{local_range, cgh};
+    sycl::local_accessor<T, 1> workgroup_reduce{local_range, cgh};
+    sycl::local_accessor<uint32_t, 1> workgroup_reduce_tail{1, cgh};
+    sycl::local_accessor<uint32_t, 1> workgroup_ids{local_range, cgh};
 
 
     cgh.parallel_for<class workgroup_mapped_advance_kernel>(sycl::nd_range<1>{global_range, local_range},
@@ -269,12 +279,15 @@ sygraph::Event launchBitmapKernel(GraphT& graph,
                                                                             in_dev_frontier,
                                                                             out_dev_frontier,
                                                                             graph_dev,
-                                                                            n_edges_local,
-                                                                            active_elements_local,
-                                                                            active_elements_tail,
+                                                                            n_edges_wg,
+                                                                            n_edges_sg,
                                                                             visited,
-                                                                            work_group_reduce,
-                                                                            work_group_reduce_tail,
+                                                                            subgroup_reduce,
+                                                                            subgroup_reduce_tail,
+                                                                            subgroup_ids,
+                                                                            workgroup_reduce,
+                                                                            workgroup_reduce_tail,
+                                                                            workgroup_ids,
                                                                             std::forward<LambdaT>(functor)});
   });
   return {e};
@@ -306,7 +319,7 @@ sygraph::Event launchVectorKernel(GraphT& graph,
     sycl::local_accessor<T, 1> active_elements_local{local_range, cgh};
     sycl::local_accessor<uint32_t, 1> ids{local_range, cgh};
     sycl::local_accessor<uint32_t, 1> active_elements_local_tail{types::detail::MAX_SUBGROUPS, cgh};
-    sycl::local_accessor<T, 1> pad{22000 /*outDevFrontier.getVectorMaxSize()*/, cgh};
+    sycl::local_accessor<T, 1> pad{out_dev_frontier.getVectorMaxSize(), cgh};
     sycl::local_accessor<uint32_t, 1> pad_tail{1, cgh};
 
     cgh.parallel_for(sycl::nd_range<1>{global_range, local_range},

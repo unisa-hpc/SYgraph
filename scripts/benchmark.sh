@@ -2,7 +2,7 @@
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-BENCHMARK_LIST=("bfs")
+BENCHMARK_LIST=("bfs" "sssp")
 GRAPHS=("road_usa" "hollywood-2009" "indochina-2004" "roadNet-CA" "kron_g500-logn21" "uk-2002" "rgg_n_2_24_s0" "soc-LiveJournal1" "soc-orkut" "delaunay_n13" "delaunay_n21" "delaunay_n24")
 
 benchmark="bfs"
@@ -155,13 +155,13 @@ for graph in "${!graph_sources[@]}"; do
     echo "Running benchmark on graph: $graph with sources: ${sources[@]}"
     for source in "${sources[@]}"; do
       echo "Using source: $source"
-      $build_dir/$benchmark -b $graph_dir/$graph/$graph.bin -s $source $validate >> $out_dir/$benchmark-$graph-$source.log
+      $build_dir/$benchmark -b $graph_dir/$graph/$graph.bin -s $source $validate >> $out_dir/$benchmark-$graph.log
     done
   else
     echo "Running benchmark on graph: $graph"
     for i in $(seq 1 $n_reps); do
       echo "Repetition: $i"
-      $build_dir/$benchmark -b $graph_dir/$graph/$graph.bin $validate >> $out_dir/$benchmark-$graph-$i.log
+      $build_dir/$benchmark -b $graph_dir/$graph/$graph.bin $validate >> $out_dir/$benchmark-$graph.log
     done
   fi
 done

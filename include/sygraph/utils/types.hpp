@@ -8,7 +8,13 @@ namespace types {
 
 typedef unsigned int index_t;
 typedef size_t offset_t;
+#if BITMAP_SIZE == 32
 typedef uint32_t bitmap_type_t;
+#elif BITMAP_SIZE == 64
+typedef uint64_t bitmap_type_t;
+#else
+#error "Invalid bitmap size"
+#endif
 
 namespace detail {
 
