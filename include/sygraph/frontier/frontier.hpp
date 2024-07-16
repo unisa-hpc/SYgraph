@@ -53,7 +53,7 @@ auto makeFrontier(sycl::queue& q, const GraphType& graph) {
   }
 }
 
-template<typename T, frontier_view View, frontier_type FT>
+template<typename T, frontier_type FT>
 void swap(Frontier<T, FT>& a, Frontier<T, FT>& b) {
   if constexpr (FT == frontier_type::bitmap) {
     detail::FrontierBitmap<T>::swap(a, b);
