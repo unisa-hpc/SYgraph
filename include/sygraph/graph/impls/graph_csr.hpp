@@ -102,6 +102,34 @@ public:
     return NeighborIterator(_column_indices, _column_indices + _row_offsets[vertex + 1]);
   }
 
+  template<typename Func>
+  SYCL_EXTERNAL inline size_t getIntersectionCount(const vertex_t& src, const vertex_t& dst, Func&& func) const {
+    size_t count = 0;
+
+    size_t degree_src = getDegree(src);
+    size_t degree_dst = getDegree(dst);
+
+    if (degree_src == 0 || degree_dst == 0) { return 0; }
+
+    auto it_src = begin(src);
+    auto it_dst = begin(dst);
+    auto end_src = end(src);
+    auto end_dst = end(dst);
+    while (it_src != end_src && it_dst != end_dst) {
+      if (*it_src == *it_dst) {
+        func(*it_src);
+        ++it_src;
+        ++it_dst;
+        ++count;
+      } else if (*it_src < *it_dst) {
+        ++it_src;
+      } else {
+        ++it_dst;
+      }
+    }
+    return count;
+  }
+
   IndexT _n_rows;      ///< The number of rows in the graph.
   OffsetT _n_nonzeros; ///< The number of non-zero values in the graph.
 
@@ -249,6 +277,19 @@ public:
    * @return A constant pointer to the non-zero values.
    */
   const ValueT* getValues() const { return _device_graph.getValues(); }
+
+
+  /**
+   * Returns the count of intersections between the source vertex and the destination vertex.
+   *
+   * @param src The source vertex.
+   * @param dst The destination vertex.
+   * @param func The function to be called for each intersection vertex.
+   * @return The count of intersections.
+   */
+  const size_t getIntersectionCount(const vertex_t& src, const vertex_t& dst, std::function<void(vertex_t)> func) const {
+    return _device_graph.getIntersectionCount(src, dst, func);
+  }
 
   /**
    * @brief Returns the SYCL queue associated with the graph.

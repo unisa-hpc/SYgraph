@@ -53,10 +53,11 @@ auto makeFrontier(sycl::queue& q, const GraphType& graph) {
   if constexpr (View == frontier_view::vertex) {
     frontier_size = graph.getVertexCount();
     return Frontier<typename GraphType::vertex_t, Type>(q, frontier_size);
-  } else {
+  } else if constexpr (View == frontier_view::edge) {
     frontier_size = graph.getEdgeCount();
     return Frontier<typename GraphType::edge_t, Type>(q, frontier_size);
   }
+  return Frontier<typename GraphType::vertex_t, Type>(q, frontier_size); // TODO fix this
 }
 
 template<typename T, frontier_type FT>

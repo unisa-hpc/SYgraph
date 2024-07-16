@@ -50,6 +50,11 @@ concept DeviceGraphConcept = requires(DeviceGraphT g) {
   { g.getSourceVertex(std::declval<typename DeviceGraphT::edge_t>()) } -> std::convertible_to<typename DeviceGraphT::vertex_t>;
   { g.getDestinationVertex(std::declval<typename DeviceGraphT::edge_t>()) } -> std::convertible_to<typename DeviceGraphT::vertex_t>;
   { g.getEdgeWeight(std::declval<typename DeviceGraphT::edge_t>()) } -> std::convertible_to<typename DeviceGraphT::weight_t>;
+  {
+    g.getIntersectionCount(std::declval<typename DeviceGraphT::vertex_t>(),
+                           std::declval<typename DeviceGraphT::vertex_t>(),
+                           std::function<void(typename DeviceGraphT::vertex_t)>())
+  } -> std::convertible_to<size_t>;
 };
 
 template<typename GraphT>

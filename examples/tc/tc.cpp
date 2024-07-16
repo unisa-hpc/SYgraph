@@ -7,7 +7,7 @@
 
 template<typename GraphT, typename BfsT>
 bool validate(const GraphT& graph, BfsT& bfs, uint source) {
-  return false;
+  throw std::runtime_error("Not implemented");
 }
 
 int main(int argc, char** argv) {
@@ -31,10 +31,9 @@ int main(int argc, char** argv) {
   size_t size = G.getVertexCount();
 
   sygraph::algorithms::TC tc{G};
-  if (args.random_source) { args.source = getRandomSource(size); }
   tc.init();
 
-  std::cout << "[*] Running BFS on source " << args.source << std::endl;
+  std::cout << "[*] Running TC" << std::endl;
   tc.run<true>();
 
   std::cerr << "[!] Done" << std::endl;
