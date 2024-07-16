@@ -18,24 +18,33 @@ namespace operators {
 
 namespace advance {
 
-template<sygraph::operators::load_balancer Lb, typename GraphT, typename LambdaT, typename T, frontier::frontier_type FrontierType>
-sygraph::Event vertex(GraphT& graph,
-                      sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, FrontierType>& in,
-                      sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, FrontierType>& out,
-                      LambdaT&& functor) {
-  if constexpr (Lb == sygraph::operators::load_balancer::workitem_mapped) {
-    return sygraph::operators::advance::detail::workitem_mapped::vertex(graph, in, out, std::forward<LambdaT>(functor));
-  } else if constexpr (Lb == sygraph::operators::load_balancer::workgroup_mapped) {
-    return sygraph::operators::advance::detail::workgroup_mapped::vertex(graph, in, out, std::forward<LambdaT>(functor));
+template<sygraph::operators::load_balancer Lb,
+         frontier::frontier_view FW,
+         typename GraphT,
+         typename LambdaT,
+         typename T,
+         frontier::frontier_type FrontierType>
+sygraph::Event vertices(GraphT& graph, sygraph::frontier::Frontier<T, FrontierType>& out, LambdaT&& functor) {
+  if constexpr (Lb == sygraph::operators::load_balancer::workgroup_mapped) {
+    return sygraph::operators::advance::detail::workgroup_mapped::vertices<FW>(graph, out, std::forward<LambdaT>(functor));
   } else {
     throw std::runtime_error("Load balancer not implemented");
   }
 }
 
-template<sygraph::operators::load_balancer Lb, typename GraphT, typename LambdaT, typename T, frontier::frontier_type FrontierType>
-sygraph::Event edge(GraphT& graph, sygraph::frontier::Frontier<T>& in, sygraph::frontier::Frontier<T>& out, LambdaT&& functor) {
+template<sygraph::operators::load_balancer Lb,
+         frontier::frontier_view InView,
+         frontier::frontier_view OutView,
+         typename GraphT,
+         typename LambdaT,
+         typename T,
+         frontier::frontier_type FrontierType>
+sygraph::Event
+frontier(GraphT& graph, sygraph::frontier::Frontier<T, FrontierType>& in, sygraph::frontier::Frontier<T, FrontierType>& out, LambdaT&& functor) {
   if constexpr (Lb == sygraph::operators::load_balancer::workitem_mapped) {
-    return sygraph::operators::advance::detail::workitem_mapped::edge(graph, in, out, std::forward<LambdaT>(functor));
+    return sygraph::operators::advance::detail::workitem_mapped::frontier<InView, OutView>(graph, in, out, std::forward<LambdaT>(functor));
+  } else if constexpr (Lb == sygraph::operators::load_balancer::workgroup_mapped) {
+    return sygraph::operators::advance::detail::workgroup_mapped::frontier<InView, OutView>(graph, in, out, std::forward<LambdaT>(functor));
   } else {
     throw std::runtime_error("Load balancer not implemented");
   }

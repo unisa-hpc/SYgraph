@@ -34,7 +34,7 @@ class frontier_impl_t<T, frontier_type::bitvec> : public FrontierBitvec<T> {
 };
 } // namespace detail
 
-template<typename T, frontier_view View = frontier_view::vertex, frontier_type Type = frontier_type::bitmap>
+template<typename T, frontier_type Type = frontier_type::hierachic_bitmap>
 class Frontier : public detail::frontier_impl_t<T, Type> {
 public:
   using detail::frontier_impl_t<T, Type>::frontier_impl_t;
@@ -46,15 +46,15 @@ auto makeFrontier(sycl::queue& q, const GraphType& graph) {
   size_t frontier_size = 0;
   if constexpr (View == frontier_view::vertex) {
     frontier_size = graph.getVertexCount();
-    return Frontier<typename GraphType::vertex_t, View, Type>(q, frontier_size);
+    return Frontier<typename GraphType::vertex_t, Type>(q, frontier_size);
   } else {
     frontier_size = graph.getEdgeCount();
-    return Frontier<typename GraphType::edge_t, View, Type>(q, frontier_size);
+    return Frontier<typename GraphType::edge_t, Type>(q, frontier_size);
   }
 }
 
 template<typename T, frontier_view View, frontier_type FT>
-void swap(Frontier<T, View, FT>& a, Frontier<T, View, FT>& b) {
+void swap(Frontier<T, FT>& a, Frontier<T, FT>& b) {
   if constexpr (FT == frontier_type::bitmap) {
     detail::FrontierBitmap<T>::swap(a, b);
   } else if constexpr (FT == frontier_type::vector) {

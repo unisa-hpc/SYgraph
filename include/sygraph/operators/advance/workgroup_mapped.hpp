@@ -16,6 +16,49 @@ namespace advance {
 
 namespace detail {
 
+template<sygraph::frontier::frontier_view IFW, sygraph::frontier::frontier_view OFW, typename InFrontierDevT, typename OutFrontierDevT>
+struct Context {
+  size_t limit;
+  InFrontierDevT in_dev_frontier;
+  OutFrontierDevT out_dev_frontier;
+
+  Context(size_t limit, InFrontierDevT in_dev_frontier, OutFrontierDevT out_dev_frontier)
+      : limit(limit), in_dev_frontier(in_dev_frontier), out_dev_frontier(out_dev_frontier) {}
+
+  SYCL_EXTERNAL inline size_t getAssignedElement(sycl::nd_item<1> item) const {
+    if constexpr (IFW == sygraph::frontier::frontier_view::vertex) {
+      const size_t bitmap_range = in_dev_frontier.getBitmapRange();
+      const int* bitmap_offsets = in_dev_frontier.getOffsets();
+      const size_t coarsening_factor = item.get_local_range(0) / bitmap_range;
+      const size_t acutal_id_offset = (item.get_group_linear_id() * coarsening_factor) + (item.get_local_linear_id() / bitmap_range);
+      const auto assigned_vertex = (bitmap_offsets[acutal_id_offset] * bitmap_range) + (item.get_local_linear_id() % bitmap_range);
+      return assigned_vertex;
+    } else if constexpr (IFW == sygraph::frontier::frontier_view::graph) {
+      return item.get_global_linear_id();
+    } else {
+      return -1;
+    }
+  }
+
+  SYCL_EXTERNAL inline bool check(sycl::nd_item<1> item, size_t vertex) const {
+    if constexpr (IFW == sygraph::frontier::frontier_view::vertex) {
+      return vertex < limit && in_dev_frontier.check(vertex);
+    } else if constexpr (IFW == sygraph::frontier::frontier_view::graph) {
+      return vertex < limit;
+    } else {
+      return -1;
+    }
+  }
+
+  SYCL_EXTERNAL inline void insert(size_t vertex) const {
+    if constexpr (OFW == sygraph::frontier::frontier_view::vertex) {
+      out_dev_frontier.insert(vertex);
+    } else if constexpr (OFW == sygraph::frontier::frontier_view::none) {
+    }
+  }
+};
+
+
 template<typename T, typename FrontierDevT, graph::detail::DeviceGraphConcept GraphDevT, typename LambdaT>
 struct VectorKernel {
   void operator()(sycl::nd_item<1> item) const {
@@ -113,8 +156,13 @@ struct VectorKernel {
   const LambdaT functor;
 };
 
-
-template<typename T, typename FrontierDevT, graph::detail::DeviceGraphConcept GraphDevT, typename LambdaT>
+// TODO: add the context for passing arguments
+template<sygraph::frontier::frontier_view InFW,
+         sygraph::frontier::frontier_view OutFW,
+         typename T,
+         typename ContextT,
+         graph::detail::DeviceGraphConcept GraphDevT,
+         typename LambdaT>
 struct BitmapKernel {
   void operator()(sycl::nd_item<1> item) const {
     // 0. retrieve global and local ids
@@ -127,12 +175,8 @@ struct BitmapKernel {
     const auto sgroup_id = sgroup.get_group_id();
     const size_t sgroup_size = sgroup.get_local_range()[0];
     const size_t llid = sgroup.get_local_linear_id();
-    const int* bitmap_offsets = in_dev_frontier.getOffsets();
-    const size_t bitmap_range = in_dev_frontier.getBitmapRange();
 
-    const size_t coarsening_factor = wgroup_size / bitmap_range;
-    const size_t acutal_id_offset = (wgroup_id * coarsening_factor) + (lid / bitmap_range);
-    const auto assigned_vertex = (bitmap_offsets[acutal_id_offset] * bitmap_range) + (lid % bitmap_range);
+    const auto assigned_vertex = context.getAssignedElement(item);
 
     // 1. load number of edges in local memory
     if (sgroup.leader()) { subgroup_reduce_tail[sgroup_id] = 0; }
@@ -144,7 +188,7 @@ struct BitmapKernel {
     // TODO: maybe remove n_edges_wg and n_edges_sg
 
     const size_t offset = sgroup_id * sgroup_size;
-    if (assigned_vertex < num_nodes && in_dev_frontier.check(assigned_vertex)) {
+    if (context.check(item, assigned_vertex)) {
       size_t n_edges = graph_dev.getDegree(assigned_vertex);
       if (n_edges >= wgroup_size * wgroup_size) { // assign to the workgroup
         size_t loc = wg_tail.fetch_add(1);
@@ -173,7 +217,7 @@ struct BitmapKernel {
         auto edge = n.getIndex();
         auto weight = graph_dev.getEdgeWeight(edge);
         auto neighbor = *n;
-        if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor); }
+        if (functor(vertex, neighbor, edge, weight)) { context.insert(neighbor); }
       }
 
       if (wgroup.leader()) { visited[workgroup_ids[i]] = true; }
@@ -193,7 +237,7 @@ struct BitmapKernel {
         auto edge = n.getIndex();
         auto weight = graph_dev.getEdgeWeight(edge);
         auto neighbor = *n;
-        if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor); }
+        if (functor(vertex, neighbor, edge, weight)) { context.insert(neighbor); }
       }
 
       if (sgroup.leader()) { visited[subgroup_ids[vertex_id]] = true; }
@@ -209,14 +253,12 @@ struct BitmapKernel {
         auto edge = n.getIndex();
         auto weight = graph_dev.getEdgeWeight(edge);
         auto neighbor = *n;
-        if (functor(vertex, neighbor, edge, weight)) { out_dev_frontier.insert(neighbor); }
+        if (functor(vertex, neighbor, edge, weight)) { context.insert(neighbor); }
       }
     }
   }
 
-  size_t num_nodes;
-  FrontierDevT in_dev_frontier;
-  FrontierDevT out_dev_frontier;
+  ContextT context;
   GraphDevT graph_dev;
   sycl::local_accessor<uint32_t, 1> n_edges_wg;
   sycl::local_accessor<uint32_t, 1> n_edges_sg;
@@ -233,13 +275,16 @@ struct BitmapKernel {
 
 namespace workgroup_mapped {
 
-template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_type F, typename LambdaT>
-sygraph::Event launchBitmapKernel(GraphT& graph,
-                                  const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, F>& in,
-                                  const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, F>& out,
-                                  LambdaT&& functor) {
-  if constexpr (F != sygraph::frontier::frontier_type::bitmap && F != sygraph::frontier::frontier_type::bitvec
-                && F != sygraph::frontier::frontier_type::hierachic_bitmap) {
+template<sygraph::frontier::frontier_view InFW,
+         sygraph::frontier::frontier_view OutFW,
+         graph::detail::GraphConcept GraphT,
+         typename T,
+         sygraph::frontier::frontier_type FT,
+         typename LambdaT>
+sygraph::Event
+launchBitmapKernel(GraphT& graph, const sygraph::frontier::Frontier<T, FT>& in, const sygraph::frontier::Frontier<T, FT>& out, LambdaT&& functor) {
+  if constexpr (FT != sygraph::frontier::frontier_type::bitmap && FT != sygraph::frontier::frontier_type::bitvec
+                && FT != sygraph::frontier::frontier_type::hierachic_bitmap) {
     throw std::runtime_error("Invalid frontier type");
   }
 
@@ -252,17 +297,26 @@ sygraph::Event launchBitmapKernel(GraphT& graph,
   auto out_dev_frontier = out.getDeviceFrontier();
   auto graph_dev = graph.getDeviceGraph();
 
-  using bitmap_kernel_t = BitmapKernel<T, decltype(in_dev_frontier), decltype(graph_dev), LambdaT>;
 
-  size_t offsets_size = in.computeActiveFrontier();
+  size_t coarsening_factor = 4;
+  sycl::range<1> local_range;
+  size_t global_size;
+  if constexpr (InFW == sygraph::frontier::frontier_view::vertex) {
+    size_t offsets_size = in.computeActiveFrontier();
+    local_range = {bitmap_range * coarsening_factor};
+    global_size = offsets_size * bitmap_range;
+  } else if constexpr (InFW == sygraph::frontier::frontier_view::graph) {
+    local_range = {256};
+    global_size = num_nodes;
+  } else {
+    throw std::runtime_error("Invalid frontier view");
+  }
+  sycl::range<1> global_range{global_size > local_range[0] ? global_size + (local_range[0] - (global_size % local_range[0])) : local_range[0]};
+
+  Context<InFW, OutFW, decltype(in_dev_frontier), decltype(out_dev_frontier)> context{num_nodes, in_dev_frontier, out_dev_frontier};
+  using bitmap_kernel_t = BitmapKernel<InFW, OutFW, T, decltype(context), decltype(graph_dev), LambdaT>;
 
   auto e = q.submit([&](sycl::handler& cgh) {
-    size_t coarsening_factor = 4;
-
-    sycl::range<1> local_range{bitmap_range * coarsening_factor};
-    size_t global_size = offsets_size * bitmap_range;
-    sycl::range<1> global_range{global_size > local_range[0] ? global_size + (local_range[0] - (global_size % local_range[0])) : local_range[0]};
-
     sycl::local_accessor<uint32_t, 1> n_edges_wg{local_range, cgh};
     sycl::local_accessor<uint32_t, 1> n_edges_sg{local_range, cgh};
     sycl::local_accessor<bool, 1> visited{local_range, cgh};
@@ -275,9 +329,7 @@ sygraph::Event launchBitmapKernel(GraphT& graph,
 
 
     cgh.parallel_for<class workgroup_mapped_advance_kernel>(sycl::nd_range<1>{global_range, local_range},
-                                                            bitmap_kernel_t{num_nodes,
-                                                                            in_dev_frontier,
-                                                                            out_dev_frontier,
+                                                            bitmap_kernel_t{context,
                                                                             graph_dev,
                                                                             n_edges_wg,
                                                                             n_edges_sg,
@@ -294,10 +346,8 @@ sygraph::Event launchBitmapKernel(GraphT& graph,
 }
 
 template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_type FT, typename LambdaT>
-sygraph::Event launchVectorKernel(GraphT& graph,
-                                  const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, FT>& in,
-                                  const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, FT>& out,
-                                  LambdaT&& functor) {
+sygraph::Event
+launchVectorKernel(GraphT& graph, const sygraph::frontier::Frontier<T, FT>& in, const sygraph::frontier::Frontier<T, FT>& out, LambdaT&& functor) {
   sycl::queue& q = graph.getQueue();
 
   const T* active_elements = in.getVector();
@@ -341,30 +391,46 @@ sygraph::Event launchVectorKernel(GraphT& graph,
   return {e};
 }
 
-template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
-sygraph::Event vertex(GraphT& graph,
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::bitvec>& in,
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::bitvec>& out,
-                      LambdaT&& functor) {
+template<sygraph::frontier::frontier_view InFW,
+         sygraph::frontier::frontier_view OutFW,
+         graph::detail::GraphConcept GraphT,
+         typename T,
+         typename LambdaT>
+sygraph::Event frontier(GraphT& graph,
+                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitvec>& in,
+                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitvec>& out,
+                        LambdaT&& functor) {
   if (in.useVector()) { return launchVectorKernel(graph, in, out, std::forward<LambdaT>(functor)); }
-  return launchBitmapKernel(graph, in, out, std::forward<LambdaT>(functor));
+  return launchBitmapKernel<InFW, OutFW>(graph, in, out, std::forward<LambdaT>(functor));
 }
 
-template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
-sygraph::Event vertex(GraphT& graph,
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::bitmap>& in,
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::bitmap>& out,
-                      LambdaT&& functor) {
-  return launchBitmapKernel(graph, in, out, std::forward<LambdaT>(functor));
+template<sygraph::frontier::frontier_view InFW,
+         sygraph::frontier::frontier_view OutFW,
+         graph::detail::GraphConcept GraphT,
+         typename T,
+         typename LambdaT>
+sygraph::Event frontier(GraphT& graph,
+                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitmap>& in,
+                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitmap>& out,
+                        LambdaT&& functor) {
+  return launchBitmapKernel<InFW, OutFW>(graph, in, out, std::forward<LambdaT>(functor));
 }
-template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
+
+template<sygraph::frontier::frontier_view InFW,
+         sygraph::frontier::frontier_view OutFW,
+         graph::detail::GraphConcept GraphT,
+         typename T,
+         typename LambdaT>
+sygraph::Event frontier(GraphT& graph,
+                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::hierachic_bitmap>& in,
+                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::hierachic_bitmap>& out,
+                        LambdaT&& functor) {
+  return launchBitmapKernel<InFW, OutFW>(graph, in, out, std::forward<LambdaT>(functor));
+}
+
+template<sygraph::frontier::frontier_view InFW, graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
 sygraph::Event
-vertex(GraphT& graph,
-       const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::hierachic_bitmap>& in,
-       const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::hierachic_bitmap>& out,
-       LambdaT&& functor) {
-  return launchBitmapKernel(graph, in, out, std::forward<LambdaT>(functor));
-}
+vertices(GraphT& graph, const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::hierachic_bitmap>& out, LambdaT&& functor) {}
 
 } // namespace workgroup_mapped
 } // namespace detail

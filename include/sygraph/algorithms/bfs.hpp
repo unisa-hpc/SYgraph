@@ -148,7 +148,7 @@ public:
 
     // TODO: Add automatic load_balancing for the type of graph.
     while (!in_frontier.empty()) {
-      auto e1 = sygraph::operators::advance::vertex<load_balance_t::workgroup_mapped>(
+      auto e1 = sygraph::operators::advance::frontier<load_balance_t::workgroup_mapped>(
           G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool { return (iter + 1) < distances[dst]; });
       e1.waitAndThrow();
       auto e2 = sygraph::operators::compute::execute(G, out_frontier, [=](auto v) { distances[v] = iter + 1; });

@@ -118,17 +118,18 @@ public:
     in_frontier.insert(source);
 
     while (!in_frontier.empty()) {
-      auto e1 = sygraph::operators::advance::vertex<load_balance_t::workgroup_mapped>(
-          G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
-            weight_t source_distance = sygraph::sync::load(&distances[src]);
-            weight_t distance_to_neighbor = source_distance + weight;
+      auto e1 = sygraph::operators::advance::
+          frontier<load_balance_t::workgroup_mapped, sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_view::vertex>(
+              G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
+                weight_t source_distance = sygraph::sync::load(&distances[src]);
+                weight_t distance_to_neighbor = source_distance + weight;
 
-            // Check if the destination node has been claimed as someone's child
-            weight_t recover_distance = sygraph::sync::load(&distances[dst]);
-            recover_distance = sygraph::sync::min(&(distances[dst]), &distance_to_neighbor);
+                // Check if the destination node has been claimed as someone's child
+                weight_t recover_distance = sygraph::sync::load(&distances[dst]);
+                recover_distance = sygraph::sync::min(&(distances[dst]), &distance_to_neighbor);
 
-            return (distance_to_neighbor < recover_distance);
-          });
+                return (distance_to_neighbor < recover_distance);
+              });
       e1.wait();
 
       auto e2 = sygraph::operators::filter::external(G, out_frontier, in_frontier, [=](auto vertex) -> bool {

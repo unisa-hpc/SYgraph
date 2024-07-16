@@ -18,11 +18,9 @@ namespace operators {
 namespace filter {
 namespace detail {
 
-template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_view FW, sygraph::frontier::frontier_type FT, typename LambdaT>
-sygraph::Event launchBitmapKernelExternal(GraphT& graph,
-                                          const sygraph::frontier::Frontier<T, FW, FT>& in,
-                                          sygraph::frontier::Frontier<T, FW, FT>& out,
-                                          LambdaT&& functor) {
+template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_type FT, typename LambdaT>
+sygraph::Event
+launchBitmapKernelExternal(GraphT& graph, const sygraph::frontier::Frontier<T, FT>& in, sygraph::frontier::Frontier<T, FT>& out, LambdaT&& functor) {
   if constexpr (FT != sygraph::frontier::frontier_type::bitmap && FT != sygraph::frontier::frontier_type::bitvec
                 && FT != sygraph::frontier::frontier_type::hierachic_bitmap) {
     throw std::runtime_error("Invalid frontier type");
@@ -67,8 +65,8 @@ sygraph::Event launchBitmapKernelExternal(GraphT& graph,
   return e;
 }
 
-template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_view FW, sygraph::frontier::frontier_type FT, typename LambdaT>
-sygraph::Event launchBitmapKernelInplace(GraphT& graph, const sygraph::frontier::Frontier<T, FW, FT>& frontier, LambdaT&& functor) {
+template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_type FT, typename LambdaT>
+sygraph::Event launchBitmapKernelInplace(GraphT& graph, const sygraph::frontier::Frontier<T, FT>& frontier, LambdaT&& functor) {
   if constexpr (FT != sygraph::frontier::frontier_type::bitmap && FT != sygraph::frontier::frontier_type::bitvec
                 && FT != sygraph::frontier::frontier_type::hierachic_bitmap) {
     throw std::runtime_error("Invalid frontier type");
@@ -110,45 +108,42 @@ sygraph::Event launchBitmapKernelInplace(GraphT& graph, const sygraph::frontier:
 }
 
 
-template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_view FrontierView, typename LambdaT>
-sygraph::Event
-inplace(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::bitmap>& frontier, LambdaT&& functor) {
+template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
+sygraph::Event inplace(GraphT& graph, const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitmap>& frontier, LambdaT&& functor) {
   return launchBitmapKernelInplace(graph, frontier, functor);
 }
 
-template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_view FrontierView, typename LambdaT>
+template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
 sygraph::Event external(GraphT& graph,
-                        const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::bitmap>& in,
-                        sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::bitmap>& out,
+                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitmap>& in,
+                        sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitmap>& out,
                         LambdaT&& functor) {
   return launchBitmapKernelExternal(graph, in, out, functor);
 }
 
-template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_view FrontierView, typename LambdaT>
-sygraph::Event
-inplace(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::bitvec>& frontier, LambdaT&& functor) {
+template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
+sygraph::Event inplace(GraphT& graph, const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitvec>& frontier, LambdaT&& functor) {
   return launchBitmapKernelInplace(graph, frontier, functor);
 }
 
-template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_view FrontierView, typename LambdaT>
+template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
 sygraph::Event external(GraphT& graph,
-                        const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::bitvec>& in,
-                        sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::bitvec>& out,
+                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitvec>& in,
+                        sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitvec>& out,
                         LambdaT&& functor) {
   return launchBitmapKernelExternal(graph, in, out, functor);
 }
 
-template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_view FrontierView, typename LambdaT>
-sygraph::Event inplace(GraphT& graph,
-                       const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::hierachic_bitmap>& frontier,
-                       LambdaT&& functor) {
+template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
+sygraph::Event
+inplace(GraphT& graph, const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::hierachic_bitmap>& frontier, LambdaT&& functor) {
   return launchBitmapKernelInplace(graph, frontier, functor);
 }
 
-template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_view FrontierView, typename LambdaT>
+template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
 sygraph::Event external(GraphT& graph,
-                        const sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::hierachic_bitmap>& in,
-                        sygraph::frontier::Frontier<T, FrontierView, sygraph::frontier::frontier_type::hierachic_bitmap>& out,
+                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::hierachic_bitmap>& in,
+                        sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::hierachic_bitmap>& out,
                         LambdaT&& functor) {
   return launchBitmapKernelExternal(graph, in, out, functor);
 }

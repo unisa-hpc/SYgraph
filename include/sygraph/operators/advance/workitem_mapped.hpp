@@ -19,10 +19,10 @@ namespace workitem_mapped {
 
 
 template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
-sygraph::Event vertex(GraphT& graph,
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::bitmap>& in,
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::bitmap>& out,
-                      LambdaT&& functor) {
+sygraph::Event frontier(GraphT& graph,
+                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitmap>& in,
+                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitmap>& out,
+                        LambdaT&& functor) {
   sycl::queue& q = graph.getQueue();
 
   size_t active_elements_size = types::detail::MAX_ACTIVE_ELEMS_SIZE;
@@ -58,46 +58,11 @@ sygraph::Event vertex(GraphT& graph,
   return ret;
 }
 
-template<typename GraphT, typename T, typename LambdaT>
-sygraph::Event edge(GraphT& graph,
-                    const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::edge, sygraph::frontier::frontier_type::bitmap>& in,
-                    const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::edge, sygraph::frontier::frontier_type::bitmap>& out,
-                    LambdaT&& functor) {
-  sycl::queue& q = graph.getQueue();
-
-  size_t active_elements_size = in.getNumActiveElements();
-  T* active_elements = memory::detail::memoryAlloc<T, memory::space::shared>(active_elements_size, q);
-  in.getActiveElements(active_elements);
-
-  sygraph::Event ret{q.submit([&](sycl::handler& cgh) {
-    auto in_dev_frontier = in.getDeviceFrontier();
-    auto out_dev_frontier = out.getDeviceFrontier();
-    auto graph_dev = graph.getDeviceGraph();
-
-    cgh.parallel_for<class edge_advance_kernel>(sycl::range<1>(active_elements_size), [=](sycl::id<1> idx) {
-      auto element = active_elements[idx];
-      auto start = graph_dev.begin(element);
-      auto end = graph_dev.end(element);
-
-      // each work item takes care of all the neighbors of the vertex he is responsible for
-      for (auto i = start; i != end; ++i) {
-        auto edge = i.getIndex();
-        auto weight = graph_dev.getEdgeWeight(element, edge);
-        auto neighbor = *i;
-        if (functor(element, neighbor, edge, weight)) { out_dev_frontier.insert(edge); }
-      }
-    });
-  })};
-
-  sycl::free(active_elements, q);
-  return ret;
-}
-
 template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
-sygraph::Event vertex(GraphT& graph,
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::vector>& in,
-                      const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::vector>& out,
-                      LambdaT&& functor) {
+sygraph::Event frontier(GraphT& graph,
+                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::vector>& in,
+                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::vector>& out,
+                        LambdaT&& functor) {
   sycl::queue& q = graph.getQueue();
 
   size_t active_elements_size = in.getNumActiveElements();

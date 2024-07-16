@@ -8,8 +8,10 @@ namespace frontier {
  * @brief Enumeration representing the different views of the frontier.
  */
 enum class frontier_view {
+  graph,  /**< View representing the entire graph. */
   vertex, /**< View representing only the vertices in the frontier. */
   edge,   /**< View representing only the edges in the frontier. */
+  none,   /**< View representing no frontier. */
 };
 
 /**
