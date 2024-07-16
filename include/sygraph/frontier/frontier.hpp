@@ -14,6 +14,12 @@ template<typename T, frontier_type Type>
 class frontier_impl_t;
 
 template<typename T>
+class frontier_impl_t<T, frontier_type::none> {
+public:
+  const bool getDeviceFrontier() const { return false; }
+};
+
+template<typename T>
 class frontier_impl_t<T, frontier_type::bitmap> : public FrontierBitmap<T> {
   using FrontierBitmap<T>::FrontierBitmap;
 };

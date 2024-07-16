@@ -6,6 +6,7 @@ add_executable(coo2csr_weighted formats/coo2csr.cpp)
 add_executable(coo2csr_unweighted formats/coo2csr_unweighted.cpp)
 add_executable(graph_build graph/graph.cpp)
 add_executable(advance operators/advance.cpp)
+add_executable(advance_graph operators/advance_graph.cpp)
 
 get_directory_property(all_targets BUILDSYSTEM_TARGETS)
 
@@ -46,5 +47,11 @@ add_test(
 add_test(
   NAME advance_operator
   COMMAND advance
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+add_test(
+  NAME advance_graph_operator
+  COMMAND advance_graph
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )

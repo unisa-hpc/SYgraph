@@ -22,6 +22,7 @@ enum class frontier_type {
   hierachic_bitmap, /**< Frontier implemented as a hierarchic bitmap. */
   vector,           /**< Frontier implemented as a vector. */
   bitvec,           /**< Frontier implemented as a bit vector. */
+  none,             /**< Frontier implemented as a bit vector. */
 };
 
 } // namespace frontier

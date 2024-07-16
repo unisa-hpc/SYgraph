@@ -21,6 +21,20 @@ constexpr std::string_view symmetric_6nodes = "6\n"
                                               "0 0 1 0 0 0\n"
                                               "0 0 1 0 0 1\n"
                                               "0 0 0 0 1 0";
+/**
+  o
+  |\
+  o-o-o-o
+
+  o
+*/
+constexpr std::string_view two_cc = "6\n"
+                                    "0 1 1 0 0 0\n"
+                                    "1 0 1 0 0 0\n"
+                                    "1 1 0 1 1 0\n"
+                                    "0 0 1 0 0 0\n"
+                                    "0 0 1 0 0 0\n"
+                                    "0 0 0 0 0 0";
 
 } // namespace matrices
 } // namespace storage
