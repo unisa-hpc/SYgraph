@@ -25,6 +25,11 @@ SYCL_EXTERNAL inline T min(T* v1, T* v2) {
   return ref1.fetch_min(ref2.load());
 }
 
+template<typename T>
+SYCL_EXTERNAL inline T cas(T* ptr, T expected, T desired) {
+  sycl::atomic_ref<T, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(*ptr);
+  return ref.compare_exchange_weak(expected, desired);
+}
 } // namespace sync
 } // namespace v0
 } // namespace sygraph

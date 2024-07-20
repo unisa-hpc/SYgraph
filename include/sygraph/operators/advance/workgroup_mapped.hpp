@@ -261,18 +261,18 @@ struct BitmapKernel {
     }
   }
 
-  ContextT context;
-  GraphDevT graph_dev;
-  sycl::local_accessor<uint32_t, 1> n_edges_wg;
-  sycl::local_accessor<uint32_t, 1> n_edges_sg;
-  sycl::local_accessor<bool, 1> visited;
-  sycl::local_accessor<T, 1> subgroup_reduce;
-  sycl::local_accessor<uint32_t, 1> subgroup_reduce_tail;
-  sycl::local_accessor<uint32_t, 1> subgroup_ids;
-  sycl::local_accessor<T, 1> workgroup_reduce;
-  sycl::local_accessor<uint32_t, 1> workgroup_reduce_tail;
-  sycl::local_accessor<uint32_t, 1> workgroup_ids;
-  LambdaT functor;
+  const ContextT context;
+  const GraphDevT graph_dev;
+  const sycl::local_accessor<uint32_t, 1> n_edges_wg;
+  const sycl::local_accessor<uint32_t, 1> n_edges_sg;
+  const sycl::local_accessor<bool, 1> visited;
+  const sycl::local_accessor<T, 1> subgroup_reduce;
+  const sycl::local_accessor<uint32_t, 1> subgroup_reduce_tail;
+  const sycl::local_accessor<uint32_t, 1> subgroup_ids;
+  const sycl::local_accessor<T, 1> workgroup_reduce;
+  const sycl::local_accessor<uint32_t, 1> workgroup_reduce_tail;
+  const sycl::local_accessor<uint32_t, 1> workgroup_ids;
+  const LambdaT functor;
 };
 
 

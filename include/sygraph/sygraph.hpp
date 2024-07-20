@@ -31,6 +31,7 @@
 #include <sygraph/operators/intersection/intersection.hpp>
 
 // Include algorithms
+#include <sygraph/algorithms/bc.hpp>
 #include <sygraph/algorithms/bfs.hpp>
 #include <sygraph/algorithms/sssp.hpp>
 #include <sygraph/algorithms/tc.hpp>
