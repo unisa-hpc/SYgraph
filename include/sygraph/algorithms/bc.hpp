@@ -109,71 +109,60 @@ public:
     using frontier_state_t = typename decltype(in_frontier)::frontier_state_type;
     std::vector<frontier_state_t> frontiers_states;
 
-    for (int i = 0; i < size; ++i) { std::cout << labels[i] << " "; }
-    std::cout << std::endl;
+    while (!in_frontier.empty()) {
+      auto e = sygraph::operators::advance::frontier<sygraph::operators::load_balancer::workgroup_mapped,
+                                                     sygraph::frontier::frontier_view::vertex,
+                                                     sygraph::frontier::frontier_view::vertex>(
+          G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
+            vertex_t new_label = labels[src] + 1;
+            vertex_t old_label = invalid;
+            sygraph::sync::cas(&labels[dst], old_label, new_label);
 
-    while (!isConverged()) {
-      if (_forward) {
-        while (!in_frontier.empty()) {
-          std::cout << "Forward" << std::endl;
-          auto e = sygraph::operators::advance::frontier<sygraph::operators::load_balancer::workgroup_mapped,
-                                                         sygraph::frontier::frontier_view::vertex,
-                                                         sygraph::frontier::frontier_view::vertex>(
-              G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
-                vertex_t new_label = labels[src] + 1;
-                vertex_t old_label = invalid;
-                sygraph::sync::cas(&labels[dst], old_label, new_label);
+            if (old_label != invalid && old_label != new_label) { return false; }
 
-                if (old_label != invalid && old_label != new_label) { return false; }
-
-                sygraph::sync::atomicFetchAdd(sigmas + dst, sigmas[src]);
-                return old_label == invalid;
-              });
-          e.wait_and_throw();
+            sygraph::sync::atomicFetchAdd(sigmas + dst, sigmas[src]);
+            return old_label == invalid;
+          });
+      e.wait_and_throw();
 
 #ifdef ENABLE_PROFILING
-          sygraph::Profiler::addEvent(e, "BC::Forward");
+      sygraph::Profiler::addEvent(e, "BC::Forward");
 #endif
-          _depth++;
-          _search_depth++;
+      _depth++;
+      _search_depth++;
 
-          frontiers_states.push_back(out_frontier.saveState());
-          sygraph::frontier::swap(out_frontier, in_frontier);
-          out_frontier.clear();
-        }
-        for (int i = 0; i < size; ++i) { std::cout << labels[i] << " "; }
-        std::cout << std::endl;
-        _forward = false;
-        std::cout << "out of while" << std::endl;
-      } else if (_backward) {
-        std::cout << "Backward" << std::endl;
-        _forward = false;
-        auto op = [=](auto src, auto dst, auto edge, auto weight) -> bool {
-          if (src == source) { return false; }
+      frontiers_states.push_back(out_frontier.saveState());
+      sygraph::frontier::swap(out_frontier, in_frontier);
+      out_frontier.clear();
+    }
 
-          auto s_label = labels[src];
-          auto d_label = labels[dst];
-          if (s_label + 1 != d_label) { return false; }
+    while (_depth > 0) {
+      in_frontier.loadState(frontiers_states.back());
+      frontiers_states.pop_back();
 
-          auto update = sigmas[src] / sigmas[dst] * (1 + deltas[dst]);
-          sygraph::sync::atomicFetchAdd(deltas + src, update);
-          sygraph::sync::atomicFetchAdd(bc_values + src, update);
+      auto e = sygraph::operators::advance::frontier<sygraph::operators::load_balancer::workgroup_mapped,
+                                                     sygraph::frontier::frontier_view::vertex,
+                                                     sygraph::frontier::frontier_view::none>(
+          G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
+            if (src == source) { return false; }
 
-          return false;
-        };
+            auto s_label = labels[src];
+            auto d_label = labels[dst];
+            if (s_label + 1 != d_label) { return false; }
 
-        while (true) {
-          in_frontier.loadState(frontiers_states.back());
-          frontiers_states.pop_back();
+            auto update = sigmas[src] / sigmas[dst] * (1 + deltas[dst]);
+            sygraph::sync::atomicFetchAdd(deltas + src, update);
+            sygraph::sync::atomicFetchAdd(bc_values + src, update);
 
-          sygraph::operators::advance::frontier<sygraph::operators::load_balancer::workgroup_mapped,
-                                                sygraph::frontier::frontier_view::vertex,
-                                                sygraph::frontier::frontier_view::none>(G, in_frontier, out_frontier, std::forward<decltype(op)>(op));
-          _depth--;
-          _search_depth++;
-          if (isBackwardConverged()) { break; }
-        }
-      }
+            return false;
+          });
+      e.wait_and_throw();
+#ifdef ENABLE_PROFILING
+      sygraph::Profiler::addEvent(e, "BC::Backward");
+#endif
+      _depth--;
+      _search_depth++;
+      if (isBackwardConverged()) { break; }
     }
 
     using load_balance_t = sygraph::operators::load_balancer;
