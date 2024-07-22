@@ -16,11 +16,23 @@ inline namespace v0 {
 namespace algorithms {
 namespace detail {
 
+template<typename T>
+void printFrontier(T& f, std::string prefix = "") {
+  using type_t = typename T::type_t;
+  auto size = f.getBitmapSize() * f.getBitmapRange();
+  std::cout << prefix;
+  for (int i = size - 1; i >= 0; --i) { std::cout << (f.check(static_cast<type_t>(i)) ? "1" : "0"); }
+  std::cout << " [" << f.getDeviceFrontier().getData()[0] << "]" << std::endl;
+  std::cout << std::endl;
+}
+
 template<typename GraphType>
 struct BCInstance {
   using vertex_t = typename GraphType::vertex_t;
   using edge_t = typename GraphType::edge_t;
   using weight_t = typename GraphType::weight_t;
+
+  const vertex_t invalid = std::numeric_limits<vertex_t>::max();
 
   GraphType& G;
   vertex_t source;
@@ -34,19 +46,19 @@ struct BCInstance {
     sycl::queue& queue = G.getQueue();
     size_t size = G.getVertexCount();
 
-    labels = sygraph::memory::detail::memoryAlloc<vertex_t, memory::space::device>(size, queue);
+    labels = sygraph::memory::detail::memoryAlloc<vertex_t, memory::space::shared>(size, queue);
     deltas = sygraph::memory::detail::memoryAlloc<weight_t, memory::space::device>(size, queue);
     sigmas = sygraph::memory::detail::memoryAlloc<weight_t, memory::space::device>(size, queue);
     bc_values = sygraph::memory::detail::memoryAlloc<weight_t, memory::space::device>(size, queue);
 
-    queue.fill(labels, size + 1, size);
-    queue.fill(deltas, 0, size);
-    queue.fill(sigmas, 0, size);
-    queue.fill(bc_values, 0, size);
+    queue.fill(labels, static_cast<vertex_t>(this->invalid), size);
+    queue.memset(deltas, 0, size);
+    queue.memset(sigmas, 0, size);
+    queue.memset(bc_values, 0, size);
     queue.wait_and_throw();
 
-    queue.fill(sigmas + source, 1, 1);
-    queue.fill(labels + source, 0, 1);
+    queue.memset(&sigmas[source], static_cast<weight_t>(1), 1);
+    labels[source] = 0;
     queue.wait_and_throw();
   }
 
@@ -81,51 +93,61 @@ public:
     size_t size = G.getVertexCount();
     auto source = _instance->source;
 
-    auto frontier = sygraph::frontier::makeFrontier<frontier::frontier_view::vertex, sygraph::frontier::frontier_type::hierachic_bitmap>(queue, G);
-    std::vector<decltype(frontier)> frontiers;
-    for (int i = 1; i < _max_depth; i++) {
-      frontiers[i] = sygraph::frontier::makeFrontier<frontier::frontier_view::vertex, sygraph::frontier::frontier_type::hierachic_bitmap>(queue, G);
-    }
+    auto in_frontier
+        = sygraph::frontier::makeFrontier<sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::hierachic_bitmap>(queue, G);
+    auto out_frontier
+        = sygraph::frontier::makeFrontier<sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::hierachic_bitmap>(queue, G);
 
-    auto is_converged = [&](size_t depth) {
-      auto& f = frontiers[depth];
-      return f.empty();
-    };
+    in_frontier.insert(source);
 
-    frontiers[0] = frontier;
-    frontiers[0].insert(_instance->source);
-
-    vertex_t invalid = size + 1;
+    vertex_t invalid = _instance->invalid;
     vertex_t* labels = _instance->labels;
     weight_t* deltas = _instance->deltas;
     weight_t* sigmas = _instance->sigmas;
     weight_t* bc_values = _instance->bc_values;
 
+    using frontier_state_t = typename decltype(in_frontier)::frontier_state_type;
+    std::vector<frontier_state_t> frontiers_states;
+
+    for (int i = 0; i < size; ++i) { std::cout << labels[i] << " "; }
+    std::cout << std::endl;
+
     while (!isConverged()) {
       if (_forward) {
-        auto op = [=](auto src, auto dst, auto edge, auto weight) -> bool {
-          auto new_label = labels[src] + 1;
-          auto old_label = sygraph::sync::cas(labels + dst, invalid, new_label);
+        while (!in_frontier.empty() && _depth < 50) { // remove _depth < 20
+          std::cout << "Forward" << std::endl;
+          auto e = sygraph::operators::advance::frontier<sygraph::operators::load_balancer::workgroup_mapped,
+                                                         sygraph::frontier::frontier_view::vertex,
+                                                         sygraph::frontier::frontier_view::vertex>(
+              G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
+                vertex_t new_label = labels[src] + 1;
+                vertex_t old_label = invalid;
 
-          if (old_label != invalid && new_label != old_label) { return false; }
+                old_label = sygraph::sync::cas(&labels[dst], old_label, new_label);
 
-          sygraph::sync::atomicFetchAdd(sigmas + dst, sigmas[src]);
-          return old_label == invalid;
-        };
+                if ((old_label != invalid) && (old_label != new_label)) { return false; }
 
-        while (true) {
-          auto in_frontier = frontiers[_depth];
-          auto out_frontier = frontiers[_depth + 1];
+                sygraph::sync::atomicFetchAdd(sigmas + dst, sigmas[src]);
+                return old_label == invalid;
+              });
+          e.wait_and_throw();
 
-          sygraph::operators::advance::frontier<sygraph::operators::load_balancer::workgroup_mapped,
-                                                sygraph::frontier::frontier_view::vertex,
-                                                sygraph::frontier::frontier_view::vertex>(
-              G, in_frontier, out_frontier, std::forward<decltype(op)>(op));
+#ifdef ENABLE_PROFILING
+          sygraph::Profiler::addEvent(e, "BC::Forward");
+#endif
+
+          detail::printFrontier(out_frontier);
           _depth++;
           _search_depth++;
-          if (is_converged(_depth)) { break; }
+          frontiers_states.push_back(out_frontier.saveState());
+          sygraph::frontier::swap(out_frontier, in_frontier);
         }
+        for (int i = 0; i < size; ++i) { std::cout << labels[i] << " "; }
+        std::cout << std::endl;
+        _forward = false;
+        std::cout << "out of while" << std::endl;
       } else if (_backward) {
+        std::cout << "Backward" << std::endl;
         _forward = false;
         auto op = [=](auto src, auto dst, auto edge, auto weight) -> bool {
           if (src == source) { return false; }
@@ -142,8 +164,8 @@ public:
         };
 
         while (true) {
-          auto in_frontier = frontiers[_depth];
-          auto out_frontier = frontiers[_depth + 1];
+          in_frontier.loadState(frontiers_states.back());
+          frontiers_states.pop_back();
 
           sygraph::operators::advance::frontier<sygraph::operators::load_balancer::workgroup_mapped,
                                                 sygraph::frontier::frontier_view::vertex,
@@ -178,7 +200,7 @@ protected:
 
   size_t _depth = 0;
   size_t _search_depth = 1;
-  const size_t _max_depth = 1000;
+  const size_t _max_depth = 5;
 
 private:
   GraphType& _g;

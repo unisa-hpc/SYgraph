@@ -11,6 +11,13 @@
 namespace sygraph {
 inline namespace v0 {
 namespace frontier {
+template<size_t Levels, typename B = types::bitmap_type_t>
+class BitmapState {
+public:
+  std::array<size_t, Levels> size;
+  std::array<std::vector<B>, Levels> data;
+};
+
 namespace detail {
 
 
@@ -34,7 +41,6 @@ concept DeviceFrontierConcept = requires(DeviceFrontier f) {
 
 template<typename T, size_t Levels, DeviceFrontierConcept DeviceFrontier>
 class FrontierHierarchicBitmap;
-
 
 template<typename T, size_t Levels, typename B = types::bitmap_type_t>
 class HierarchicBitmapDevice {
@@ -136,6 +142,7 @@ class FrontierHierarchicBitmap {
 public:
   using bitmap_type = typename DeviceFrontier::bitmap_type;
   using device_frontier_type = DeviceFrontier;
+  using frontier_state_type = BitmapState<Levels, bitmap_type>;
 
   FrontierHierarchicBitmap(sycl::queue& q, size_t num_elems) : _queue(q), _bitmap(num_elems) { // TODO: [!] tune on bitmap size
 
@@ -173,14 +180,7 @@ public:
 
   bool empty() const { return _bitmap.empty(); }
 
-  bool check(size_t idx) const {
-    return _queue
-        .submit([&](sycl::handler& cgh) {
-          auto bitmap = this->getDeviceFrontier();
-          cgh.single_task([=]() { bitmap.check(idx); });
-        })
-        .wait();
-  }
+  bool check(size_t idx) const { return _bitmap.check(idx); }
 
   bool insert(size_t idx) {
     _queue
@@ -250,6 +250,22 @@ public:
     });
   }
 
+  sygraph::frontier::BitmapState<Levels, bitmap_type> saveState() {
+    sygraph::frontier::BitmapState<Levels, bitmap_type> state;
+    for (size_t i = 0; i < Levels; i++) {
+      state.size[i] = _bitmap.getBitmapSize(i);
+      state.data[i].resize(state.size[i]);
+      _queue.copy(_bitmap.getData(i), state.data[i].data(), state.size[i]);
+    }
+    return state;
+  }
+
+  void loadState(const sygraph::frontier::BitmapState<Levels, bitmap_type>& state) {
+    for (size_t i = 0; i < Levels; i++) {
+      assert(state.size[i] == _bitmap.getBitmapSize(i));
+      _queue.copy(state.data[i].data(), _bitmap.getData(i), state.size[i]);
+    }
+  }
 
   void clear() {
     for (size_t i = 0; i < Levels; i++) { _queue.fill(_bitmap.getData(i), static_cast<bitmap_type>(0), _bitmap.getBitmapSize(i)); }
