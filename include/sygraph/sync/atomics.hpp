@@ -26,11 +26,9 @@ SYCL_EXTERNAL inline T min(T* v1, T* v2) {
 }
 
 template<typename T>
-SYCL_EXTERNAL inline bool cas(T* ptr, T expected, T desired) {
+SYCL_EXTERNAL inline bool cas(T* ptr, T& expected, T desired) {
   sycl::atomic_ref<T, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(*ptr);
-  auto tmp = ref.load();
-
-  return ref.compare_exchange_strong(expected, desired) ? desired : tmp;
+  return ref.compare_exchange_strong(expected, desired);
 }
 } // namespace sync
 } // namespace v0

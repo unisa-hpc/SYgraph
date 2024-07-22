@@ -114,7 +114,7 @@ public:
 
     while (!isConverged()) {
       if (_forward) {
-        while (!in_frontier.empty() && _depth < 50) { // remove _depth < 20
+        while (!in_frontier.empty()) {
           std::cout << "Forward" << std::endl;
           auto e = sygraph::operators::advance::frontier<sygraph::operators::load_balancer::workgroup_mapped,
                                                          sygraph::frontier::frontier_view::vertex,
@@ -122,10 +122,9 @@ public:
               G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
                 vertex_t new_label = labels[src] + 1;
                 vertex_t old_label = invalid;
+                sygraph::sync::cas(&labels[dst], old_label, new_label);
 
-                old_label = sygraph::sync::cas(&labels[dst], old_label, new_label);
-
-                if ((old_label != invalid) && (old_label != new_label)) { return false; }
+                if (old_label != invalid && old_label != new_label) { return false; }
 
                 sygraph::sync::atomicFetchAdd(sigmas + dst, sigmas[src]);
                 return old_label == invalid;
@@ -135,12 +134,12 @@ public:
 #ifdef ENABLE_PROFILING
           sygraph::Profiler::addEvent(e, "BC::Forward");
 #endif
-
-          detail::printFrontier(out_frontier);
           _depth++;
           _search_depth++;
+
           frontiers_states.push_back(out_frontier.saveState());
           sygraph::frontier::swap(out_frontier, in_frontier);
+          out_frontier.clear();
         }
         for (int i = 0; i < size; ++i) { std::cout << labels[i] << " "; }
         std::cout << std::endl;
