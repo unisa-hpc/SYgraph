@@ -5,6 +5,7 @@ add_executable(bfs bfs/bfs.cpp)
 add_executable(sssp sssp/sssp.cpp)
 add_executable(tc tc/tc.cpp)
 add_executable(bc bc/bc.cpp)
+add_executable(pr pr/pr.cpp)
 
 set_property(DIRECTORY ${CMAKE_SOURCE_DIR}/ PROPERTY CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
