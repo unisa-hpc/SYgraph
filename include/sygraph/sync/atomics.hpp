@@ -19,6 +19,12 @@ SYCL_EXTERNAL inline T load(T* ptr) {
 }
 
 template<typename T>
+SYCL_EXTERNAL inline void store(T* ptr, T val) {
+  sycl::atomic_ref<T, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(*ptr);
+  ref.store(val);
+}
+
+template<typename T>
 SYCL_EXTERNAL inline T min(T* v1, T* v2) {
   sycl::atomic_ref<T, sycl::memory_order::relaxed, sycl::memory_scope::device> ref1(*v1);
   sycl::atomic_ref<T, sycl::memory_order::relaxed, sycl::memory_scope::device> ref2(*v2);
