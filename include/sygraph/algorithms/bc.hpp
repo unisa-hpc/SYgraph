@@ -1,3 +1,4 @@
+#pragma once
 #include <sycl/sycl.hpp>
 
 #include <sygraph/frontier/frontier.hpp>
@@ -79,7 +80,7 @@ class BC {
   using weight_t = typename GraphType::weight_t;
 
 public:
-  BC(GraphType& g) : _g(g){};
+  BC(GraphType& g) : _g(g) {};
 
   void init(const vertex_t source) { _instance = std::make_unique<detail::BCInstance<GraphType>>(_g, source); }
 

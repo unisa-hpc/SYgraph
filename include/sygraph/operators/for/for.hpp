@@ -41,6 +41,7 @@ sygraph::Event edges(GraphT& graph, LambdaT&& functor) {
   });
 
   return e;
+}
 } // namespace v1
 
 namespace v0 {

@@ -5,8 +5,8 @@
 #include <sycl/sycl.hpp>
 #include <sygraph/sygraph.hpp>
 
-template<typename GraphT, typename BfsT>
-bool validate(const GraphT& graph, BfsT& bfs, uint source) {
+template<typename GraphT, typename PrT>
+bool validate(const GraphT& graph, PrT& bfs, uint source) {
   return false;
 }
 
@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
   ArgsT<type_t> args{argc, argv};
 
   std::cerr << "[*] Reading CSR" << std::endl;
-  auto csr = readCSR<type_t, type_t, type_t>(args);
+  auto csr = readCSR<float, type_t, type_t>(args);
 
 #ifdef ENABLE_PROFILING
   sycl::queue q{sycl::gpu_selector_v, sycl::property::queue::enable_profiling()};
@@ -30,19 +30,18 @@ int main(int argc, char** argv) {
   printGraphInfo(G);
   size_t size = G.getVertexCount();
 
-  sygraph::algorithms::BFS bfs{G};
-  if (args.random_source) { args.source = getRandomSource(size); }
-  bfs.init(args.source);
+  sygraph::algorithms::PR pr{G};
+  pr.init();
 
-  std::cout << "[*] Running PR on source " << args.source << std::endl;
-  bfs.run<true>();
+  std::cout << "[*] Running PR" << std::endl;
+  pr.run();
 
   std::cerr << "[!] Done" << std::endl;
 
   if (args.validate) {
     std::cout << "Validation: [";
     auto validation_start = std::chrono::high_resolution_clock::now();
-    if (!validate(G, bfs, args.source)) {
+    if (!validate(G, pr, args.source)) {
       std::cout << failString();
     } else {
       std::cout << successString();
@@ -54,12 +53,7 @@ int main(int argc, char** argv) {
   }
 
   if (args.print_output) {
-    std::cout << std::left;
-    std::cout << std::setw(10) << "Vertex" << std::setw(10) << "Distance" << std::endl;
-    for (size_t i = 0; i < G.getVertexCount(); i++) {
-      auto distance = bfs.getDistance(i);
-      if (distance != size + 1) { std::cout << std::setw(10) << i << std::setw(10) << distance << std::endl; }
-    }
+    // TODO
   }
 
 #ifdef ENABLE_PROFILING
