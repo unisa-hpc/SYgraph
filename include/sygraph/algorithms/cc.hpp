@@ -114,37 +114,38 @@ public:
     auto in_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::hierachic_bitmap>(queue, G);
     auto out_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::hierachic_bitmap>(queue, G);
 
-    for (size_t i = 0; i < G.getVertexCount(); i++) { labels[i] = i; }
+    queue
+        .submit([&](sycl::handler& cgh) {
+          cgh.parallel_for(sycl::range<1>(G.getVertexCount()), [=](sycl::item<1> item) {
+            vertex_t i = item.get_id();
+            labels[i] = i;
+          });
+        })
+        .wait();
 
     in_frontier.insert(source);
 
     size_t size = G.getVertexCount();
     int iter = 0;
 
+    auto op = [=](auto src, auto dst, auto edge, auto weight) -> bool {
+      vertex_t src_label = sygraph::sync::load(&labels[src]);
+      vertex_t label = sygraph::sync::min(&labels[dst], &labels[src]);
+      if (src_label < label) {
+        sygraph::sync::store(&labels[dst], src_label);
+        return true;
+      }
+      return false;
+    };
+
     auto e1 = sygraph::operators::advance::vertices<load_balance_t::workgroup_mapped, frontier_view_t::vertex>(
-        G, in_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
-          vertex_t src_label = sygraph::sync::load(&labels[src]);
-          vertex_t dst_label = sygraph::sync::load(&labels[dst]);
-          if (dst_label < src_label) {
-            sygraph::sync::store(&labels[dst], src_label);
-            return true;
-          }
-          return true;
-        });
+        G, in_frontier, std::forward<decltype(op)>(op));
     e1.waitAndThrow();
 
     // TODO: Add automatic load_balancing for the type of graph.
     while (!in_frontier.empty()) {
       auto e1 = sygraph::operators::advance::frontier<load_balance_t::workgroup_mapped, frontier_view_t::vertex, frontier_view_t::vertex>(
-          G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
-            vertex_t src_label = sygraph::sync::load(&labels[src]);
-            vertex_t dst_label = sygraph::sync::load(&labels[dst]);
-            if (dst_label < src_label) {
-              sygraph::sync::store(&labels[dst], src_label);
-              return true;
-            }
-            return true;
-          });
+          G, in_frontier, out_frontier, std::forward<decltype(op)>(op));
       e1.waitAndThrow();
 
 #ifdef ENABLE_PROFILING
