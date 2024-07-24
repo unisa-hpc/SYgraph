@@ -162,7 +162,6 @@ public:
       sygraph::frontier::swap(in_frontier, out_frontier);
       out_frontier.clear();
       iter++;
-      std::cout << "Iteration: " << iter << std::endl;
     }
   }
 
