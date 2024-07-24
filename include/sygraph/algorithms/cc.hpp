@@ -131,7 +131,6 @@ public:
     auto e1 = sygraph::operators::advance::vertices<load_balance_t::workgroup_mapped, frontier_view_t::vertex>(
         G, in_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
           vertex_t src_label = sygraph::sync::load(&labels[src]);
-          vertex_t label = sygraph::sync::min(&labels[dst], &labels[src]);
           vertex_t dst_label = sygraph::sync::load(&labels[dst]);
           if (dst_label < src_label) {
             sygraph::sync::store(&labels[dst], src_label);
