@@ -46,7 +46,7 @@ struct CCInstance {
     size_t size = G.getVertexCount();
 
     // Initialize parents
-    labels = memory::detail::memoryAlloc<vertex_t, memory::space::shared>(size, queue);
+    labels = memory::detail::memoryAlloc<vertex_t, memory::space::device>(size, queue);
     queue.fill(labels, static_cast<vertex_t>(-1), size).wait();
   }
 

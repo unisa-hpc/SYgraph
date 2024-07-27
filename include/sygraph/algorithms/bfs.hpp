@@ -46,12 +46,12 @@ struct BFSInstance {
     size_t size = G.getVertexCount();
 
     // Initialize distances
-    distances = memory::detail::memoryAlloc<edge_t, memory::space::shared>(size, queue);
+    distances = memory::detail::memoryAlloc<edge_t, memory::space::device>(size, queue);
     queue.fill(distances, static_cast<edge_t>(size + 1), size).wait();
     distances[source] = static_cast<edge_t>(0); // Distance from source to itself is 0
 
     // Initialize parents
-    parents = memory::detail::memoryAlloc<vertex_t, memory::space::shared>(size, queue);
+    parents = memory::detail::memoryAlloc<vertex_t, memory::space::device>(size, queue);
     queue.fill(parents, static_cast<vertex_t>(-1), size).wait();
   }
 

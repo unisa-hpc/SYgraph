@@ -150,7 +150,7 @@ public:
 #pragma unroll
     for (size_t i = 0; i < Levels; i++) {
       size_t size = _bitmap.getBitmapSize(i);
-      ptr[i] = sygraph::memory::detail::memoryAlloc<bitmap_type, memory::space::shared>(size, _queue);
+      ptr[i] = sygraph::memory::detail::memoryAlloc<bitmap_type, memory::space::device>(size, _queue);
       _queue.fill(ptr[i], static_cast<bitmap_type>(0), size);
     }
     _queue.wait();
@@ -288,8 +288,6 @@ public:
     auto e = this->_queue.submit([&](sycl::handler& cgh) {
       sycl::local_accessor<int, 1> local_offsets(local_range[0] * range, cgh);
       sycl::local_accessor<uint32_t, 1> local_size(1, cgh);
-      bitmap.getOffsetsSize()[0] = 0;
-
 
       cgh.parallel_for(sycl::nd_range<1>{global_range, local_range},
                        [=, offsets_size = bitmap.getOffsetsSize(), offsets = bitmap.getOffsets()](sycl::nd_item<1> item) {
