@@ -157,7 +157,7 @@ public:
     int* offsets = sygraph::memory::detail::memoryAlloc<int, memory::space::device>(_bitmap.getBitmapSize(), _queue);
     uint32_t* offsets_size = sygraph::memory::detail::memoryAlloc<uint32_t, memory::space::shared>(1, _queue);
     auto size = _bitmap.getBitmapSize();
-    _queue.fill(offsets_size, 0, size).wait();
+    // _queue.fill(offsets_size, 0, size).wait();
 
     _bitmap.setData(ptr);
     _bitmap.setOffsets(offsets);
