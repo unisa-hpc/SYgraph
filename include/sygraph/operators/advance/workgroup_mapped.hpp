@@ -6,6 +6,7 @@
 #include <sygraph/graph/graph.hpp>
 #include <sygraph/operators/config.hpp>
 #include <sygraph/sycl/event.hpp>
+#include <sygraph/utils/device.hpp>
 #include <sygraph/utils/types.hpp>
 
 namespace sygraph {
@@ -313,12 +314,14 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
   Context<InFW, OutFW, decltype(in_dev_frontier), decltype(out_dev_frontier)> context{num_nodes, in_dev_frontier, out_dev_frontier};
   using bitmap_kernel_t = BitmapKernel<InFW, OutFW, T, decltype(context), decltype(graph_dev), LambdaT>;
 
+  const uint32_t max_num_subgroups = sygraph::details::device::getMaxNumSubgroups(q);
+
   auto e = q.submit([&](sycl::handler& cgh) {
     sycl::local_accessor<uint32_t, 1> n_edges_wg{local_range, cgh};
     sycl::local_accessor<uint32_t, 1> n_edges_sg{local_range, cgh};
     sycl::local_accessor<bool, 1> visited{local_range, cgh};
     sycl::local_accessor<T, 1> subgroup_reduce{local_range, cgh};
-    sycl::local_accessor<uint32_t, 1> subgroup_reduce_tail{types::detail::MAX_SUBGROUPS, cgh};
+    sycl::local_accessor<uint32_t, 1> subgroup_reduce_tail{max_num_subgroups, cgh};
     sycl::local_accessor<uint32_t, 1> subgroup_ids{local_range, cgh};
     sycl::local_accessor<T, 1> workgroup_reduce{local_range, cgh};
     sycl::local_accessor<uint32_t, 1> workgroup_reduce_tail{1, cgh};
@@ -354,6 +357,8 @@ launchVectorKernel(GraphT& graph, const sygraph::frontier::Frontier<T, FT>& in, 
   auto out_dev_frontier = out.getDeviceFrontier();
   auto graph_dev = graph.getDeviceGraph();
 
+  const uint32_t max_num_subgroups = sygraph::details::device::getMaxNumSubgroups(q);
+
   using vector_kernel_t = VectorKernel<T, decltype(in_dev_frontier), decltype(graph_dev), LambdaT>;
 
   auto e = q.submit([&](sycl::handler& cgh) {
@@ -365,7 +370,7 @@ launchVectorKernel(GraphT& graph, const sygraph::frontier::Frontier<T, FT>& in, 
     sycl::local_accessor<bool, 1> visited{local_range, cgh};
     sycl::local_accessor<T, 1> active_elements_local{local_range, cgh};
     sycl::local_accessor<uint32_t, 1> ids{local_range, cgh};
-    sycl::local_accessor<uint32_t, 1> active_elements_local_tail{types::detail::MAX_SUBGROUPS, cgh};
+    sycl::local_accessor<uint32_t, 1> active_elements_local_tail{max_num_subgroups, cgh};
     sycl::local_accessor<T, 1> pad{out_dev_frontier.getVectorMaxSize(), cgh};
     sycl::local_accessor<uint32_t, 1> pad_tail{1, cgh};
 
