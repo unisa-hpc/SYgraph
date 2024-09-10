@@ -24,8 +24,6 @@ sygraph::Event execute(GraphT& graph,
                        LambdaT&& functor) {
   if constexpr (FrontierType == sygraph::frontier::frontier_type::bitmap) {
     return sygraph::operators::intersection::detail::bitmapExecute(graph, in1, in2, out, std::forward<LambdaT>(functor));
-  } else if constexpr (FrontierType == sygraph::frontier::frontier_type::vector) {
-    throw std::runtime_error("Frontier type not implemented");
   } else {
     throw std::runtime_error("Frontier type not implemented");
   }

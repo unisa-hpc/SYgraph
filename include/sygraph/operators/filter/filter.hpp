@@ -12,7 +12,6 @@
 #include <sygraph/utils/vector.hpp>
 
 #include <sygraph/operators/filter/bitmap_filter_impl.hpp>
-#include <sygraph/operators/filter/vector_filter_impl.hpp>
 
 namespace sygraph {
 inline namespace v0 {

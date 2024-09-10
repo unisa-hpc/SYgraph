@@ -80,7 +80,7 @@ class SSSP {
   using weight_t = typename GraphType::weight_t;
 
 public:
-  SSSP(GraphType& g) : _g(g){};
+  SSSP(GraphType& g) : _g(g) {};
 
 
   void init(vertex_t& source) {
@@ -109,8 +109,8 @@ public:
     using frontier_view_t = sygraph::frontier::frontier_view;
     using frontier_impl_t = sygraph::frontier::frontier_type;
 
-    auto in_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::hierachic_bitmap>(queue, G);
-    auto out_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::hierachic_bitmap>(queue, G);
+    auto in_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::mlb>(queue, G);
+    auto out_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::mlb>(queue, G);
 
     size_t size = G.getVertexCount();
 

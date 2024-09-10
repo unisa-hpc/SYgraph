@@ -18,11 +18,9 @@ enum class frontier_view {
  * @brief Enumeration representing the different types of frontiers.
  */
 enum class frontier_type {
-  bitmap,           /**< Frontier implemented as a bitmap. */
-  hierachic_bitmap, /**< Frontier implemented as a hierarchic bitmap. */
-  vector,           /**< Frontier implemented as a vector. */
-  bitvec,           /**< Frontier implemented as a bit vector. */
-  none,             /**< Frontier implemented as a bit vector. */
+  bitmap, /**< Frontier implemented as a bitmap. */
+  mlb,    /**< Frontier implemented as a hierarchic bitmap. */
+  none,   /**< Frontier implemented as a bit vector. */
 };
 
 } // namespace frontier

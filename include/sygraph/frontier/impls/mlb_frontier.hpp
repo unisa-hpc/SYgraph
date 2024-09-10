@@ -40,14 +40,14 @@ concept DeviceFrontierConcept = requires(DeviceFrontier f) {
 };
 
 template<typename T, size_t Levels, DeviceFrontierConcept DeviceFrontier>
-class FrontierHierarchicBitmap;
+class FrontierMLB;
 
 template<typename T, size_t Levels, typename B = types::bitmap_type_t>
-class HierarchicBitmapDevice {
+class MLBDevice {
 public:
   using bitmap_type = B;
 
-  HierarchicBitmapDevice(size_t num_elems) : _num_elems(num_elems) {
+  MLBDevice(size_t num_elems) : _num_elems(num_elems) {
     _range = sizeof(bitmap_type) * sygraph::types::detail::byte_size;
     _size[0] = num_elems / _range + (num_elems % _range != 0);
 
@@ -99,7 +99,7 @@ public:
 
   SYCL_EXTERNAL inline bool check(size_t idx) const { return _data[0][idx / _range] & (static_cast<bitmap_type>(1) << (idx % _range)); }
 
-  SYCL_EXTERNAL inline bool empty() const { // TODO it might be here the problem of the performance (too many copies from host to device)
+  SYCL_EXTERNAL inline bool empty() const {
     bitmap_type count = static_cast<bitmap_type>(0);
     for (auto i = 0; i < _size[Levels - 1]; i++) { count += _data[Levels - 1][i]; }
     return count == static_cast<bitmap_type>(0);
@@ -137,15 +137,14 @@ protected:
   uint32_t* _offsets_size;
 };
 
-template<typename T, size_t Levels = 2, DeviceFrontierConcept DeviceFrontier = HierarchicBitmapDevice<T, Levels>>
-class FrontierHierarchicBitmap {
+template<typename T, size_t Levels = 2, DeviceFrontierConcept DeviceFrontier = MLBDevice<T, Levels>>
+class FrontierMLB {
 public:
   using bitmap_type = typename DeviceFrontier::bitmap_type;
   using device_frontier_type = DeviceFrontier;
   using frontier_state_type = BitmapState<Levels, bitmap_type>;
 
-  FrontierHierarchicBitmap(sycl::queue& q, size_t num_elems) : _queue(q), _bitmap(num_elems) { // TODO: [!] tune on bitmap size
-
+  FrontierMLB(sycl::queue& q, size_t num_elems) : _queue(q), _bitmap(num_elems) {
     bitmap_type* ptr[Levels];
 #pragma unroll
     for (size_t i = 0; i < Levels; i++) {
@@ -164,7 +163,7 @@ public:
     _bitmap.setOffsetsSize(offsets_size);
   }
 
-  ~FrontierHierarchicBitmap() {
+  ~FrontierMLB() {
     for (size_t i = 0; i < Levels; i++) { sycl::free(_bitmap.getData(i), _queue); }
     sycl::free(_bitmap.getOffsets(), _queue);
     sycl::free(_bitmap.getOffsetsSize(), _queue);
@@ -226,13 +225,13 @@ public:
   }
 
   // operator =
-  FrontierHierarchicBitmap& operator=(const FrontierHierarchicBitmap& other) {
+  FrontierMLB& operator=(const FrontierMLB& other) {
     if (this == &other) { return *this; }
     _queue.copy(other._bitmap.getData(), this->_bitmap.getData(), _bitmap.getBitmapSize()).wait();
     return *this;
   }
 
-  sygraph::Event merge(FrontierHierarchicBitmap<T>& other) {
+  sygraph::Event merge(FrontierMLB<T>& other) {
     return _queue.submit([&](sycl::handler& cgh) {
       auto bitmap = this->getDeviceFrontier();
       auto other_bitmap = other.getDeviceFrontier();
@@ -241,7 +240,7 @@ public:
     });
   }
 
-  sygraph::Event intersect(FrontierHierarchicBitmap<T>& other) {
+  sygraph::Event intersect(FrontierMLB<T>& other) {
     return _queue.submit([&](sycl::handler& cgh) {
       auto bitmap = this->getDeviceFrontier();
       auto other_bitmap = other.getDeviceFrontier();
@@ -275,7 +274,9 @@ public:
 
   const DeviceFrontier& getDeviceFrontier() const { return _bitmap; }
 
-  size_t computeActiveFrontier() const { // TODO: Only works with 2 levels now
+  size_t computeActiveFrontier() const {
+    if constexpr (Levels != 2) { throw std::runtime_error("Only 2 levels are supported"); }
+
     sycl::range<1> local_range{128};
     auto bitmap = this->getDeviceFrontier();
     size_t size = bitmap.getBitmapSize(1);
@@ -329,7 +330,7 @@ public:
     return _bitmap.getOffsetsSize()[0];
   }
 
-  static void swap(FrontierHierarchicBitmap<T>& a, FrontierHierarchicBitmap<T>& b) { std::swap(a._bitmap, b._bitmap); }
+  static void swap(FrontierMLB<T>& a, FrontierMLB<T>& b) { std::swap(a._bitmap, b._bitmap); }
 
 protected:
   sycl::queue& _queue;    ///< The SYCL queue used for memory allocation.

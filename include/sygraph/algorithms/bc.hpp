@@ -79,7 +79,7 @@ class BC {
   using weight_t = typename GraphType::weight_t;
 
 public:
-  BC(GraphType& g) : _g(g){};
+  BC(GraphType& g) : _g(g) {};
 
   void init(const vertex_t source) { _instance = std::make_unique<detail::BCInstance<GraphType>>(_g, source); }
 
@@ -93,10 +93,8 @@ public:
     size_t size = G.getVertexCount();
     auto source = _instance->source;
 
-    auto in_frontier
-        = sygraph::frontier::makeFrontier<sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::hierachic_bitmap>(queue, G);
-    auto out_frontier
-        = sygraph::frontier::makeFrontier<sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::hierachic_bitmap>(queue, G);
+    auto in_frontier = sygraph::frontier::makeFrontier<sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::mlb>(queue, G);
+    auto out_frontier = sygraph::frontier::makeFrontier<sygraph::frontier::frontier_view::vertex, sygraph::frontier::frontier_type::mlb>(queue, G);
 
     in_frontier.insert(source);
 

@@ -2,9 +2,7 @@
 
 #include <sygraph/frontier/frontier_settings.hpp>
 #include <sygraph/frontier/impls/bitmap_frontier.hpp>
-#include <sygraph/frontier/impls/bitvec_frontier.hpp>
-#include <sygraph/frontier/impls/hierarchic_bitmap_frontier.hpp>
-#include <sygraph/frontier/impls/vector_frontier.hpp>
+#include <sygraph/frontier/impls/mlb_frontier.hpp>
 
 namespace sygraph {
 inline namespace v0 {
@@ -25,22 +23,12 @@ class frontier_impl_t<T, frontier_type::bitmap> : public FrontierBitmap<T> {
 };
 
 template<typename T>
-class frontier_impl_t<T, frontier_type::hierachic_bitmap> : public FrontierHierarchicBitmap<T> {
-  using FrontierHierarchicBitmap<T>::FrontierHierarchicBitmap;
-};
-
-template<typename T>
-class frontier_impl_t<T, frontier_type::vector> : public FrontierVector<T> {
-  using FrontierVector<T>::FrontierVector;
-};
-
-template<typename T>
-class frontier_impl_t<T, frontier_type::bitvec> : public FrontierBitvec<T> {
-  using FrontierBitvec<T>::FrontierBitvec;
+class frontier_impl_t<T, frontier_type::mlb> : public FrontierMLB<T> {
+  using FrontierMLB<T>::FrontierMLB;
 };
 } // namespace detail
 
-template<typename T, frontier_type Type = frontier_type::hierachic_bitmap>
+template<typename T, frontier_type Type = frontier_type::mlb>
 class Frontier : public detail::frontier_impl_t<T, Type> {
 public:
   using detail::frontier_impl_t<T, Type>::frontier_impl_t;
@@ -57,19 +45,15 @@ auto makeFrontier(sycl::queue& q, const GraphType& graph) {
     frontier_size = graph.getEdgeCount();
     return Frontier<typename GraphType::edge_t, Type>(q, frontier_size);
   }
-  return Frontier<typename GraphType::vertex_t, Type>(q, frontier_size); // TODO fix this
+  return Frontier<typename GraphType::vertex_t, Type>(q, frontier_size);
 }
 
 template<typename T, frontier_type FT>
 void swap(Frontier<T, FT>& a, Frontier<T, FT>& b) {
   if constexpr (FT == frontier_type::bitmap) {
     detail::FrontierBitmap<T>::swap(a, b);
-  } else if constexpr (FT == frontier_type::vector) {
-    detail::FrontierVector<T>::swap(a, b);
-  } else if constexpr (FT == frontier_type::bitvec) {
-    detail::FrontierBitvec<T>::swap(a, b);
-  } else if constexpr (FT == frontier_type::hierachic_bitmap) {
-    detail::FrontierHierarchicBitmap<T>::swap(a, b);
+  } else if constexpr (FT == frontier_type::mlb) {
+    detail::FrontierMLB<T>::swap(a, b);
   }
 }
 
