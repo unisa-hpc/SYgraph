@@ -35,6 +35,9 @@ struct BFSInstance {
   edge_t* distances; /**< Array to store the distances from the source vertex to each vertex in the graph. */
   vertex_t* parents; /**< Array to store the parent vertex of each vertex in the graph during the BFS traversal. */
 
+  std::vector<edge_t> h_distances;
+  std::vector<vertex_t> h_parents;
+
   /**
    * @brief Constructs a BFSInstance object.
    *
@@ -48,29 +51,56 @@ struct BFSInstance {
     // Initialize distances
     distances = memory::detail::memoryAlloc<edge_t, memory::space::device>(size, queue);
     queue.fill(distances, static_cast<edge_t>(size + 1), size).wait();
-    distances[source] = static_cast<edge_t>(0); // Distance from source to itself is 0
+    queue.fill(distances + source, static_cast<edge_t>(0), 1).wait();
 
     // Initialize parents
     parents = memory::detail::memoryAlloc<vertex_t, memory::space::device>(size, queue);
     queue.fill(parents, static_cast<vertex_t>(-1), size).wait();
   }
 
+  void copyToHost() {
+    size_t vertex_count = G.getVertexCount();
+    h_distances.resize(vertex_count);
+    h_parents.resize(vertex_count);
+
+    G.getQueue().copy(distances, h_distances.data(), vertex_count).wait();
+    G.getQueue().copy(parents, h_parents.data(), vertex_count).wait();
+  }
+
   size_t getVisitedVertices() const {
     size_t vertex_count = G.getVertexCount();
     size_t visited_nodes = 0;
+    std::vector<edge_t> h_distances(vertex_count);
+    G.getQueue().copy(distances, h_distances.data(), vertex_count).wait();
+
     for (size_t i = 0; i < G.getVertexCount(); i++) {
-      if (distances[i] != static_cast<edge_t>(vertex_count + 1)) { visited_nodes++; }
+      if (h_distances[i] != static_cast<edge_t>(vertex_count + 1)) { visited_nodes++; }
     }
     return visited_nodes;
   }
 
   size_t getVisitedEdges() const {
     size_t vertex_count = G.getVertexCount();
-    size_t visited_edges = 0;
-    for (size_t i = 0; i < G.getVertexCount(); i++) {
-      if (distances[i] != static_cast<edge_t>(vertex_count + 1)) { visited_edges += G.getDegree(i); }
-    }
-    return visited_edges;
+    sycl::queue& queue = G.getQueue();
+
+    int* visited_edges = sycl::malloc_device<int>(1, G.getQueue());
+    auto device_graph = G.getDeviceGraph();
+    queue
+        .submit([&](sycl::handler& cgh) {
+          auto red = sycl::reduction(visited_edges, 0, sycl::plus<int>());
+          cgh.parallel_for(sycl::range<1>{vertex_count}, red, [=, distances = this->distances](sycl::id<1> idx, auto& sum) {
+            int degree = device_graph.getDegree(idx[0]);
+            auto distance = distances[idx[0]];
+            sum += distance != static_cast<edge_t>(vertex_count + 1) ? degree : 0;
+          });
+        })
+        .wait_and_throw();
+
+    int h_visited_edges;
+
+    queue.copy<int>(visited_edges, &h_visited_edges, 1).wait_and_throw();
+    sycl::free(visited_edges, G.getQueue());
+    return h_visited_edges;
   }
 
   /**
@@ -101,7 +131,7 @@ public:
   /**
    * @brief Constructs a BFS object.
    */
-  BFS(GraphType& g) : _g(g){};
+  BFS(GraphType& g) : _g(g) {};
 
   /**
    * @brief Initializes the BFS algorithm with the given graph and source vertex.
@@ -167,6 +197,8 @@ public:
 #ifdef ENABLE_PROFILING
     sygraph::Profiler::addVisitedEdges(_instance->getVisitedEdges());
 #endif
+
+    _instance->copyToHost();
   }
 
   /**
@@ -175,7 +207,7 @@ public:
    * @param vertex The vertex for which to get the distance.
    * @return A pointer to the array of distances.
    */
-  edge_t getDistance(size_t vertex) const { return _instance->distances[vertex]; }
+  edge_t getDistance(size_t vertex) const { return _instance->h_distances[vertex]; }
 
   /**
    * @brief Returns the parent vertices for a vertex in the graph.

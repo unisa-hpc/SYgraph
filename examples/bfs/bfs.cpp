@@ -20,7 +20,7 @@ bool validate(const GraphT& graph, BfsT& bfs, uint source) {
 
   size_t iter = 0;
   size_t mismatches = 0;
-  while (in_frontier.size()) {
+  while (in_frontier.size()) { // TODO[!!!]: This segmentation fault due to validation
     for (size_t i = 0; i < in_frontier.size(); i++) {
       auto vertex = in_frontier[i];
 

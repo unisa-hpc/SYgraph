@@ -58,7 +58,7 @@ struct BCInstance {
     queue.wait_and_throw();
 
     queue.memset(&sigmas[source], static_cast<weight_t>(1), 1);
-    labels[source] = 0;
+    queue.fill(&labels[source], static_cast<vertex_t>(0), 1);
     queue.wait_and_throw();
   }
 
@@ -79,7 +79,7 @@ class BC {
   using weight_t = typename GraphType::weight_t;
 
 public:
-  BC(GraphType& g) : _g(g){};
+  BC(GraphType& g) : _g(g) {};
 
   void init(const vertex_t source) { _instance = std::make_unique<detail::BCInstance<GraphType>>(_g, source); }
 

@@ -213,7 +213,14 @@ public:
    * @param vertex The vertex.
    * @return The number of neighbors.
    */
-  size_t getDegree(vertex_t vertex) const override { return _device_graph.getDegree(vertex); }
+  size_t getDegree(vertex_t vertex) const override {
+    size_t* degree = sycl::malloc_host<size_t>(1, _queue);
+    _queue.submit([&](sycl::handler& cgh) { cgh.single_task([=, device_graph = _device_graph]() { degree[0] = device_graph.getDegree(vertex); }); })
+        .wait_and_throw();
+    size_t ret = degree[0];
+    sycl::free(degree, _queue);
+    return ret;
+  }
 
   /**
    * @brief Returns the index of the first neighbor of a vertex in the graph.
@@ -299,7 +306,6 @@ public:
 
 private:
   sycl::queue& _queue; ///< The SYCL queue associated with the graph.
-
   GraphCSRDevice<IndexT, OffsetT, ValueT> _device_graph;
 };
 } // namespace detail

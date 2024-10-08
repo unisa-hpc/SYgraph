@@ -178,7 +178,18 @@ public:
 
   bool selfAllocated() const { return false; }
 
-  bool empty() const { return _bitmap.empty(); }
+  bool empty() const {
+    sycl::buffer<bool, 1> empty_buf(sycl::range<1>(1));
+    auto device_bitmap = _bitmap;
+    _queue
+        .submit([&](sycl::handler& cgh) {
+          sycl::accessor empty_acc(empty_buf, cgh, sycl::write_only);
+          cgh.single_task([=]() { empty_acc[0] = device_bitmap.empty(); });
+        })
+        .wait();
+    sycl::host_accessor empty_acc(empty_buf);
+    return empty_acc[0];
+  }
 
   bool check(size_t idx) const { return _bitmap.check(idx); }
 
