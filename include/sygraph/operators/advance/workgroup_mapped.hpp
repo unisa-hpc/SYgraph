@@ -244,36 +244,6 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
   return {e};
 }
 
-template<sygraph::frontier::frontier_view InFW,
-         sygraph::frontier::frontier_view OutFW,
-         graph::detail::GraphConcept GraphT,
-         typename T,
-         typename LambdaT>
-sygraph::Event frontier(GraphT& graph,
-                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitmap>& in,
-                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitmap>& out,
-                        LambdaT&& functor) {
-  return launchBitmapKernel<InFW, OutFW, T>(graph, in, out, std::forward<LambdaT>(functor));
-}
-
-template<sygraph::frontier::frontier_view InFW,
-         sygraph::frontier::frontier_view OutFW,
-         graph::detail::GraphConcept GraphT,
-         typename T,
-         typename LambdaT>
-sygraph::Event frontier(GraphT& graph,
-                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::mlb>& in,
-                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::mlb>& out,
-                        LambdaT&& functor) {
-  return launchBitmapKernel<InFW, OutFW, T>(graph, in, out, std::forward<LambdaT>(functor));
-}
-
-template<sygraph::frontier::frontier_view OutFW, graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
-sygraph::Event vertices(GraphT& graph, const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::mlb>& out, LambdaT&& functor) {
-  auto in = sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::none>{};
-  return launchBitmapKernel<sygraph::frontier::frontier_view::graph, OutFW, T>(graph, in, out, std::forward<LambdaT>(functor));
-}
-
 } // namespace workgroup_mapped
 } // namespace detail
 } // namespace advance

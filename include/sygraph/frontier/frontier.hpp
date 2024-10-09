@@ -14,6 +14,7 @@ class frontier_impl_t;
 template<typename T>
 class frontier_impl_t<T, frontier_type::none> {
 public:
+  frontier_impl_t() {};
   const bool getDeviceFrontier() const { return false; }
 };
 
@@ -44,8 +45,9 @@ auto makeFrontier(sycl::queue& q, const GraphType& graph) {
   } else if constexpr (View == frontier_view::edge) {
     frontier_size = graph.getEdgeCount();
     return Frontier<typename GraphType::edge_t, Type>(q, frontier_size);
+  } else {
+    throw std::runtime_error("Invalid frontier view");
   }
-  return Frontier<typename GraphType::vertex_t, Type>(q, frontier_size);
 }
 
 template<typename T, frontier_type FT>
