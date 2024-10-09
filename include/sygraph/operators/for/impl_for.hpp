@@ -50,16 +50,6 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const sygraph::frontier::Fronti
   });
 }
 
-template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
-sygraph::Event execute(GraphT& graph, const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitmap>& frontier, LambdaT&& functor) {
-  return launchBitmapKernel(graph, frontier, functor);
-}
-
-template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
-sygraph::Event execute(GraphT& graph, const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::mlb>& frontier, LambdaT&& functor) {
-  return launchBitmapKernel(graph, frontier, functor);
-}
-
 } // namespace detail
 } // namespace compute
 } // namespace operators

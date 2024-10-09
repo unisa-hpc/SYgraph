@@ -95,33 +95,6 @@ sygraph::Event launchBitmapKernelInplace(GraphT& graph, const sygraph::frontier:
   return e;
 }
 
-
-template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
-sygraph::Event inplace(GraphT& graph, const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitmap>& frontier, LambdaT&& functor) {
-  return launchBitmapKernelInplace(graph, frontier, functor);
-}
-
-template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
-sygraph::Event external(GraphT& graph,
-                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitmap>& in,
-                        sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitmap>& out,
-                        LambdaT&& functor) {
-  return launchBitmapKernelExternal(graph, in, out, functor);
-}
-
-template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
-sygraph::Event inplace(GraphT& graph, const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::mlb>& frontier, LambdaT&& functor) {
-  return launchBitmapKernelInplace(graph, frontier, functor);
-}
-
-template<graph::detail::GraphConcept GraphT, typename T, typename LambdaT>
-sygraph::Event external(GraphT& graph,
-                        const sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::mlb>& in,
-                        sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::mlb>& out,
-                        LambdaT&& functor) {
-  return launchBitmapKernelExternal(graph, in, out, functor);
-}
-
 } // namespace detail
 } // namespace filter
 } // namespace operators

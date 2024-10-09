@@ -22,7 +22,7 @@ namespace compute {
 
 template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_type FrontierType, typename LambdaT>
 sygraph::Event execute(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierType>& frontier, LambdaT&& functor) {
-  return sygraph::operators::compute::detail::execute(graph, frontier, std::forward<LambdaT>(functor));
+  return sygraph::operators::compute::detail::launchBitmapKernel(graph, frontier, functor);
 }
 
 } // namespace compute
