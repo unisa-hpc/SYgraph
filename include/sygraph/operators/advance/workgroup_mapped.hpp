@@ -190,6 +190,8 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
 
   size_t num_nodes = graph.getVertexCount();
 
+  using element_t = typename GraphT::vertex_t;
+
   auto in_dev_frontier = in.getDeviceFrontier();
   auto out_dev_frontier = out.getDeviceFrontier();
   auto graph_dev = graph.getDeviceGraph();
@@ -211,7 +213,7 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
   sycl::range<1> global_range{global_size > local_range[0] ? global_size + (local_range[0] - (global_size % local_range[0])) : local_range[0]};
 
   Context<InFW, OutFW, decltype(in_dev_frontier), decltype(out_dev_frontier)> context{num_nodes, in_dev_frontier, out_dev_frontier};
-  using bitmap_kernel_t = BitmapKernel<InFW, OutFW, T, decltype(context), decltype(graph_dev), LambdaT>;
+  using bitmap_kernel_t = BitmapKernel<InFW, OutFW, element_t, decltype(context), decltype(graph_dev), LambdaT>;
 
   const uint32_t max_num_subgroups = sygraph::details::device::getMaxNumSubgroups(q);
 
@@ -219,10 +221,10 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
     sycl::local_accessor<uint32_t, 1> n_edges_wg{local_range, cgh};
     sycl::local_accessor<uint32_t, 1> n_edges_sg{local_range, cgh};
     sycl::local_accessor<bool, 1> visited{local_range, cgh};
-    sycl::local_accessor<T, 1> subgroup_reduce{local_range, cgh};
+    sycl::local_accessor<element_t, 1> subgroup_reduce{local_range, cgh};
     sycl::local_accessor<uint32_t, 1> subgroup_reduce_tail{max_num_subgroups, cgh};
     sycl::local_accessor<uint32_t, 1> subgroup_ids{local_range, cgh};
-    sycl::local_accessor<T, 1> workgroup_reduce{local_range, cgh};
+    sycl::local_accessor<element_t, 1> workgroup_reduce{local_range, cgh};
     sycl::local_accessor<uint32_t, 1> workgroup_reduce_tail{1, cgh};
     sycl::local_accessor<uint32_t, 1> workgroup_ids{local_range, cgh};
 

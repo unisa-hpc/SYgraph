@@ -37,7 +37,7 @@ sygraph::Event vertices(GraphT& graph, sygraph::frontier::Frontier<T, FrontierTy
 
 template<sygraph::operators::load_balancer Lb, typename GraphT, typename LambdaT>
 sygraph::Event vertices(GraphT& graph, LambdaT&& functor) {
-  auto out = sygraph::frontier::Frontier<bool, sygraph::frontier::frontier_type::none>{};
+  auto out = sygraph::frontier::Frontier<void, sygraph::frontier::frontier_type::none>{};
   return vertices<Lb, sygraph::frontier::frontier_view::none>(graph, out, std::forward<LambdaT>(functor));
 }
 
@@ -67,7 +67,7 @@ template<sygraph::operators::load_balancer Lb,
          typename T,
          frontier::frontier_type FrontierType>
 sygraph::Event frontier(GraphT& graph, sygraph::frontier::Frontier<T, FrontierType>& in, LambdaT&& functor) {
-  auto out = sygraph::frontier::Frontier<bool, sygraph::frontier::frontier_type::none>{};
+  auto out = sygraph::frontier::Frontier<void, sygraph::frontier::frontier_type::none>{};
   return frontier<Lb, InView, sygraph::frontier::frontier_view::none>(graph, in, out, std::forward<LambdaT>(functor));
 }
 
