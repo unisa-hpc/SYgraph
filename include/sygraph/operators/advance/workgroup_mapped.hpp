@@ -190,7 +190,7 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
 
   size_t num_nodes = graph.getVertexCount();
 
-  using element_t = typename GraphT::vertex_t;
+  using element_t = std::conditional_t<InFW == sygraph::frontier::frontier_view::vertex, typename GraphT::vertex_t, typename GraphT::edge_t>;
 
   auto in_dev_frontier = in.getDeviceFrontier();
   auto out_dev_frontier = out.getDeviceFrontier();
