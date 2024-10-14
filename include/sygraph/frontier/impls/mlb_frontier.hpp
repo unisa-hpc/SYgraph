@@ -274,7 +274,13 @@ public:
 
   const DeviceFrontier& getDeviceFrontier() const { return _bitmap; }
 
-  size_t computeActiveFrontier() const {
+  /**
+   * @brief Compute the active frontier.
+   * @param return_set_bits If true, the active elements are returned. Otherwise, the inactive elements are returned.
+   * @post The offsets are stored in the offsets array.
+   * @return The number of active elements.
+   */
+  size_t computeActiveFrontier(bool return_set_bits = true) const {
     if constexpr (Levels != 2) { throw std::runtime_error("Only 2 levels are supported"); }
 
     sycl::range<1> local_range{128};
@@ -307,7 +313,10 @@ public:
                          if (gid < size) {
                            bitmap_type data = bitmap.getData(1)[gid];
                            for (size_t i = 0; i < range; i++) {
-                             if (data & (static_cast<bitmap_type>(1) << i)) { local_offsets[local_size_ref++] = i + gid * range; }
+                             // This check is needed to understand if we want to add active or inactive elements
+                             if (((data & (static_cast<bitmap_type>(1) << i)) != 0) == ActiveElements) {
+                               local_offsets[local_size_ref++] = i + gid * range;
+                             }
                            }
                          }
 
