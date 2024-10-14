@@ -180,6 +180,7 @@ namespace workgroup_mapped {
 
 template<sygraph::frontier::frontier_view InFW,
          sygraph::frontier::frontier_view OutFW,
+         sygraph::operators::direction Direction,
          typename T,
          graph::detail::GraphConcept GraphT,
          typename InFrontierT,

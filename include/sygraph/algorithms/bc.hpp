@@ -109,6 +109,7 @@ public:
 
     while (!in_frontier.empty()) {
       auto e = sygraph::operators::advance::frontier<sygraph::operators::load_balancer::workgroup_mapped,
+                                                     sygraph::operators::direction::push,
                                                      sygraph::frontier::frontier_view::vertex,
                                                      sygraph::frontier::frontier_view::vertex>(
           G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
@@ -139,6 +140,7 @@ public:
       frontiers_states.pop_back();
 
       auto e = sygraph::operators::advance::frontier<sygraph::operators::load_balancer::workgroup_mapped,
+                                                     sygraph::operators::direction::push,
                                                      sygraph::frontier::frontier_view::vertex,
                                                      sygraph::frontier::frontier_view::none>(
           G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {

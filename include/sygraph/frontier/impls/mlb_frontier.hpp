@@ -314,7 +314,7 @@ public:
                            bitmap_type data = bitmap.getData(1)[gid];
                            for (size_t i = 0; i < range; i++) {
                              // This check is needed to understand if we want to add active or inactive elements
-                             if (((data & (static_cast<bitmap_type>(1) << i)) != 0) == ActiveElements) {
+                             if (((data & (static_cast<bitmap_type>(1) << i)) != 0) == return_set_bits) {
                                local_offsets[local_size_ref++] = i + gid * range;
                              }
                            }

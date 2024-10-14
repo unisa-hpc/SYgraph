@@ -128,7 +128,7 @@ public:
     size_t size = G.getVertexCount();
     int iter = 0;
 
-    auto e1 = sygraph::operators::advance::vertices<load_balance_t::workgroup_mapped, frontier_view_t::vertex>(
+    auto e1 = sygraph::operators::advance::vertices<load_balance_t::workgroup_mapped, direction_t::push, frontier_view_t::vertex>(
         G, in_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
           vertex_t src_label = sygraph::sync::load(&labels[src]);
           vertex_t dst_label = sygraph::sync::load(&labels[dst]);
@@ -142,16 +142,17 @@ public:
 
     // TODO: Add automatic load_balancing for the type of graph.
     while (!in_frontier.empty()) {
-      auto e1 = sygraph::operators::advance::frontier<load_balance_t::workgroup_mapped, frontier_view_t::vertex, frontier_view_t::vertex>(
-          G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
-            vertex_t src_label = sygraph::sync::load(&labels[src]);
-            vertex_t dst_label = sygraph::sync::load(&labels[dst]);
-            if (dst_label < src_label) {
-              sygraph::sync::store(&labels[dst], src_label);
-              return true;
-            }
-            return false;
-          });
+      auto e1 = sygraph::operators::advance::
+          frontier<load_balance_t::workgroup_mapped, direction_t::push, frontier_view_t::vertex, frontier_view_t::vertex>(
+              G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
+                vertex_t src_label = sygraph::sync::load(&labels[src]);
+                vertex_t dst_label = sygraph::sync::load(&labels[dst]);
+                if (dst_label < src_label) {
+                  sygraph::sync::store(&labels[dst], src_label);
+                  return true;
+                }
+                return false;
+              });
       e1.waitAndThrow();
 
 #ifdef ENABLE_PROFILING
