@@ -276,11 +276,12 @@ public:
 
   /**
    * @brief Compute the active frontier.
-   * @param return_set_bits If true, the active elements are returned. Otherwise, the inactive elements are returned.
+   * @tparam return_set_bits If true, the active elements are the set bits, otherwise the active elements are the unset bits.
    * @post The offsets are stored in the offsets array.
    * @return The number of active elements.
    */
-  size_t computeActiveFrontier(bool return_set_bits = true) const {
+  template<bool return_set_bits = true>
+  size_t computeActiveFrontier() const {
     if constexpr (Levels != 2) { throw std::runtime_error("Only 2 levels are supported"); }
 
     sycl::range<1> local_range{128};
@@ -291,6 +292,8 @@ public:
 
     size_t size_offsets = bitmap.getOffsetsSize()[0];
     if (size_offsets > 0) { return size_offsets; }
+
+    const bitmap_type MAX_VAL = std::numeric_limits<bitmap_type>::max();
 
     auto e = this->_queue.submit([&](sycl::handler& cgh) {
       sycl::local_accessor<int, 1> local_offsets(local_range[0] * range, cgh);
@@ -313,9 +316,15 @@ public:
                          if (gid < size) {
                            bitmap_type data = bitmap.getData(1)[gid];
                            for (size_t i = 0; i < range; i++) {
-                             bool bit = (data & (static_cast<bitmap_type>(1) << i)) != 0;
-                             // This check is needed to understand if we want to add active or inactive elements
-                             if (!(!bit && return_set_bits)) { local_offsets[local_size_ref++] = i + gid * range; }
+                             if constexpr (return_set_bits) {
+                               if (data & (static_cast<bitmap_type>(1) << i)) { local_offsets[local_size_ref++] = i + gid * range; }
+                             } else {
+                               bitmap_type mask = bitmap.getData(0)[i + gid * range];
+
+                               if (!(data & (static_cast<bitmap_type>(1) << i)) || (mask != MAX_VAL)) {
+                                 local_offsets[local_size_ref++] = i + gid * range;
+                               }
+                             }
                            }
                          }
 

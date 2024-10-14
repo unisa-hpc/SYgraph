@@ -20,7 +20,15 @@ namespace detail {
 template<sygraph::frontier::frontier_view IFW, sygraph::frontier::frontier_view OFW>
 class workgroup_mapped_advance_kernel; // needed only for naming purposes
 
-template<sygraph::frontier::frontier_view IFW, sygraph::frontier::frontier_view OFW, typename InFrontierDevT, typename OutFrontierDevT>
+template<sygraph::frontier::frontier_view IFW,
+         sygraph::frontier::frontier_view OFW,
+         sygraph::operators::direction Direction,
+         typename InFrontierDevT,
+         typename OutFrontierDevT,
+         typename VertexT,
+         typename EdgeT,
+         typename WeightT,
+         typename LambdaT>
 struct Context {
   size_t limit;
   InFrontierDevT in_dev_frontier;
@@ -46,7 +54,7 @@ struct Context {
 
   SYCL_EXTERNAL inline bool check(sycl::nd_item<1> item, size_t vertex) const {
     if constexpr (IFW == sygraph::frontier::frontier_view::vertex) {
-      return vertex < limit && in_dev_frontier.check(vertex);
+      return vertex < limit && (in_dev_frontier.check(vertex) == (Direction == sygraph::operators::direction::push));
     } else if constexpr (IFW == sygraph::frontier::frontier_view::graph) {
       return vertex < limit;
     } else {
@@ -54,10 +62,19 @@ struct Context {
     }
   }
 
-  SYCL_EXTERNAL inline void insert(size_t vertex) const {
+  SYCL_EXTERNAL inline void conditionalInsertion(size_t vertex) const {
     if constexpr (OFW == sygraph::frontier::frontier_view::vertex) {
       out_dev_frontier.insert(vertex);
     } else if constexpr (OFW == sygraph::frontier::frontier_view::none) {
+    }
+  }
+
+  SYCL_EXTERNAL inline void insert(VertexT src, VertexT dst, EdgeT edge, WeightT weight, const LambdaT& functor) const {
+    if constexpr (Direction == sygraph::operators::direction::push) {
+      if (functor(src, dst, edge, weight)) { conditionalInsertion(dst); }
+    } else if constexpr (Direction == sygraph::operators::direction::pull) { // TODO logic error: to implement the pull advance I should check that
+                                                                             // the PARENT of the node is in the frontier
+      if (in_dev_frontier.check(dst) && functor(dst, src, edge, weight)) { conditionalInsertion(src); }
     }
   }
 };
@@ -120,7 +137,8 @@ struct BitmapKernel {
         auto edge = n.getIndex();
         auto weight = graph_dev.getEdgeWeight(edge);
         auto neighbor = *n;
-        if (functor(vertex, neighbor, edge, weight)) { context.insert(neighbor); }
+        context.insert(vertex, neighbor, edge, weight, functor);
+        // if (functor(vertex, neighbor, edge, weight)) { context.insert(neighbor); }
       }
 
       if (wgroup.leader()) { visited[workgroup_ids[i]] = true; }
@@ -140,7 +158,8 @@ struct BitmapKernel {
         auto edge = n.getIndex();
         auto weight = graph_dev.getEdgeWeight(edge);
         auto neighbor = *n;
-        if (functor(vertex, neighbor, edge, weight)) { context.insert(neighbor); }
+        context.insert(vertex, neighbor, edge, weight, functor);
+        // if (functor(vertex, neighbor, edge, weight)) { context.insert(neighbor); }
       }
 
       if (sgroup.leader()) { visited[subgroup_ids[vertex_id]] = true; }
@@ -156,7 +175,8 @@ struct BitmapKernel {
         auto edge = n.getIndex();
         auto weight = graph_dev.getEdgeWeight(edge);
         auto neighbor = *n;
-        if (functor(vertex, neighbor, edge, weight)) { context.insert(neighbor); }
+        context.insert(vertex, neighbor, edge, weight, functor);
+        // if (functor(vertex, neighbor, edge, weight)) { context.insert(neighbor); }
       }
     }
   }
@@ -192,6 +212,9 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
   size_t num_nodes = graph.getVertexCount();
 
   using element_t = std::conditional_t<InFW == sygraph::frontier::frontier_view::vertex, typename GraphT::vertex_t, typename GraphT::edge_t>;
+  using vertex_t = typename GraphT::vertex_t;
+  using edge_t = typename GraphT::edge_t;
+  using weight_t = typename GraphT::weight_t;
 
   auto in_dev_frontier = in.getDeviceFrontier();
   auto out_dev_frontier = out.getDeviceFrontier();
@@ -202,7 +225,7 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
   size_t global_size;
   if constexpr (InFW == sygraph::frontier::frontier_view::vertex) {
     size_t bitmap_range = in.getBitmapRange();
-    size_t offsets_size = in.computeActiveFrontier();
+    size_t offsets_size = in.template computeActiveFrontier<Direction == sygraph::operators::direction::push>();
     local_range = {bitmap_range * coarsening_factor};
     global_size = offsets_size * bitmap_range;
   } else if constexpr (InFW == sygraph::frontier::frontier_view::graph) {
@@ -213,7 +236,8 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
   }
   sycl::range<1> global_range{global_size > local_range[0] ? global_size + (local_range[0] - (global_size % local_range[0])) : local_range[0]};
 
-  Context<InFW, OutFW, decltype(in_dev_frontier), decltype(out_dev_frontier)> context{num_nodes, in_dev_frontier, out_dev_frontier};
+  Context<InFW, OutFW, Direction, decltype(in_dev_frontier), decltype(out_dev_frontier), vertex_t, edge_t, weight_t, LambdaT> context{
+      num_nodes, in_dev_frontier, out_dev_frontier};
   using bitmap_kernel_t = BitmapKernel<InFW, OutFW, element_t, decltype(context), decltype(graph_dev), LambdaT>;
 
   const uint32_t max_num_subgroups = sygraph::details::device::getMaxNumSubgroups(q);
