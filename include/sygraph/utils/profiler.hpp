@@ -32,17 +32,19 @@ public:
     details::num_visited_edges = 0;
   }
 
-  static void print() {
+  static void print(bool detailed = false) {
     double milliseconds = 0.0;
     double total_ms = 0.0;
     for (auto& [tag, events] : details::events) {
-      std::cout << " Kernel [" << tag << " x " << events.size() << "]";
+      size_t i = 0;
       for (auto& event : events) {
-        milliseconds += static_cast<double>(event.get_profiling_info<sycl::info::event_profiling::command_end>()
-                                            - event.get_profiling_info<sycl::info::event_profiling::command_start>())
-                        / 1e6;
+        double event_time = static_cast<double>(event.get_profiling_info<sycl::info::event_profiling::command_end>()
+                                                - event.get_profiling_info<sycl::info::event_profiling::command_start>())
+                            / 1e6;
+        if (detailed) { std::cout << "#" << i++ << " [" << tag << "] " << event_time << " ms" << std::endl; }
+        milliseconds += event_time;
       }
-      std::cout << " Time: " << milliseconds << " ms" << std::endl;
+      std::cout << " Kernel [" << tag << " x " << events.size() << "] Time: " << milliseconds << " ms" << std::endl;
       total_ms += milliseconds;
       milliseconds = 0.0;
     }

@@ -12,7 +12,6 @@
 #include <sygraph/utils/vector.hpp>
 
 #include <sygraph/operators/filter/bitmap_filter_impl.hpp>
-#include <sygraph/operators/filter/vector_filter_impl.hpp>
 
 namespace sygraph {
 inline namespace v0 {
@@ -22,7 +21,7 @@ namespace filter {
 
 template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_type FrontierType, typename LambdaT>
 sygraph::Event inplace(GraphT& graph, const sygraph::frontier::Frontier<T, FrontierType>& frontier, LambdaT&& functor) {
-  return sygraph::operators::filter::detail::inplace(graph, frontier, std::forward<LambdaT>(functor));
+  return sygraph::operators::filter::detail::launchBitmapKernelInplace(graph, frontier, functor);
 }
 
 template<typename GraphT, typename T, sygraph::frontier::frontier_type FrontierType, typename LambdaT>
@@ -30,7 +29,7 @@ sygraph::Event external(GraphT& graph,
                         const sygraph::frontier::Frontier<T, FrontierType>& in,
                         sygraph::frontier::Frontier<T, FrontierType>& out,
                         LambdaT&& functor) {
-  return sygraph::operators::filter::detail::external(graph, in, out, std::forward<LambdaT>(functor));
+  return sygraph::operators::filter::detail::launchBitmapKernelExternal(graph, in, out, functor);
 }
 
 

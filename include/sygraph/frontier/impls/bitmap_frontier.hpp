@@ -18,7 +18,7 @@ template<typename T>
 class FrontierBitmap;
 
 template<typename T, typename B = types::bitmap_type_t>
-class [[deprecated("BitmapDevice is deprecated, use HierarchicBitmapDevice instead")]] BitmapDevice {
+class [[deprecated("BitmapDevice is deprecated, use MLB instead")]] BitmapDevice {
 public:
   using bitmap_type = B;
 
@@ -117,7 +117,7 @@ public:
    */
   SYCL_EXTERNAL inline bool check(size_t idx) const { return _data[idx / _range] & (static_cast<bitmap_type>(1) << (idx % _range)); }
 
-  SYCL_EXTERNAL inline bool empty() const { // TODO it might be here the problem of the performance (too many copies from host to device)
+  SYCL_EXTERNAL inline bool empty() const {
     bitmap_type count = static_cast<bitmap_type>(0);
     for (auto i = 0; i < _size; i++) { count += _data[i]; }
     return count == static_cast<bitmap_type>(0);
@@ -184,7 +184,7 @@ protected:
  * @tparam bitmap_type The type of the bitmap.
  */
 template<typename T>
-class [[deprecated("BitmapDevice is deprecated, use FrontierHierarchicBitmap instead")]] FrontierBitmap {
+class [[deprecated("BitmapDevice is deprecated, use MLB instead")]] FrontierBitmap {
 public:
   /**
    * @brief Constructs a frontier_bitmap_t object.
