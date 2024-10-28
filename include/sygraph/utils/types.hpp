@@ -21,6 +21,7 @@ namespace detail {
 constexpr uint byte_size = 8;
 constexpr size_t MAX_LOCAL_MEM_SIZE = 512;
 constexpr size_t MAX_ACTIVE_ELEMS_SIZE = 1048576; // TODO: [!!] This is a temporary value, remove this!
+constexpr size_t COMPUTE_UNIT_SIZE = CU_SIZE;
 
 } // namespace detail
 

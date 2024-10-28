@@ -196,7 +196,8 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
   auto out_dev_frontier = out.getDeviceFrontier();
   auto graph_dev = graph.getDeviceGraph();
 
-  size_t coarsening_factor = 4;
+  size_t coarsening_factor = types::detail::COMPUTE_UNIT_SIZE / details::device::getSubgroupSize(q);
+
   sycl::range<1> local_range;
   size_t global_size;
   if constexpr (InFW == sygraph::frontier::frontier_view::vertex) {

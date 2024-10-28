@@ -20,6 +20,7 @@ option(SYGRAPH_ENABLE_PROFILING "Enable profiling" OFF)
 option(SYGRAPH_ENABLE_PREFETCH "Enable runtime to prefetch shared memory allocation. Turn it OFF for compatibility" OFF)
 
 set(SYGRAPH_BITMAP_SIZE 32 CACHE STRING "Bitmap size in bits. (32, 64)")
+set(SYGRAPH_CU_SIZE 512 CACHE STRING "Number of threads per block in CUDA")
 
 if (SYGRAPH_BUILD_TESTS)
   add_subdirectory(tests)
@@ -27,6 +28,7 @@ if (SYGRAPH_BUILD_TESTS)
 endif()
 
 target_compile_definitions(sygraph INTERFACE "BITMAP_SIZE=${SYGRAPH_BITMAP_SIZE}")
+target_compile_definitions(sygraph INTERFACE "CU_SIZE=${SYGRAPH_CU_SIZE}")
 
 if (SYGRAPH_SAMPLE_DATA)
   target_compile_definitions(sygraph INTERFACE "GENERATE_SAMPLE_DATA")
