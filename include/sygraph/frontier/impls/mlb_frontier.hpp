@@ -103,6 +103,8 @@ public:
     return count == static_cast<bitmap_type>(0);
   }
 
+  SYCL_EXTERNAL inline bool empty(uint32_t el_idx, uint16_t level) const { return _data[level][el_idx]; }
+
   SYCL_EXTERNAL inline const uint32_t getBitmapIndex(uint32_t idx) const { return idx / _range; }
 
   SYCL_EXTERNAL inline int* getOffsets() const { return _offsets; }
@@ -147,7 +149,7 @@ public:
 #pragma unroll
     for (size_t i = 0; i < Levels; i++) {
       size_t size = _bitmap.getBitmapSize(i);
-      ptr[i] = sygraph::memory::detail::memoryAlloc<bitmap_type, memory::space::shared>(size, _queue);
+      ptr[i] = sygraph::memory::detail::memoryAlloc<bitmap_type, memory::space::device>(size, _queue);
       _queue.fill(ptr[i], static_cast<bitmap_type>(0), size);
     }
     _queue.wait();
@@ -175,9 +177,32 @@ public:
 
   bool selfAllocated() const { return false; }
 
-  bool empty() const { return _bitmap.empty(); }
+  bool empty() const {
+    sycl::buffer<bool, 1> empty_buf(sycl::range<1>(1));
+    _queue
+        .submit([&](sycl::handler& cgh) {
+          sycl::accessor empty_acc(empty_buf, cgh, sycl::write_only);
+          auto bitmap = this->getDeviceFrontier();
+          cgh.single_task([=]() { empty_acc[0] = bitmap.empty(); });
+        })
+        .wait();
+    sycl::host_accessor empty_acc(empty_buf);
+    return empty_acc[0];
+  }
 
-  bool check(size_t idx) const { return _bitmap.check(idx); }
+  bool check(size_t idx) const {
+    sycl::buffer<bool, 1> check_buf(sycl::range<1>(1));
+    _queue
+        .submit([&](sycl::handler& cgh) {
+          sycl::accessor check_acc(check_buf, cgh, sycl::write_only);
+          auto bitmap = this->getDeviceFrontier();
+          cgh.single_task([=]() { check_acc[0] = bitmap.check(idx); });
+        })
+        .wait();
+    sycl::host_accessor check_acc(check_buf);
+    return check_acc[0];
+    // return _bitmap.check(idx);
+  }
 
   bool insert(size_t idx) {
     _queue
@@ -275,19 +300,23 @@ public:
   size_t computeActiveFrontier() const {
     if constexpr (Levels != 2) { throw std::runtime_error("Only 2 levels are supported"); }
 
-    sycl::range<1> local_range{128};
+    sycl::range<1> local_range{types::detail::COMPUTE_UNIT_SIZE};
     auto bitmap = this->getDeviceFrontier();
     size_t size = bitmap.getBitmapSize(1);
     uint32_t range = bitmap.getBitmapRange();
     sycl::range<1> global_range{(size > local_range[0] ? size + local_range[0] - (size % local_range[0]) : local_range[0])};
 
-    size_t size_offsets = bitmap.getOffsetsSize()[0];
+    uint32_t size_offsets;
+    _queue.copy(_bitmap.getOffsetsSize(), &size_offsets, 1).wait();
+
     if (size_offsets > 0) { return size_offsets; }
+
+    _queue.fill(_bitmap.getOffsetsSize(), static_cast<uint32_t>(0), 1).wait();
 
     auto e = this->_queue.submit([&](sycl::handler& cgh) {
       sycl::local_accessor<int, 1> local_offsets(local_range[0] * range, cgh);
       sycl::local_accessor<uint32_t, 1> local_size(1, cgh);
-      bitmap.getOffsetsSize()[0] = 0;
+      // bitmap.getOffsetsSize()[0] = 0;
 
 
       cgh.parallel_for(sycl::nd_range<1>{global_range, local_range},
@@ -325,7 +354,8 @@ public:
 #ifdef ENABLE_PROFILING
     sygraph::Profiler::addEvent(e, "computeActiveFrontier");
 #endif
-    return _bitmap.getOffsetsSize()[0];
+    _queue.copy(_bitmap.getOffsetsSize(), &size_offsets, 1).wait();
+    return size_offsets;
   }
 
   static void swap(FrontierMLB<T>& a, FrontierMLB<T>& b) { std::swap(a._bitmap, b._bitmap); }
