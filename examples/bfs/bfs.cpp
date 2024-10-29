@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
   ArgsT<type_t> args{argc, argv};
 
   std::cerr << "[*] Reading CSR" << std::endl;
-  auto csr = readCSR<type_t, type_t, type_t>(args);
+  auto csr = readCSR<float, type_t, type_t>(args);
 
 #ifdef ENABLE_PROFILING
   sycl::queue q{sycl::gpu_selector_v, sycl::property::queue::enable_profiling()};

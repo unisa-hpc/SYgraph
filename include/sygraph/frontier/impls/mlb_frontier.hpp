@@ -51,18 +51,18 @@ public:
     _range = sizeof(bitmap_type) * sygraph::types::detail::byte_size;
     _size[0] = num_elems / _range + (num_elems % _range != 0);
 
-    for (size_t i = 1; i < Levels; i++) { _size[i] = _size[i - 1] / _range + (_size[i - 1] % _range != 0); }
+    for (uint16_t i = 1; i < Levels; i++) { _size[i] = _size[i - 1] / _range + (_size[i - 1] % _range != 0); }
   }
 
-  SYCL_EXTERNAL inline size_t getBitmapSize() const { return _size[0]; }
+  SYCL_EXTERNAL inline uint32_t getBitmapSize() const { return _size[0]; }
 
-  SYCL_EXTERNAL inline size_t getNumElems() const { return _num_elems; }
+  SYCL_EXTERNAL inline uint32_t getNumElems() const { return _num_elems; }
 
-  SYCL_EXTERNAL inline const size_t getBitmapRange() const { return _range; }
+  SYCL_EXTERNAL inline const uint32_t getBitmapRange() const { return _range; }
 
   SYCL_EXTERNAL inline bitmap_type* getData() const { return _data[0]; }
 
-  SYCL_EXTERNAL inline void set(size_t idx, bool val) const {
+  SYCL_EXTERNAL inline void set(uint32_t idx, bool val) const {
     if (val) {
       insert(idx);
     } else {
@@ -72,9 +72,9 @@ public:
 
   SYCL_EXTERNAL inline bool insert(T idx) const {
 #pragma unroll
-    for (size_t i = 0; i < Levels; i++) {
+    for (uint16_t i = 0; i < Levels; i++) {
       T lidx = idx;
-      for (size_t _ = 0; _ < i; _++) { lidx /= _range; } // the index must be divided by the range^level
+      for (uint16_t _ = 0; _ < i; _++) { lidx /= _range; } // the index must be divided by the range^level
       if (!(_data[i][getBitmapIndex(lidx)] & (static_cast<bitmap_type>(1) << (lidx % _range)))) {
         sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(_data[i][getBitmapIndex(lidx)]);
         ref |= static_cast<bitmap_type>(static_cast<bitmap_type>(1) << (lidx % _range));
@@ -83,21 +83,19 @@ public:
     return true;
   }
 
-  SYCL_EXTERNAL inline size_t prealloc(size_t num_elems) const { return 0; }
-
-  SYCL_EXTERNAL inline bool remove(size_t idx) const {
+  SYCL_EXTERNAL inline bool remove(uint32_t idx) const {
     sycl::atomic_ref<bitmap_type, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(_data[0][getBitmapIndex(idx)]);
     ref &= ~(static_cast<bitmap_type>(static_cast<bitmap_type>(1) << (idx % _range)));
     return true;
   }
 
   SYCL_EXTERNAL inline void reset() const {
-    for (size_t i = 0; i < _size; i++) { _data[i] = static_cast<bitmap_type>(0); }
+    for (uint16_t i = 0; i < _size; i++) { _data[i] = static_cast<bitmap_type>(0); }
   }
 
-  SYCL_EXTERNAL inline void reset(size_t id) const { _data[id] = static_cast<bitmap_type>(0); }
+  SYCL_EXTERNAL inline void reset(uint32_t id) const { _data[id] = static_cast<bitmap_type>(0); }
 
-  SYCL_EXTERNAL inline bool check(size_t idx) const { return _data[0][idx / _range] & (static_cast<bitmap_type>(1) << (idx % _range)); }
+  SYCL_EXTERNAL inline bool check(uint32_t idx) const { return _data[0][idx / _range] & (static_cast<bitmap_type>(1) << (idx % _range)); }
 
   SYCL_EXTERNAL inline bool empty() const {
     bitmap_type count = static_cast<bitmap_type>(0);
@@ -105,22 +103,22 @@ public:
     return count == static_cast<bitmap_type>(0);
   }
 
-  SYCL_EXTERNAL inline const size_t getBitmapIndex(size_t idx) const { return idx / _range; }
+  SYCL_EXTERNAL inline const uint32_t getBitmapIndex(uint32_t idx) const { return idx / _range; }
 
   SYCL_EXTERNAL inline int* getOffsets() const { return _offsets; }
 
   SYCL_EXTERNAL inline uint32_t* getOffsetsSize() const { return _offsets_size; }
 
-  SYCL_EXTERNAL inline size_t getBitmapSize(const uint level) const { return _size[level]; }
+  SYCL_EXTERNAL inline uint32_t getBitmapSize(const uint level) const { return _size[level]; }
 
   SYCL_EXTERNAL inline bitmap_type* getData(const uint level) const { return _data[level]; }
 
-  SYCL_EXTERNAL inline bool check(const uint level, size_t idx) const {
+  SYCL_EXTERNAL inline bool check(const uint level, uint32_t idx) const {
     return _data[level][idx / _range] & (static_cast<bitmap_type>(1) << (idx % _range));
   }
 
   void setData(bitmap_type* data[Levels]) {
-    for (size_t i = 0; i < Levels; i++) { this->_data[i] = data[i]; }
+    for (uint16_t i = 0; i < Levels; i++) { this->_data[i] = data[i]; }
   }
 
   void setOffsets(int* offsets) { this->_offsets = offsets; }
@@ -129,8 +127,8 @@ public:
 
 protected:
   uint _range;                ///< The range of the bitmap.
-  size_t _num_elems;          ///< The number of elements in the bitmap.
-  size_t _size[Levels];       ///< The size of the bitmap.
+  uint32_t _num_elems;        ///< The number of elements in the bitmap.
+  uint32_t _size[Levels];     ///< The size of the bitmap.
   bitmap_type* _data[Levels]; ///< Pointer to the bitmap.
 
   int* _offsets;
