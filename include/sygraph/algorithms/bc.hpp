@@ -1,3 +1,5 @@
+#pragma once
+
 #include <sycl/sycl.hpp>
 
 #include <sygraph/frontier/frontier.hpp>
@@ -15,16 +17,6 @@ namespace sygraph {
 inline namespace v0 {
 namespace algorithms {
 namespace detail {
-
-template<typename T>
-void printFrontier(T& f, std::string prefix = "") {
-  using type_t = typename T::type_t;
-  auto size = f.getBitmapSize() * f.getBitmapRange();
-  std::cout << prefix;
-  for (int i = size - 1; i >= 0; --i) { std::cout << (f.check(static_cast<type_t>(i)) ? "1" : "0"); }
-  std::cout << " [" << f.getDeviceFrontier().getData()[0] << "]" << std::endl;
-  std::cout << std::endl;
-}
 
 template<typename GraphType>
 struct BCInstance {

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <sycl/sycl.hpp>
 
 #include <sygraph/frontier/frontier.hpp>
@@ -148,6 +150,7 @@ public:
 
     // TODO: Add automatic load_balancing for the type of graph.
     while (!in_frontier.empty()) {
+      // sygraph::algorithms::detail::printFrontier(in_frontier);
       auto e1 = sygraph::operators::advance::frontier<load_balance_t::workgroup_mapped, frontier_view_t::vertex, frontier_view_t::vertex>(
           G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool { return (iter + 1) < distances[dst]; });
       e1.waitAndThrow();
