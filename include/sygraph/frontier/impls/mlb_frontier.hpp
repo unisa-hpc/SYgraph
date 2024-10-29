@@ -156,7 +156,7 @@ public:
     int* offsets = sygraph::memory::detail::memoryAlloc<int, memory::space::device>(_bitmap.getBitmapSize(), _queue);
     uint32_t* offsets_size = sygraph::memory::detail::memoryAlloc<uint32_t, memory::space::shared>(1, _queue);
     auto size = _bitmap.getBitmapSize();
-    _queue.fill(offsets_size, 0, size).wait();
+    _queue.memset(offsets_size, static_cast<uint32_t>(0), 1).wait();
 
     _bitmap.setData(ptr);
     _bitmap.setOffsets(offsets);
@@ -177,31 +177,47 @@ public:
 
   bool selfAllocated() const { return false; }
 
-  bool empty() const {
-    sycl::buffer<bool, 1> empty_buf(sycl::range<1>(1));
-    _queue
-        .submit([&](sycl::handler& cgh) {
-          sycl::accessor empty_acc(empty_buf, cgh, sycl::write_only);
-          auto bitmap = this->getDeviceFrontier();
-          cgh.single_task([=]() { empty_acc[0] = bitmap.empty(); });
-        })
-        .wait();
-    sycl::host_accessor empty_acc(empty_buf);
-    return empty_acc[0];
+  bool empty() const { // TODO: improve performance
+    auto bitmap = this->getDeviceFrontier();
+    size_t size = bitmap.getBitmapSize(1);
+
+    uint32_t sumResult;
+    sycl::buffer<uint32_t, 1> accumulator{&sumResult, sycl::range<1>{1}};
+
+    const size_t local_size = types::detail::COMPUTE_UNIT_SIZE;
+
+    auto e = _queue.submit([&](sycl::handler& cgh) {
+      auto red = sycl::reduction(accumulator, cgh, sycl::plus<>{});
+
+      cgh.parallel_for(local_size, red, [=](sycl::id<1> idx, auto& sum) {
+        uint64_t count = 0;
+        for (auto i = idx; i < size; i += local_size) { count += bitmap.getData(1)[i]; }
+        sum += count;
+      });
+    });
+
+    e.wait_and_throw();
+    sumResult = sumResult == 0; // Without this line, for some reason, the program gets stuck
+
+#ifdef ENABLE_PROFILING
+    sygraph::Profiler::addEvent(e, "isFrontierEmpty");
+#endif
+
+    sycl::host_accessor empty_acc(accumulator);
+
+    return empty_acc[0] == static_cast<uint32_t>(0);
   }
 
   bool check(size_t idx) const {
     sycl::buffer<bool, 1> check_buf(sycl::range<1>(1));
-    _queue
-        .submit([&](sycl::handler& cgh) {
-          sycl::accessor check_acc(check_buf, cgh, sycl::write_only);
-          auto bitmap = this->getDeviceFrontier();
-          cgh.single_task([=]() { check_acc[0] = bitmap.check(idx); });
-        })
-        .wait();
+    auto e = _queue.submit([&](sycl::handler& cgh) {
+      sycl::accessor check_acc(check_buf, cgh, sycl::write_only);
+      auto bitmap = this->getDeviceFrontier();
+      cgh.single_task([=]() { check_acc[0] = bitmap.check(idx); });
+    });
+    e.wait();
     sycl::host_accessor check_acc(check_buf);
     return check_acc[0];
-    // return _bitmap.check(idx);
   }
 
   bool insert(size_t idx) {
