@@ -34,6 +34,7 @@
 # Datasets
 *.csv
 *.log
+*.err
 
 # VS Code
 .vscode/
