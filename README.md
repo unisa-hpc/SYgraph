@@ -1,9 +1,8 @@
-# SYgraph
+![Logo](/docs/logo.png)
 
 SYgraph is a high-performance graph analytics framework built using [SYCL](https://www.khronos.org/sycl/) and C++20. It is designed for heterogeneous systems, allowing for optimized graph processing across various GPU backends, including support for Intel, AMD, and NVIDIA devices. By leveraging SYCL's abstraction, SYgraph aims to maximize hardware resource utilization, specifically optimizing for sparse dataset processing.
 
 ## Table of Contents
-
 - [Introduction](#introduction)
 - [Features](#features)
 - [Installation](#installation)
