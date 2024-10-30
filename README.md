@@ -35,7 +35,6 @@ Ensure you have the following dependencies:
 
 - **CMake** 3.18 or higher
 - **SYCL Compiler** (e.g., [DPC++](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-compiler.html), [hipSYCL](https://hipsycl.github.io/))
-- **C++20 Compiler** with SYCL support
 
 ### Build Instructions
 
