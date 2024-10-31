@@ -206,7 +206,7 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
     local_range = {bitmap_range * coarsening_factor};
     global_size = offsets_size * bitmap_range;
   } else if constexpr (InFW == sygraph::frontier::frontier_view::graph) {
-    local_range = {256};
+    local_range = {types::detail::COMPUTE_UNIT_SIZE};
     global_size = num_nodes;
   } else {
     throw std::runtime_error("Invalid frontier view");

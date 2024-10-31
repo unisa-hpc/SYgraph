@@ -177,7 +177,7 @@ public:
 
   bool selfAllocated() const { return false; }
 
-  bool empty() const { // TODO: improve performance
+  bool empty() const {
     auto bitmap = this->getDeviceFrontier();
     size_t size = bitmap.getBitmapSize(1);
 
