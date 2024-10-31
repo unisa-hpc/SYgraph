@@ -55,3 +55,4 @@ __pycache__/
 *.mtx
 *.bin
 *.tar.gz
+html/
