@@ -10,7 +10,7 @@ add_executable(advance_graph operators/advance_graph.cpp)
 
 get_directory_property(all_targets BUILDSYSTEM_TARGETS)
 
-set(CMAKE_CXX_FLAGS "${CMAXE_CXX_FLAGS} -fsycl")
+set(CMAKE_CXX_FLAGS "${CMAXE_CXX_FLAGS} -fsycl -fsycl-targets=${ARCH}")
 
 enable_testing()
 

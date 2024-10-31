@@ -20,7 +20,7 @@ int main() {
   using frontier_view_t = sygraph::frontier::frontier_view;
   using frontier_impl_t = sygraph::frontier::frontier_type;
 
-  auto out_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::hierachic_bitmap>(q, G);
+  auto out_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::mlb>(q, G);
 
   bool* visited = sycl::malloc_shared<bool>(G.getVertexCount(), q);
   q.fill(visited, visited + G.getVertexCount(), false).wait();
