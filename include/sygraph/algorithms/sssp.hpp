@@ -75,6 +75,14 @@ struct SSSPInstance {
 } // namespace detail
 
 
+/**
+ * @class SSSP
+ * @brief Single Source Shortest Path (SSSP) algorithm implementation for a given graph type.
+ *
+ * This class provides methods to initialize, run, and retrieve results of the SSSP algorithm.
+ *
+ * @tparam GraphType The type of the graph on which the SSSP algorithm will be executed.
+ */
 template<typename GraphType>
 class SSSP {
   using vertex_t = typename GraphType::vertex_t;
@@ -82,18 +90,54 @@ class SSSP {
   using weight_t = typename GraphType::weight_t;
 
 public:
+  /**
+   * @brief Constructor to initialize the SSSP algorithm with a given graph.
+   *
+   * @param g Reference to the graph on which the SSSP algorithm will be executed.
+   */
   SSSP(GraphType& g) : _g(g) {};
 
-
+  /**
+   * @brief Initializes the Single Source Shortest Path (SSSP) algorithm instance.
+   *
+   * This function initializes the SSSP algorithm by creating a new instance of
+   * the SSSPInstance class with the provided graph and source vertex. It also
+   * sets the distance to the source vertex to zero.
+   *
+   * @param source The source vertex from which to start the SSSP algorithm.
+   */
   void init(vertex_t& source) {
     _instance = std::make_unique<detail::SSSPInstance<GraphType>>(_g, source);
     _instance->distances[source] = 0;
   }
 
 
+  /**
+   * @brief Resets the internal state of the instance.
+   *
+   * This function calls the reset method on the internal instance,
+   * effectively resetting its state to the initial configuration.
+   */
   void reset() { _instance.reset(); }
 
-
+  /**
+   * @brief Executes the Single Source Shortest Path (SSSP) algorithm.
+   *
+   * This function runs the SSSP algorithm on a graph instance. It initializes the necessary
+   * data structures and iteratively processes the graph to compute the shortest paths from
+   * the source vertex to all other vertices.
+   *
+   * @throws std::runtime_error if the SSSP instance is not initialized.
+   *
+   * The function performs the following steps:
+   * 1. Initializes the in_frontier with the source vertex.
+   * 2. Iteratively processes the graph until the in_frontier is empty:
+   *    a. Advances the frontier by exploring neighboring vertices and updating distances.
+   *    b. Filters the out_frontier to remove already visited vertices.
+   *    c. Clears the out_frontier and increments the iteration counter.
+   *
+   * Profiling events are recorded if ENABLE_PROFILING is defined.
+   */
   template<bool EnableProfiling = false>
   void run() {
     if (!_instance) { throw std::runtime_error("SSSP instance not initialized"); }

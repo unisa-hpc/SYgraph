@@ -196,7 +196,7 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
   auto out_dev_frontier = out.getDeviceFrontier();
   auto graph_dev = graph.getDeviceGraph();
 
-  size_t coarsening_factor = types::detail::COMPUTE_UNIT_SIZE / details::device::getSubgroupSize(q);
+  size_t coarsening_factor = types::detail::COMPUTE_UNIT_SIZE / sygraph::detail::device::getSubgroupSize(q);
 
   sycl::range<1> local_range;
   size_t global_size;
@@ -216,7 +216,7 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
   Context<InFW, OutFW, decltype(in_dev_frontier), decltype(out_dev_frontier)> context{num_nodes, in_dev_frontier, out_dev_frontier};
   using bitmap_kernel_t = BitmapKernel<InFW, OutFW, element_t, decltype(context), decltype(graph_dev), LambdaT>;
 
-  const uint32_t max_num_subgroups = sygraph::details::device::getMaxNumSubgroups(q);
+  const uint32_t max_num_subgroups = sygraph::detail::device::getMaxNumSubgroups(q);
 
   auto e = q.submit([&](sycl::handler& cgh) {
     sycl::local_accessor<uint32_t, 1> n_edges_wg{local_range, cgh};

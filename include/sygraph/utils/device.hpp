@@ -7,7 +7,7 @@
 
 namespace sygraph {
 inline namespace v0 {
-namespace details {
+namespace detail {
 namespace device {
 
 uint32_t getMaxNumSubgroups(sycl::queue& queue) {
@@ -26,6 +26,6 @@ uint32_t getWorkgroupSize(sycl::queue& queue) {
 }
 
 } // namespace device
-} // namespace details
+} // namespace detail
 } // namespace v0
 } // namespace sygraph

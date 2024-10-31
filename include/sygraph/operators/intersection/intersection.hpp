@@ -16,6 +16,28 @@ inline namespace v0 {
 namespace operators {
 namespace intersection {
 
+/**
+ * @brief Executes the intersection operation on two input frontiers and stores the result in the output frontier.
+ *
+ * This function performs the intersection of two input frontiers (`in1` and `in2`) and stores the result in the output
+ * frontier (`out`). The operation is executed using a provided functor (`functor`). The function supports different
+ * types of frontiers, and currently, it only supports the bitmap frontier type.
+ *
+ * @tparam GraphT The type of the graph.
+ * @tparam T The type of the elements in the frontiers.
+ * @tparam FrontierType The type of the frontier (e.g., bitmap).
+ * @tparam LambdaT The type of the functor used for the intersection operation.
+ *
+ * @param graph The graph on which the intersection operation is performed.
+ * @param in1 The first input frontier.
+ * @param in2 The second input frontier.
+ * @param out The output frontier where the result of the intersection is stored.
+ * @param functor The functor used to perform the intersection operation.
+ *
+ * @return An event representing the execution of the intersection operation.
+ *
+ * @throws std::runtime_error If the frontier type is not implemented.
+ */
 template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_type FrontierType, typename LambdaT>
 sygraph::Event execute(GraphT& graph,
                        const sygraph::frontier::Frontier<T, FrontierType>& in1,

@@ -103,6 +103,22 @@ sygraph::formats::CSR<ValueT, IndexT, OffsetT> fromCSR(std::istream& iss) {
   return sygraph::formats::CSR<ValueT, IndexT, OffsetT>(row_offsets, column_indices, nnz_values);
 }
 
+/**
+ * @brief Converts a COO (Coordinate List) formatted sparse matrix to CSR (Compressed Sparse Row) format.
+ *
+ * @tparam ValueT The type of the values in the matrix.
+ * @tparam IndexT The type of the indices in the matrix.
+ * @tparam OffsetT The type of the offsets in the CSR format.
+ * @param coo The input COO formatted sparse matrix.
+ * @return A CSR formatted sparse matrix.
+ *
+ * This function takes a sparse matrix in COO format and converts it to CSR format.
+ * The COO format stores the matrix as a list of (row, column, value) tuples,
+ * while the CSR format uses three arrays: one for row offsets, one for column indices,
+ * and one for values. The conversion involves counting the number of non-zero elements
+ * in each row, computing prefix sums to determine row offsets, and then filling the
+ * CSR arrays with the appropriate values and column indices.
+ */
 template<typename ValueT, typename IndexT, typename OffsetT>
 sygraph::formats::CSR<ValueT, IndexT, OffsetT> fromCOO(const sygraph::formats::COO<ValueT, IndexT, OffsetT>& coo) {
   auto coo_row_indices = coo.getRowIndices();
@@ -145,6 +161,20 @@ sygraph::formats::CSR<ValueT, IndexT, OffsetT> fromCOO(const sygraph::formats::C
   return {csr_row_offsets, csr_column_indices, csr_values};
 }
 
+/**
+ * @brief Serializes a CSR (Compressed Sparse Row) matrix to a binary stream.
+ *
+ * This function writes the CSR matrix data to the provided output stream in binary format.
+ * The CSR matrix is represented by its row offsets, column indices, and values arrays.
+ *
+ * @tparam ValueT The type of the values in the CSR matrix.
+ * @tparam IndexT The type of the column indices in the CSR matrix.
+ * @tparam OffsetT The type of the row offsets in the CSR matrix.
+ * @param csr The CSR matrix to be serialized.
+ * @param oss The output stream to which the CSR matrix will be written.
+ *
+ * @throws std::runtime_error If the output stream is not in a good state.
+ */
 template<typename ValueT, typename IndexT, typename OffsetT>
 void toBinary(const sygraph::formats::CSR<ValueT, IndexT, OffsetT>& csr, std::ostream& oss) {
   if (!oss) { throw std::runtime_error("Failed to write binary CSR matrix"); }
@@ -164,6 +194,20 @@ void toBinary(const sygraph::formats::CSR<ValueT, IndexT, OffsetT>& csr, std::os
   oss.write(reinterpret_cast<const char*>(&values[0]), values.size() * sizeof(ValueT));
 }
 
+/**
+ * @brief Reads a CSR (Compressed Sparse Row) matrix from a binary input stream.
+ *
+ * This function reads the number of rows and non-zero elements from the binary
+ * input stream, followed by the row pointers, column indices, and values arrays.
+ * It then constructs and returns a CSR matrix using these arrays.
+ *
+ * @tparam ValueT The type of the values in the CSR matrix.
+ * @tparam IndexT The type of the column indices in the CSR matrix.
+ * @tparam OffsetT The type of the row pointers in the CSR matrix.
+ * @param iss The input stream to read the binary data from.
+ * @return A CSR matrix containing the data read from the input stream.
+ * @throws std::runtime_error If the input stream is not valid or if reading fails.
+ */
 template<typename ValueT, typename IndexT, typename OffsetT>
 sygraph::formats::CSR<ValueT, IndexT, OffsetT> fromBinary(std::istream& iss) {
   if (!iss) { throw std::runtime_error("Failed to read binary CSR matrix"); }

@@ -103,7 +103,7 @@ public:
 
   /**
    * @brief Resets the bit at the specified index to 0.
-   * @details All the bits from [bitmap[id], bitmap[id + 1]) are set to 0.
+   * @detail All the bits from [bitmap[id], bitmap[id + 1]) are set to 0.
    *
    * @param id The index of the bitmap to reset.
    */

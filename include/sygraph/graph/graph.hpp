@@ -11,6 +11,15 @@ inline namespace v0 {
 namespace graph {
 
 
+/**
+ * @class Graph
+ * @brief Abstract base class representing a graph.
+ *
+ * This class provides an interface for graph operations and properties.
+ * It is intended to be subclassed to provide specific graph implementations.
+ *
+ * @note This class is abstract and cannot be instantiated directly.
+ */
 template<typename VertexT, typename EdgeT, typename WeightT>
 class Graph {
 public:

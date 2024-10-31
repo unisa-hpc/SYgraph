@@ -64,6 +64,15 @@ struct BCInstance {
 };
 } // namespace detail
 
+/**
+ * @class BC
+ * @brief A class template for computing Betweenness Centrality on a graph.
+ *
+ * The BC class template provides methods to initialize, reset, and run the Betweenness Centrality algorithm on a
+ * given graph. It uses SYCL for parallel execution and supports profiling.
+ *
+ * @tparam GraphType The type of the graph on which the BC algorithm will be executed.
+ */
 template<typename GraphType>
 class BC {
   using vertex_t = typename GraphType::vertex_t;
@@ -73,10 +82,36 @@ class BC {
 public:
   BC(GraphType& g) : _g(g) {};
 
+  /**
+   * @brief Initializes the BCInstance with the given source vertex.
+   *
+   * This function creates a new instance of BCInstance for the provided graph
+   * and source vertex, and assigns it to the internal _instance member.
+   *
+   * @param source The source vertex from which to initialize the BCInstance.
+   */
   void init(const vertex_t source) { _instance = std::make_unique<detail::BCInstance<GraphType>>(_g, source); }
 
+  /**
+   * @brief Resets the internal state of the instance.
+   *
+   * This function calls the reset method on the internal instance,
+   * effectively resetting its state to the initial configuration.
+   */
   void reset() { _instance.reset(); }
 
+  /**
+   * @brief Executes the Betweenness Centrality (BC) algorithm.
+   *
+   * This function runs the BC algorithm on the graph instance. It initializes the necessary
+   * frontiers and iteratively processes the graph in two phases: forward and backward.
+   *
+   * In the forward phase, it propagates the shortest path labels and sigma values from the source
+   * vertex to all other vertices. In the backward phase, it computes the delta values and updates
+   * the BC values for each vertex.
+   *
+   * @throws std::runtime_error if the BC instance is not initialized.
+   */
   void run() {
     if (!_instance) { throw std::runtime_error("BC instance not initialized"); }
 

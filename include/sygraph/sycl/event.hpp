@@ -5,6 +5,14 @@
 namespace sygraph {
 inline namespace v0 {
 
+
+/**
+ * @class Event
+ * @brief A wrapper class for sycl::event providing additional functionality.
+ *
+ * The Event class extends the functionality of the sycl::event class by
+ * providing additional constructors, assignment operators, and member functions.
+ */
 class Event : public sycl::event {
 public:
   Event() = default;
