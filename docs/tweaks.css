@@ -1,0 +1,23 @@
+#projectname {
+  display: none;
+}
+
+#projectlogo img {
+  margin: 1em;
+}
+
+#projectbrief {
+  font-style: italic;
+  font-weight: bold;
+  text-align: center;
+  color: gray;
+  margin-left: 1em;
+  text-decoration: underline;
+  /* border-radius: 50%;
+  width: 600px;
+  height: 100px;
+  background-color: lightgray; */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
