@@ -10,14 +10,14 @@
 
 namespace sygraph {
 namespace frontier {
+
+namespace detail {
 template<size_t Levels, typename B = types::bitmap_type_t>
 class BitmapState {
 public:
   std::array<size_t, Levels> size;
   std::array<std::vector<B>, Levels> data;
 };
-
-namespace detail {
 
 
 template<typename DeviceFrontier>
@@ -287,8 +287,8 @@ public:
     });
   }
 
-  sygraph::frontier::BitmapState<Levels, bitmap_type> saveState() {
-    sygraph::frontier::BitmapState<Levels, bitmap_type> state;
+  sygraph::frontier::detail::BitmapState<Levels, bitmap_type> saveState() {
+    sygraph::frontier::detail::BitmapState<Levels, bitmap_type> state;
     for (size_t i = 0; i < Levels; i++) {
       state.size[i] = _bitmap.getBitmapSize(i);
       state.data[i].resize(state.size[i]);
@@ -297,7 +297,7 @@ public:
     return state;
   }
 
-  void loadState(const sygraph::frontier::BitmapState<Levels, bitmap_type>& state) {
+  void loadState(const sygraph::frontier::detail::BitmapState<Levels, bitmap_type>& state) {
     for (size_t i = 0; i < Levels; i++) {
       assert(state.size[i] == _bitmap.getBitmapSize(i));
       _queue.copy(state.data[i].data(), _bitmap.getData(i), state.size[i]);
