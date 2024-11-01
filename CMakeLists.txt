@@ -22,6 +22,29 @@ option(SYGRAPH_ENABLE_PREFETCH "Enable runtime to prefetch shared memory allocat
 set(SYGRAPH_BITMAP_SIZE 32 CACHE STRING "Bitmap size in bits. (32, 64)")
 set(SYGRAPH_CU_SIZE 512 CACHE STRING "Number of threads per block in CUDA")
 
+option(SYGRAPH_DOCS "Generate documentation" ON)
+
+# Add documentation target
+if (SYGRAPH_DOCS)
+  find_package(Doxygen REQUIRED)
+  # Set the output directory for the documentation
+  set(DOXYGEN_OUTPUT_DIR ${CMAKE_BINARY_DIR}/docs)
+
+  # Update the Doxyfile with project-specific information
+  set(DOXYGEN_IN ${CMAKE_SOURCE_DIR}/docs/Doxyfile)
+  set(DOXYGEN_OUT ${CMAKE_BINARY_DIR}/Doxyfile)
+
+  configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
+
+  # Configure a target for generating the documentation
+  add_custom_target(doc
+    COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Generating API documentation with Doxygen"
+    VERBATIM
+  ) 
+endif()
+
 if (SYGRAPH_BUILD_TESTS)
   add_subdirectory(tests)
   set(SYGRAPH_SAMPLE_DATA ON)
