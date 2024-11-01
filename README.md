@@ -13,7 +13,7 @@ SYgraph is a high-performance graph analytics framework built using [SYCL](https
 
 ## Introduction
 
-SYgraph is intended for researchers and developers focused on high-performance computing (HPC) and graph analytics, providing specialized data structures and mechanisms tailored to GPU execution. This project is especially valuable for applications requiring highly optimized graph traversal and manipulation, making it suitable for large-scale data analysis and machine learning workflows.
+SYgraph is intended for researchers and developers focused on high-performance computing (HPC) and graph analytics, providing specialized data structures and mechanisms tailored to GPU execution. This project is especially valuable for applications requiring highly optimized graph traversal and manipulation, making it suitable for large-scale data analysis and machine-learning workflows.
 
 ## Features
 
@@ -58,7 +58,7 @@ After cloning the repository you can build the example projects with the followi
 
 2. Set the target architecture (only if using oneAPI compiler).
    ```bash
-   cmake .. -DCMAKE_CXX_COMPILER_PATH=/path/to/sycl/compiler -DARCH=target_architecture
+   cmake .. -DCMAKE_CXX_COMPILER_PATH=/path/to/sycl/compiler -DSYGRAPH_BUILD_EXAMPLES=ON -DARCH=target_architecture
    ```
    The list of available targets is defined [here](https://github.com/intel/llvm/blob/sycl/sycl/doc/UsersManual.md).
 
@@ -69,7 +69,7 @@ After cloning the repository you can build the example projects with the followi
    The build files will be in the `build/bin` folder.
 
 ## Usage
-Since SYgraph is a header-only library, you simply need to include the following in your code:
+Since SYgraph is a header-only library, you need to include the following in your code:
 
 ```c++
 #include <sygraph/sygraph.hpp>
@@ -91,7 +91,7 @@ Under the `/datasets` directory, there is a script called `manager.py` that is e
 To see a full list of commands and options, run `$ python manager.py --help`
 
 ## Configuration
-To configure the project, in the following the list of the available options of the CMake.
+To configure the project, the following list of the available CMake options.
 |Option|Type|Default|Description|
 |-|-|-|-|
 |SYGRAPH_BITMAP_SIZE|Integer|32|Bitmap size in bits. It should match the sub-group (i.e., warp, wavefront) size.|
@@ -103,7 +103,7 @@ To configure the project, in the following the list of the available options of 
 |SYGRAPH_SAMPLE_DATA|Boolean|OFF|Builds also default sparse datasets for testing purposes.|
 
 ## Contributing
-We welcome contributions! If you have improvements or bug fixes, please fork the repository and open a pull request against the develop branch. Ensure your changes are tested on multiple backends where possible.
+We welcome contributions! If you have improvements or bug fixes, please fork the repository and open a pull request against the `develop` branch. Ensure your changes are tested on multiple backends where possible.
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for details.
