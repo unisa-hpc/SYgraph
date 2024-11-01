@@ -35,9 +35,10 @@ Ensure you have the following dependencies:
 
 - **CMake** 3.18 or higher
 - **SYCL Compiler** (e.g., [DPC++](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-compiler.html), [AdaptiveCpp](https://adaptivecpp.github.io))
+- **C++ 20**
 - **Doxygen** >= 1.9.1 (optional)
 
-### Build Instructions
+### Install SYgraph
 
 1. Clone the repository:
    ```bash
@@ -48,12 +49,24 @@ Ensure you have the following dependencies:
    ```bash
    mkdir build && cd build
    cmake .. -DCMAKE_CXX_COMPILER_PATH=/path/to/sycl/compiler
-   make
+   make install
    ```
-This will create the SYgraph binary with default configurations.
+This will create the SYgraph cmake package that can be used in other CMake projects.
 
-Other details related to the CMake configuration are listed in the [Configuration](#configuration) section.
+### Build Examples
+After cloning the repository you can build the example projects with the following procedure.
 
+2. Set the target architecture (only if using oneAPI compiler).
+   ```bash
+   cmake .. -DCMAKE_CXX_COMPILER_PATH=/path/to/sycl/compiler -DARCH=target_architecture
+   ```
+   The list of available targets is defined [here](https://github.com/intel/llvm/blob/sycl/sycl/doc/UsersManual.md).
+
+3. Build the project:
+   ```bash
+   cmake --build . -j
+   ```
+   The build files will be in the `build/bin` folder.
 
 ## Usage
 Since SYgraph is a header-only library, you simply need to include the following in your code:
