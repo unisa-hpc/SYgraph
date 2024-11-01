@@ -11,64 +11,29 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -DDEBUG " CACHE STRING "Flags used by the comp
 
 add_library(sygraph INTERFACE)
 
-target_include_directories(sygraph INTERFACE include)
+include(${CMAKE_SOURCE_DIR}/cmake/DoxygenSetup.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/SetupOptions.cmake)
 
-option(SYGRAPH_BUILD_TESTS "Build tests" OFF)
-option(SYGRAPH_BUILD_EXAMPLES "Build Examples" OFF)
-option(SYGRAPH_SAMPLE_DATA "Generate samples data" OFF)
-option(SYGRAPH_ENABLE_PROFILING "Enable profiling" OFF)
-option(SYGRAPH_ENABLE_PREFETCH "Enable runtime to prefetch shared memory allocation. Turn it OFF for compatibility" OFF)
+# target_include_directories(sygraph INTERFACE include)
+target_include_directories(sygraph INTERFACE  
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>  
+  $<INSTALL_INTERFACE:include>
+)
 
-set(SYGRAPH_BITMAP_SIZE 32 CACHE STRING "Bitmap size in bits. (32, 64)")
-set(SYGRAPH_CU_SIZE 512 CACHE STRING "Number of threads per block in CUDA")
+# Install library headers
+install(DIRECTORY include/ DESTINATION include)
 
-option(SYGRAPH_DOCS "Generate documentation" ON)
+# Install the interface library (header-only)
+install(TARGETS sygraph EXPORT SYgraphConfig)
 
-# Add documentation target
-if (SYGRAPH_DOCS)
-  find_package(Doxygen REQUIRED)
-  # Set the output directory for the documentation
-  set(DOXYGEN_OUTPUT_DIR ${CMAKE_BINARY_DIR}/docs)
-  
-  # Update the Doxyfile with project-specific information
-  set(DOXYGEN_IN ${CMAKE_SOURCE_DIR}/docs/Doxyfile)
-  set(DOXYGEN_OUT ${CMAKE_BINARY_DIR}/Doxyfile)
-  
-  set(DOXYGEN_INPUT_FILES "${CMAKE_SOURCE_DIR}/include/ ${CMAKE_SOURCE_DIR}/docs/index.md")
-  set(DOXYGEN_EXTRA_STYLE "${CMAKE_SOURCE_DIR}/docs/tweaks.css")
+# Export the configuration for find_package support
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/SYgraphConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
 
-  configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
-
-  # Configure a target for generating the documentation
-  add_custom_target(doc
-    COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Generating API documentation with Doxygen"
-    VERBATIM
-  ) 
-endif()
-
-if (SYGRAPH_BUILD_TESTS)
-  add_subdirectory(tests)
-  set(SYGRAPH_SAMPLE_DATA ON)
-endif()
-
-target_compile_definitions(sygraph INTERFACE "BITMAP_SIZE=${SYGRAPH_BITMAP_SIZE}")
-target_compile_definitions(sygraph INTERFACE "CU_SIZE=${SYGRAPH_CU_SIZE}")
-
-if (SYGRAPH_SAMPLE_DATA)
-  target_compile_definitions(sygraph INTERFACE "GENERATE_SAMPLE_DATA")
-endif()
-
-if (SYGRAPH_ENABLE_PROFILING)
-  target_compile_definitions(sygraph INTERFACE "ENABLE_PROFILING")
-endif()
-
-if (SYGRAPH_ENABLE_PREFETCH)
-  target_compile_definitions(sygraph INTERFACE "ENABLE_PREFETCH")
-endif()
-
-if (SYGRAPH_BUILD_EXAMPLES)
-  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-  add_subdirectory(examples)
-endif()
+install(EXPORT SYgraphConfig
+        DESTINATION lib/cmake/SYgraph
+        FILE SYgraphConfig.cmake)

@@ -34,7 +34,8 @@ SYgraph is intended for researchers and developers focused on high-performance c
 Ensure you have the following dependencies:
 
 - **CMake** 3.18 or higher
-- **SYCL Compiler** (e.g., [DPC++](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-compiler.html), [hipSYCL](https://hipsycl.github.io/))
+- **SYCL Compiler** (e.g., [DPC++](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-compiler.html), [AdaptiveCpp](https://adaptivecpp.github.io))
+- **Doxygen** >= 1.9.1 (optional)
 
 ### Build Instructions
 
