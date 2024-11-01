@@ -12,6 +12,9 @@ if (SYGRAPH_DOCS)
   
   set(DOXYGEN_INPUT_FILES "${CMAKE_SOURCE_DIR}/include/ ${CMAKE_SOURCE_DIR}/docs/index.md")
   set(DOXYGEN_EXTRA_STYLE "${CMAKE_SOURCE_DIR}/docs/tweaks.css")
+  set(DOXYGEN_LOGO_PATH "${CMAKE_SOURCE_DIR}/docs/logo.png")
+
+  file(COPY ${DOXYGEN_LOGO_PATH} DESTINATION ${CMAKE_BINARY_DIR}/docs)
 
   configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
 
