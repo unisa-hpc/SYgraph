@@ -29,10 +29,13 @@ if (SYGRAPH_DOCS)
   find_package(Doxygen REQUIRED)
   # Set the output directory for the documentation
   set(DOXYGEN_OUTPUT_DIR ${CMAKE_BINARY_DIR}/docs)
-
+  
   # Update the Doxyfile with project-specific information
   set(DOXYGEN_IN ${CMAKE_SOURCE_DIR}/docs/Doxyfile)
   set(DOXYGEN_OUT ${CMAKE_BINARY_DIR}/Doxyfile)
+  
+  set(DOXYGEN_INPUT_FILES "${CMAKE_SOURCE_DIR}/include/ ${CMAKE_SOURCE_DIR}/docs/index.md")
+  set(DOXYGEN_EXTRA_STYLE "${CMAKE_SOURCE_DIR}/docs/tweaks.css")
 
   configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
 
