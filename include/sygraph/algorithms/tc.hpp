@@ -12,7 +12,6 @@
 
 
 namespace sygraph {
-inline namespace v0 {
 namespace algorithms {
 namespace detail {
 
@@ -49,7 +48,7 @@ class TC {
   using weight_t = typename GraphType::weight_t;
 
 public:
-  TC(GraphType& g) : _g(g){};
+  TC(GraphType& g) : _g(g) {};
 
 
   void init() { _instance = std::make_unique<detail::TCInstance<GraphType>>(_g); }
@@ -136,5 +135,4 @@ private:
 };
 
 } // namespace algorithms
-} // namespace v0
 } // namespace sygraph

@@ -2,7 +2,6 @@
 #include <iostream>
 
 namespace sygraph {
-inline namespace v0 {
 namespace io {
 namespace storage {
 namespace matrices {
@@ -39,6 +38,5 @@ constexpr std::string_view two_cc = "6\n"
 } // namespace matrices
 } // namespace storage
 } // namespace io
-} // namespace v0
 } // namespace sygraph
 #endif

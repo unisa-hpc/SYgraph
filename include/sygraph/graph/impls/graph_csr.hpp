@@ -4,7 +4,6 @@
 #include <sygraph/utils/memory.hpp>
 
 namespace sygraph {
-inline namespace v0 {
 namespace graph {
 namespace detail {
 
@@ -304,5 +303,4 @@ private:
 };
 } // namespace detail
 } // namespace graph
-} // namespace v0
 } // namespace sygraph

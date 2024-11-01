@@ -5,7 +5,6 @@
 
 
 namespace sygraph {
-inline namespace v0 {
 
 /**
  * @todo Remove it, it might be not necessary.
@@ -27,5 +26,4 @@ private:
   size_t _size;
 };
 
-} // namespace v0
 } // namespace sygraph

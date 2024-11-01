@@ -9,7 +9,6 @@
 #endif
 
 namespace sygraph {
-inline namespace v0 {
 namespace frontier {
 namespace detail {
 
@@ -437,5 +436,4 @@ private:
 
 } // namespace detail
 } // namespace frontier
-} // namespace v0
 } // namespace sygraph

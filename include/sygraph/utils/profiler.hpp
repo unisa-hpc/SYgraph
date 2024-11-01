@@ -8,7 +8,6 @@
 #include <vector>
 
 namespace sygraph {
-inline namespace v0 {
 
 namespace detail {
 
@@ -53,7 +52,6 @@ public:
   }
 };
 
-} // namespace v0
 } // namespace sygraph
 
 #endif

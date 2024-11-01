@@ -10,7 +10,6 @@
 #include <sygraph/utils/types.hpp>
 
 namespace sygraph {
-inline namespace v0 {
 namespace io {
 namespace coo {
 
@@ -71,5 +70,4 @@ sygraph::formats::COO<ValueT, IndexT, OffsetT> fromCOO(std::istream& iss, bool u
 
 } // namespace coo
 } // namespace io
-} // namespace v0
 } // namespace sygraph

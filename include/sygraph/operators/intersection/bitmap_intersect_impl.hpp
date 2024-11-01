@@ -10,7 +10,6 @@
 #include <sygraph/utils/vector.hpp>
 
 namespace sygraph {
-inline namespace v0 {
 namespace operators {
 namespace intersection {
 namespace detail {
@@ -29,5 +28,4 @@ sygraph::Event bitmapExecute(GraphT& graph,
 } // namespace detail
 } // namespace intersection
 } // namespace operators
-} // namespace v0
 } // namespace sygraph

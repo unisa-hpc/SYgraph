@@ -8,7 +8,6 @@
 #include <sygraph/formats/csr.hpp>
 
 namespace sygraph {
-inline namespace v0 {
 namespace io {
 namespace csr {
 
@@ -230,5 +229,4 @@ sygraph::formats::CSR<ValueT, IndexT, OffsetT> fromBinary(std::istream& iss) {
 }
 } // namespace csr
 } // namespace io
-} // namespace v0
 } // namespace sygraph

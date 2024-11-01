@@ -7,7 +7,6 @@
 #include <sygraph/utils/types.hpp>
 
 namespace sygraph {
-inline namespace v0 {
 namespace formats {
 
 
@@ -154,5 +153,4 @@ private:
 };
 
 } // namespace formats
-} // namespace v0
 } // namespace sygraph

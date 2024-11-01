@@ -12,7 +12,6 @@
 #include <sygraph/operators/intersection/bitmap_intersect_impl.hpp>
 
 namespace sygraph {
-inline namespace v0 {
 namespace operators {
 namespace intersection {
 
@@ -54,5 +53,4 @@ sygraph::Event execute(GraphT& graph,
 
 } // namespace intersection
 } // namespace operators
-} // namespace v0
 } // namespace sygraph

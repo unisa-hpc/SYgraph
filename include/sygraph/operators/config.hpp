@@ -1,7 +1,6 @@
 #pragma once
 
 namespace sygraph {
-inline namespace v0 {
 namespace operators {
 
 enum class load_balancer {
@@ -16,5 +15,4 @@ enum class direction {
 };
 
 } // namespace operators
-} // namespace v0
 } // namespace sygraph

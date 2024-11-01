@@ -14,7 +14,6 @@
 #include <sygraph/operators/filter/bitmap_filter_impl.hpp>
 
 namespace sygraph {
-inline namespace v0 {
 namespace operators {
 
 namespace filter {
@@ -68,5 +67,4 @@ sygraph::Event external(GraphT& graph,
 
 } // namespace filter
 } // namespace operators
-} // namespace v0
 } // namespace sygraph

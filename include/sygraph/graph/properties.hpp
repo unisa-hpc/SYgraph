@@ -1,7 +1,6 @@
 #pragma once
 
 namespace sygraph {
-inline namespace v0 {
 
 
 /**
@@ -29,5 +28,4 @@ struct Properties {
 };
 
 } // namespace graph
-} // namespace v0
 } // namespace sygraph

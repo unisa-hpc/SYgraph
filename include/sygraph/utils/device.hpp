@@ -6,7 +6,6 @@
 #include <vector>
 
 namespace sygraph {
-inline namespace v0 {
 namespace detail {
 namespace device {
 
@@ -27,5 +26,4 @@ uint32_t getWorkgroupSize(sycl::queue& queue) {
 
 } // namespace device
 } // namespace detail
-} // namespace v0
 } // namespace sygraph

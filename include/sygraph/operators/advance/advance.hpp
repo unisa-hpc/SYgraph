@@ -13,7 +13,6 @@
 #include <sygraph/utils/vector.hpp>
 
 namespace sygraph {
-inline namespace v0 {
 namespace operators {
 
 namespace advance {
@@ -155,5 +154,4 @@ sygraph::Event frontier(GraphT& graph, sygraph::frontier::Frontier<T, FrontierTy
 
 } // namespace advance
 } // namespace operators
-} // namespace v0
 } // namespace sygraph

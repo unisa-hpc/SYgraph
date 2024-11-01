@@ -1,7 +1,6 @@
 #pragma once
 
 namespace sygraph {
-inline namespace v0 {
 namespace frontier {
 
 /**
@@ -24,5 +23,4 @@ enum class frontier_type {
 };
 
 } // namespace frontier
-} // namespace v0
 } // namespace sygraph

@@ -9,7 +9,6 @@
 #include <sygraph/utils/memory.hpp>
 
 namespace sygraph {
-inline namespace v0 {
 namespace graph {
 namespace build {
 
@@ -33,5 +32,4 @@ auto fromCSR(sycl::queue& q, sygraph::formats::CSR<ValueT, IndexT, OffsetT> csr,
 
 } // namespace build
 } // namespace graph
-} // namespace v0
 } // namespace sygraph

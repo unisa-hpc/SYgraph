@@ -12,7 +12,6 @@
 #include <sygraph/utils/vector.hpp>
 
 namespace sygraph {
-inline namespace v0 {
 namespace operators {
 
 namespace filter {
@@ -98,5 +97,4 @@ sygraph::Event launchBitmapKernelInplace(GraphT& graph, const sygraph::frontier:
 } // namespace detail
 } // namespace filter
 } // namespace operators
-} // namespace v0
 } // namespace sygraph

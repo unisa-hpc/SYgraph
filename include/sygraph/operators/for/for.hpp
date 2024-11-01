@@ -14,7 +14,6 @@
 #include <sygraph/operators/for/impl_for.hpp>
 
 namespace sygraph {
-inline namespace v0 {
 namespace operators {
 
 namespace compute {
@@ -44,5 +43,4 @@ sygraph::Event execute(GraphT& graph, const sygraph::frontier::Frontier<T, Front
 
 } // namespace compute
 } // namespace operators
-} // namespace v0
 } // namespace sygraph

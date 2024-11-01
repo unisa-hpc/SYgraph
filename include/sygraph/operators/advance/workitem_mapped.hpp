@@ -8,7 +8,6 @@
 #include <sygraph/utils/types.hpp>
 
 namespace sygraph {
-inline namespace v0 {
 namespace operators {
 
 namespace advance {
@@ -64,5 +63,4 @@ sygraph::Event frontier(GraphT& graph,
 } // namespace detail
 } // namespace advance
 } // namespace operators
-} // namespace v0
 } // namespace sygraph

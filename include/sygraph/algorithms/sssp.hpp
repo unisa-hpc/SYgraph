@@ -16,7 +16,6 @@
 
 
 namespace sygraph {
-inline namespace v0 {
 namespace algorithms {
 namespace detail {
 
@@ -211,5 +210,4 @@ private:
 };
 
 } // namespace algorithms
-} // namespace v0
 } // namespace sygraph

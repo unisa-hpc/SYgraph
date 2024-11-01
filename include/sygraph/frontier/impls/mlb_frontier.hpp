@@ -9,7 +9,6 @@
 #endif
 
 namespace sygraph {
-inline namespace v0 {
 namespace frontier {
 template<size_t Levels, typename B = types::bitmap_type_t>
 class BitmapState {
@@ -384,5 +383,4 @@ protected:
 
 } // namespace detail
 } // namespace frontier
-} // namespace v0
 } // namespace sygraph

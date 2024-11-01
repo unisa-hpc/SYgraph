@@ -3,7 +3,6 @@
 #include <sycl/sycl.hpp>
 
 namespace sygraph {
-inline namespace v0 {
 namespace memory {
 
 enum class space { host, device, shared };
@@ -29,5 +28,4 @@ inline T* memoryAlloc(size_t n, sycl::queue& q) {
 
 } // namespace detail
 } // namespace memory
-} // namespace v0
 } // namespace sygraph

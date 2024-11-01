@@ -10,7 +10,6 @@
 #include <sygraph/utils/types.hpp>
 
 namespace sygraph {
-inline namespace v0 {
 namespace operators {
 
 namespace advance {
@@ -251,5 +250,4 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
 } // namespace detail
 } // namespace advance
 } // namespace operators
-} // namespace v0
 } // namespace sygraph

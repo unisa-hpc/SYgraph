@@ -7,7 +7,6 @@
 
 
 namespace sygraph {
-inline namespace v0 {
 namespace graph {
 
 
@@ -75,5 +74,4 @@ concept GraphConcept = requires(GraphT g) {
 } // namespace detail
 
 } // namespace graph
-} // namespace v0
 } // namespace sygraph

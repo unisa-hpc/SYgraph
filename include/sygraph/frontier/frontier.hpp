@@ -5,7 +5,6 @@
 #include <sygraph/frontier/impls/mlb_frontier.hpp>
 
 namespace sygraph {
-inline namespace v0 {
 namespace frontier {
 namespace detail {
 template<typename T, frontier_type Type>
@@ -78,11 +77,11 @@ auto makeFrontier(sycl::queue& q, const GraphType& graph) {
 
 /**
  * @brief Swaps the contents of two Frontier objects.
- * 
+ *
  * This function swaps the contents of two Frontier objects based on their frontier type.
  * If the frontier type is bitmap, it uses FrontierBitmap's swap method.
  * If the frontier type is mlb, it uses FrontierMLB's swap method.
- * 
+ *
  * @tparam T The type of elements in the Frontier.
  * @tparam FT The frontier type, which determines the specific swap method to use.
  * @param a The first Frontier object to swap.
@@ -98,5 +97,4 @@ void swap(Frontier<T, FT>& a, Frontier<T, FT>& b) {
 }
 
 } // namespace frontier
-} // namespace v0
 } // namespace sygraph

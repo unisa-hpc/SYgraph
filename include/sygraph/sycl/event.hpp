@@ -3,7 +3,6 @@
 #include <sycl/sycl.hpp>
 
 namespace sygraph {
-inline namespace v0 {
 
 
 /**
@@ -34,5 +33,4 @@ public:
   void waitAndThrow() { sycl::event::wait_and_throw(); }
 };
 
-} // namespace v0
 } // namespace sygraph

@@ -3,7 +3,6 @@
 #include <sycl/sycl.hpp>
 
 namespace sygraph {
-inline namespace v0 {
 namespace sync {
 
 /**
@@ -96,5 +95,4 @@ SYCL_EXTERNAL inline bool cas(T* ptr, T& expected, T desired) {
   return ref.compare_exchange_strong(expected, desired);
 }
 } // namespace sync
-} // namespace v0
 } // namespace sygraph

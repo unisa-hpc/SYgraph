@@ -12,7 +12,6 @@
 #include <sygraph/utils/vector.hpp>
 
 namespace sygraph {
-inline namespace v0 {
 namespace operators {
 
 namespace compute {
@@ -53,5 +52,4 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const sygraph::frontier::Fronti
 } // namespace detail
 } // namespace compute
 } // namespace operators
-} // namespace v0
 } // namespace sygraph
