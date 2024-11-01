@@ -19,7 +19,7 @@ enum class frontier_view {
 enum class frontier_type {
   bitmap, /**< Frontier implemented as a bitmap. */
   mlb,    /**< Frontier implemented as a hierarchic bitmap. */
-  none,   /**< Frontier implemented as a bit vector. */
+  none,   /**< Dummy frontier. Should not use. */
 };
 
 } // namespace frontier
