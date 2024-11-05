@@ -12,6 +12,14 @@ namespace sygraph {
 namespace frontier {
 
 namespace detail {
+
+class mlb_compute_active_frontier_kernel;
+class is_mlb_frontier_empty_kernel;
+class compute_size_mlb_frontier_kernel;
+class merge_mlb_frontier_kernel;
+class intersect_mlb_frontier_kernel;
+
+
 template<size_t Levels, typename B = types::bitmap_type_t>
 class BitmapState {
 public:
@@ -188,7 +196,7 @@ public:
     auto e = _queue.submit([&](sycl::handler& cgh) {
       auto red = sycl::reduction(accumulator, cgh, sycl::plus<>{});
 
-      cgh.parallel_for(local_size, red, [=](sycl::id<1> idx, auto& sum) {
+      cgh.parallel_for<is_mlb_frontier_empty_kernel>(local_size, red, [=](sycl::id<1> idx, auto& sum) {
         uint64_t count = 0;
         for (auto i = idx; i < size; i += local_size) { count += bitmap.getData(1)[i]; }
         sum += count;
@@ -246,7 +254,7 @@ public:
     _queue.submit([&](sycl::handler& cgh) {
       auto bitmap = this->getDeviceFrontier();
       auto size_acc = size_buf.get_access<sycl::access::mode::write>(cgh);
-      cgh.parallel_for(sycl::range<1>{frontier_size}, [=](sycl::id<1> idx) {
+      cgh.parallel_for<compute_size_mlb_frontier_kernel>(sycl::range<1>{frontier_size}, [=](sycl::id<1> idx) {
         if (idx == 0) { size_acc[0] = 0; }
         sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(size_acc[0]);
         size_t num_active_nodes = 0;
@@ -273,8 +281,8 @@ public:
     return _queue.submit([&](sycl::handler& cgh) {
       auto bitmap = this->getDeviceFrontier();
       auto other_bitmap = other.getDeviceFrontier();
-      cgh.parallel_for<class merge_bitmap_frontier_kernel>(sycl::range<1>(bitmap.getBitmapSize()),
-                                                           [=](sycl::id<1> idx) { bitmap.getData()[idx] |= other_bitmap.getData()[idx]; });
+      cgh.parallel_for<merge_mlb_frontier_kernel>(sycl::range<1>(bitmap.getBitmapSize()),
+                                                  [=](sycl::id<1> idx) { bitmap.getData()[idx] |= other_bitmap.getData()[idx]; });
     });
   }
 
@@ -282,8 +290,8 @@ public:
     return _queue.submit([&](sycl::handler& cgh) {
       auto bitmap = this->getDeviceFrontier();
       auto other_bitmap = other.getDeviceFrontier();
-      cgh.parallel_for<class intersect_bitmap_frontier_kernel>(sycl::range<1>(bitmap.getBitmapSize()),
-                                                               [=](sycl::id<1> idx) { bitmap.getData()[idx] &= other_bitmap.getData()[idx]; });
+      cgh.parallel_for<intersect_mlb_frontier_kernel>(sycl::range<1>(bitmap.getBitmapSize()),
+                                                      [=](sycl::id<1> idx) { bitmap.getData()[idx] &= other_bitmap.getData()[idx]; });
     });
   }
 
@@ -334,34 +342,33 @@ public:
       // bitmap.getOffsetsSize()[0] = 0;
 
 
-      cgh.parallel_for(sycl::nd_range<1>{global_range, local_range},
-                       [=, offsets_size = bitmap.getOffsetsSize(), offsets = bitmap.getOffsets()](sycl::nd_item<1> item) {
-                         int gid = item.get_global_linear_id();
-                         size_t lid = item.get_local_linear_id();
-                         auto group = item.get_group();
+      cgh.parallel_for<mlb_compute_active_frontier_kernel>(
+          sycl::nd_range<1>{global_range, local_range},
+          [=, offsets_size = bitmap.getOffsetsSize(), offsets = bitmap.getOffsets()](sycl::nd_item<1> item) {
+            int gid = item.get_global_linear_id();
+            size_t lid = item.get_local_linear_id();
+            auto group = item.get_group();
 
-                         sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> local_size_ref(local_size[0]);
-                         sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device> offsets_size_ref{offsets_size[0]};
+            sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> local_size_ref(local_size[0]);
+            sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device> offsets_size_ref{offsets_size[0]};
 
-                         if (group.leader()) { local_size_ref.store(0); }
-                         sycl::group_barrier(group);
+            if (group.leader()) { local_size_ref.store(0); }
+            sycl::group_barrier(group);
 
-                         if (gid < size) {
-                           bitmap_type data = bitmap.getData(1)[gid];
-                           for (size_t i = 0; i < range; i++) {
-                             if (data & (static_cast<bitmap_type>(1) << i)) { local_offsets[local_size_ref++] = i + gid * range; }
-                           }
-                         }
+            if (gid < size) {
+              bitmap_type data = bitmap.getData(1)[gid];
+              for (size_t i = 0; i < range; i++) {
+                if (data & (static_cast<bitmap_type>(1) << i)) { local_offsets[local_size_ref++] = i + gid * range; }
+              }
+            }
 
-                         sycl::group_barrier(group);
+            sycl::group_barrier(group);
 
-                         size_t data_offset = 0;
-                         if (group.leader()) { data_offset = offsets_size_ref.fetch_add(local_size_ref.load()); }
-                         data_offset = sycl::group_broadcast(group, data_offset, 0);
-                         for (size_t i = lid; i < local_size_ref.load(); i += item.get_local_range(0)) {
-                           offsets[data_offset + i] = local_offsets[i];
-                         }
-                       });
+            size_t data_offset = 0;
+            if (group.leader()) { data_offset = offsets_size_ref.fetch_add(local_size_ref.load()); }
+            data_offset = sycl::group_broadcast(group, data_offset, 0);
+            for (size_t i = lid; i < local_size_ref.load(); i += item.get_local_range(0)) { offsets[data_offset + i] = local_offsets[i]; }
+          });
     });
 
     e.wait();

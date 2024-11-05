@@ -18,6 +18,8 @@ namespace compute {
 
 namespace detail {
 
+class functor_kernel;
+
 template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_type FT, typename LambdaT>
 sygraph::Event launchBitmapKernel(GraphT& graph, const sygraph::frontier::Frontier<T, FT>& frontier, LambdaT&& functor) {
   if constexpr (FT != sygraph::frontier::frontier_type::bitmap && FT != sygraph::frontier::frontier_type::mlb) {
@@ -36,7 +38,7 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const sygraph::frontier::Fronti
     size_t global_size = offsets_size * local_range[0];
     sycl::range<1> global_range{global_size > local_range[0] ? global_size + (local_range[0] - (global_size % local_range[0])) : local_range[0]};
 
-    cgh.parallel_for<class for_kernel>(sycl::nd_range<1>{global_range, local_range}, [=](sycl::nd_item<1> item) {
+    cgh.parallel_for<functor_kernel>(sycl::nd_range<1>{global_range, local_range}, [=](sycl::nd_item<1> item) {
       auto lid = item.get_local_id();
       auto group_id = item.get_group_linear_id();
       auto local_size = item.get_local_range()[0];

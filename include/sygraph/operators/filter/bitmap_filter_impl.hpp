@@ -17,6 +17,9 @@ namespace operators {
 namespace filter {
 namespace detail {
 
+class inplace_filter_kernel;
+class external_filter_kernel;
+
 template<graph::detail::GraphConcept GraphT, typename T, sygraph::frontier::frontier_type FT, typename LambdaT>
 sygraph::Event
 launchBitmapKernelExternal(GraphT& graph, const sygraph::frontier::Frontier<T, FT>& in, sygraph::frontier::Frontier<T, FT>& out, LambdaT&& functor) {
@@ -43,7 +46,7 @@ launchBitmapKernelExternal(GraphT& graph, const sygraph::frontier::Frontier<T, F
     size_t global_size = offsets_size * local_range[0];
     sycl::range<1> global_range{global_size > local_range[0] ? global_size + (local_range[0] - (global_size % local_range[0])) : local_range[0]};
 
-    cgh.parallel_for(sycl::nd_range<1>{global_range, local_range}, [=](sycl::nd_item<1> item) {
+    cgh.parallel_for<external_filter_kernel>(sycl::nd_range<1>{global_range, local_range}, [=](sycl::nd_item<1> item) {
       auto lid = item.get_local_id();
       auto group_id = item.get_group_linear_id();
       auto local_size = item.get_local_range()[0];
@@ -79,7 +82,7 @@ sygraph::Event launchBitmapKernelInplace(GraphT& graph, const sygraph::frontier:
     size_t global_size = offsets_size * local_range[0];
     sycl::range<1> global_range{global_size > local_range[0] ? global_size + (local_range[0] - (global_size % local_range[0])) : local_range[0]};
 
-    cgh.parallel_for(sycl::nd_range<1>{global_range, local_range}, [=](sycl::nd_item<1> item) {
+    cgh.parallel_for<inplace_filter_kernel>(sycl::nd_range<1>{global_range, local_range}, [=](sycl::nd_item<1> item) {
       auto lid = item.get_local_id();
       auto group_id = item.get_group_linear_id();
       auto local_size = item.get_local_range()[0];
