@@ -12,6 +12,7 @@ struct ArgsT {
   bool print_output = false;
   bool validate = false;
   bool binary_format = false;
+  bool matrix_market = false;
   bool random_source = true;
   bool undirected = false;
   std::string path;
@@ -35,6 +36,9 @@ struct ArgsT {
     } else {
       if (std::string(argv[1]) == "-b") {
         binary_format = true;
+        path = argv[2];
+      } else if (std::string(argv[1]) == "-m") {
+        matrix_market = true;
         path = argv[2];
       } else if (std::string(argv[1]) == "-h") {
         printUsage();
@@ -95,6 +99,8 @@ sygraph::formats::CSR<ValueT, IndexT, OffsetT> readCSR(const ArgsT<IndexT>& args
       exit(1);
     }
     csr = sygraph::io::csr::fromBinary<ValueT, IndexT, OffsetT>(file);
+  } else if (args.matrix_market) {
+    csr = sygraph::io::csr::fromMM<ValueT, IndexT, OffsetT>(args.path);
   } else {
     std::ifstream file(args.path);
     if (!file.is_open()) {

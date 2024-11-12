@@ -6,6 +6,7 @@
 
 #include <sygraph/formats/coo.hpp>
 #include <sygraph/formats/csr.hpp>
+#include <sygraph/io/matrix_market.hpp>
 
 namespace sygraph {
 namespace io {
@@ -50,6 +51,127 @@ sygraph::formats::CSR<ValueT, IndexT, OffsetT> fromMatrix(std::istream& iss) {
   }
 
   return sygraph::formats::CSR<ValueT, IndexT, OffsetT>(row_offsets, column_indices, nnz_values);
+}
+
+/**
+ * @brief Reads a Matrix Market file in coordinate format and converts it to a CSR matrix.
+ *
+ * This function parses a Matrix Market file from an input stream and converts it to a CSR (Compressed Sparse Row)
+ * matrix format. The function only supports `coordinate` format and `general` or `symmetric` symmetry.
+ * If the matrix is symmetric, both (row, col) and (col, row) entries are stored for each non-diagonal entry.
+ *
+ * @tparam ValueT Type of the non-zero values in the matrix.
+ * @tparam IndexT Type of the indices (default is int).
+ * @tparam OffsetT Type of the offsets (default is int).
+ *
+ * @param iss Input stream containing the Matrix Market data.
+ * @return CSR<ValueT, IndexT, OffsetT> An instance of the CSR class containing the matrix data in CSR format.
+ *
+ * @throws std::runtime_error if the Matrix Market format or symmetry type is unsupported.
+
+ * @note The function expects the input to be in Matrix Market coordinate format.
+ *       It does not support array format or field types other than real numbers.
+ */
+template<typename ValueT, typename IndexT, typename OffsetT>
+sygraph::formats::CSR<ValueT, IndexT, OffsetT> fromMM(std::istream& iss) {
+  sygraph::io::detail::mm::Banner banner;
+
+  size_t rows = 0, cols = 0, nnz = 0;
+  std::vector<std::tuple<IndexT, IndexT, ValueT>> entries;
+
+  // Read matrix dimensions and non-zero count
+  std::string line;
+  bool dimensions_read = false;
+  bool banner_read = false;
+
+  while (std::getline(iss, line)) {
+    if (line[0] == '%') {
+      if (!banner_read) {
+        banner_read = true;
+        banner.read(line);
+        banner.validate<ValueT, IndexT, OffsetT>();
+      }
+      continue;
+    }; // Skip comments
+    std::istringstream line_stream(line);
+
+    if (!dimensions_read) {
+      line_stream >> rows >> cols >> nnz;
+      dimensions_read = true;
+    } else {
+      IndexT row, col;
+      ValueT value;
+      if (banner.isPattern()) {
+        line_stream >> row >> col;
+        value = static_cast<ValueT>(1);
+      } else {
+        line_stream >> row >> col >> value;
+      }
+
+      entries.emplace_back(row - 1, col - 1, value);
+
+      // For symmetric matrices, also add the transpose entry if not on the diagonal
+      if (banner.isSymmetric()) { entries.emplace_back(col - 1, row - 1, value); }
+    }
+  }
+
+  // Sort entries by row, then by column
+  std::sort(entries.begin(), entries.end(), [](const auto& a, const auto& b) {
+    return std::get<0>(a) < std::get<0>(b) || (std::get<0>(a) == std::get<0>(b) && std::get<1>(a) < std::get<1>(b));
+  });
+
+  // Initialize CSR vectors
+  std::vector<OffsetT> row_offsets(rows + 1, 0);
+  std::vector<IndexT> column_indices(entries.size());
+  std::vector<ValueT> nnz_values(entries.size());
+
+  // Count non-zero elements per row for row_offsets
+  for (const auto& entry : entries) { row_offsets[std::get<0>(entry) + 1]++; }
+
+  // Accumulate counts to get row offsets
+  for (IndexT i = 1; i <= rows; ++i) { row_offsets[i] += row_offsets[i - 1]; }
+
+  // Fill in column indices and values arrays
+  std::vector<OffsetT> row_position(rows, 0);
+  for (const auto& entry : entries) {
+    IndexT row = std::get<0>(entry);
+    IndexT col = std::get<1>(entry);
+    ValueT value = std::get<2>(entry);
+
+    OffsetT pos = row_offsets[row] + row_position[row];
+    column_indices[pos] = col;
+    nnz_values[pos] = value;
+    row_position[row]++;
+  }
+
+  return sygraph::formats::CSR<ValueT, IndexT, OffsetT>(row_offsets, column_indices, nnz_values);
+}
+
+/**
+ * @brief Reads a Matrix Market file in coordinate format and converts it to a CSR matrix.
+ *
+ * This function parses a Matrix Market file from an input stream and converts it to a CSR (Compressed Sparse Row)
+ * matrix format. The function only supports `coordinate` format and `general` or `symmetric` symmetry.
+ * If the matrix is symmetric, both (row, col) and (col, row) entries are stored for each non-diagonal entry.
+ *
+ * @tparam ValueT Type of the non-zero values in the matrix.
+ * @tparam IndexT Type of the indices (default is int).
+ * @tparam OffsetT Type of the offsets (default is int).
+ *
+ * @param filename Name of the file containing the Matrix Market data.
+ * @return CSR<ValueT, IndexT, OffsetT> An instance of the CSR class containing the matrix data in CSR format.
+ *
+ * @throws std::runtime_error if the Matrix Market format or symmetry type is unsupported.
+
+ * @note The function expects the input to be in Matrix Market coordinate format.
+ *       It does not support array format or field types other than real numbers.
+ */
+template<typename ValueT, typename IndexT, typename OffsetT>
+sygraph::formats::CSR<ValueT, IndexT, OffsetT> fromMM(const std::string& filename) {
+  std::ifstream file(filename);
+  if (!file.is_open()) { throw std::runtime_error("Failed to open file: " + filename); }
+
+  return fromMM<ValueT, IndexT, OffsetT>(file);
 }
 
 /**
