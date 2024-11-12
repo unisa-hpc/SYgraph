@@ -40,7 +40,11 @@ def download_command(args: argparse.Namespace, graphs: Dict[str, Dict]):
     to_download = args.graph
   for name in to_download:
     info = graphs[name]
-    utl.download_and_extract(name, info['url'], info['folder'])
+    folder = info['folder']
+    if args.destination:
+      folder = os.path.join(args.destination, name)
+
+    utl.download_and_extract(name, info['url'], folder, folder)
 
 def clean_command(args: argparse.Namespace, graphs: Dict[str, Dict]):
   to_clean = []
@@ -90,6 +94,7 @@ def main():
   download_parser.set_defaults(func=download_command)
   download_parser.add_argument('-a', '--all', action='store_true', help='Download all graphs')
   download_parser.add_argument('graph', nargs='*', help='graph(s) to download', metavar='GRAPH')
+  download_parser.add_argument('-d', '--destination', help='Destination folder')
 
   # add info command
   info_parser = subparsers.add_parser('info', help='Get info of a graph', description='Get info of a graph')

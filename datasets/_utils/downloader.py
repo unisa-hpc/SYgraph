@@ -4,17 +4,36 @@ import zipfile
 import tarfile
 from tqdm import tqdm
 
-def download_and_extract(name, url, extract_to='.'):
+import requests
+import os
+import zipfile
+import tarfile
+import shutil
+from tqdm import tqdm
+
+def check_disk_space(directory, required_space):
+    """Check if there's enough space on the drive."""
+    total, used, free = shutil.disk_usage(directory)
+    return free >= required_space
+
+def download_and_extract(name, url, download_dir='.', extract_to='.'):
     try:
+        # Ensure download directory exists
+        os.makedirs(download_dir, exist_ok=True)
+        
         # Step 1: Download the file
         response = requests.get(url, stream=True)
         response.raise_for_status()  # Raise an HTTPError for bad responses
 
         # Get the total file size from the headers
         total_size = int(response.headers.get('content-length', 0))
+        
+        # Check disk space before downloading
+        if not check_disk_space(download_dir, total_size):
+            raise OSError("Not enough space in the specified download directory.")
 
-        # Save the file temporarily
-        temp_file_path = os.path.join(extract_to, f'{name}_temp')
+        # Save the file temporarily in the specified download directory
+        temp_file_path = os.path.join(download_dir, f'{name}_temp')
         with open(temp_file_path, 'wb') as file, tqdm(
             desc=f'Downloading {name}',
             total=total_size,
@@ -28,9 +47,7 @@ def download_and_extract(name, url, extract_to='.'):
 
         # Step 2: Determine the file type
         with open(temp_file_path, 'rb') as file:
-            # Read the first few bytes to determine the file type
             magic_bytes = file.read(262)
-
             if magic_bytes.startswith(b'PK'):
                 file_extension = '.zip'
             elif magic_bytes.startswith(b'\x1f\x8b\x08'):
@@ -39,10 +56,11 @@ def download_and_extract(name, url, extract_to='.'):
                 raise ValueError("Unsupported file type")
 
         # Step 3: Rename the temporary file with the correct extension
-        file_path = os.path.join(extract_to, f'{name}{file_extension}')
+        file_path = os.path.join(download_dir, f'{name}{file_extension}')
         os.rename(temp_file_path, file_path)
 
         # Step 4: Decompress the file and avoid nested directories
+        os.makedirs(extract_to, exist_ok=True)  # Ensure extraction directory exists
         if file_extension == '.zip':
             with zipfile.ZipFile(file_path, 'r') as zip_ref:
                 for member in zip_ref.namelist():
@@ -69,6 +87,5 @@ def download_and_extract(name, url, extract_to='.'):
         print(f"An error occurred while extracting the file: {e}")
     except ValueError as e:
         print(e)
-
-# Example usage:
-# download_and_extract('example', 'https://example.com/path/to/file')
+    except OSError as e:
+        print(f"Error with disk space or directory: {e}")
