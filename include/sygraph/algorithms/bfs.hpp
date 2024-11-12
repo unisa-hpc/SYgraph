@@ -149,16 +149,18 @@ public:
 
     // TODO: Add automatic load_balancing for the type of graph.
     while (!in_frontier.empty()) {
-      // sygraph::algorithms::detail::printFrontier(in_frontier);
       auto e1 = sygraph::operators::advance::frontier<load_balance_t::workgroup_mapped, frontier_view_t::vertex, frontier_view_t::vertex>(
-          G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool { return (iter + 1) < distances[dst]; });
+          G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
+            if (distances[dst] == size + 1) {
+              distances[dst] = iter + 1;
+              return true;
+            }
+            return false;
+          });
       e1.waitAndThrow();
-      auto e2 = sygraph::operators::compute::execute(G, out_frontier, [=](auto v) { distances[v] = iter + 1; });
-      e2.waitAndThrow();
 
 #ifdef ENABLE_PROFILING
       sygraph::Profiler::addEvent(e1, "advance");
-      sygraph::Profiler::addEvent(e2, "for");
 #endif
 
       sygraph::frontier::swap(in_frontier, out_frontier);
