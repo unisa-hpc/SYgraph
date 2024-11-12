@@ -53,8 +53,6 @@ struct Banner {
     mm_field field;
     mm_symmetry symmetry;
 
-    std::cout << "line: " << line << std::endl;
-
     iss >> banner;
 
     if (banner == "%%MatrixMarket") {
