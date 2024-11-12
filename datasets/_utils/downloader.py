@@ -42,15 +42,26 @@ def download_and_extract(name, url, extract_to='.'):
         file_path = os.path.join(extract_to, f'{name}{file_extension}')
         os.rename(temp_file_path, file_path)
 
-        # Step 4: Decompress the file
+        # Step 4: Decompress the file and avoid nested directories
         if file_extension == '.zip':
             with zipfile.ZipFile(file_path, 'r') as zip_ref:
-                zip_ref.extractall(extract_to)
+                for member in zip_ref.namelist():
+                    member_path = os.path.join(extract_to, os.path.basename(member))
+                    if member.endswith('/'):
+                        continue  # Skip folders
+                    with zip_ref.open(member) as source, open(member_path, "wb") as target:
+                        target.write(source.read())
         elif file_extension == '.tar.gz':
             with tarfile.open(file_path, 'r:gz') as tar_ref:
-                tar_ref.extractall(extract_to)
+                for member in tar_ref.getmembers():
+                    if member.isdir():
+                        continue  # Skip folders
+                    member_path = os.path.join(extract_to, os.path.basename(member.name))
+                    with tar_ref.extractfile(member) as source, open(member_path, "wb") as target:
+                        target.write(source.read())
 
-        # Step 5: Clean up the file if needed (not needed for temporary file)
+        # Step 5: Clean up the downloaded archive file
+        os.remove(file_path)
 
     except requests.exceptions.RequestException as e:
         print(f"An error occurred while downloading the file: {e}")
