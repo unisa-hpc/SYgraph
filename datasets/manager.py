@@ -64,7 +64,10 @@ def convert_command(args: argparse.Namespace, graphs: Dict[str, Dict]):
     to_convert = args.graph
   for name in to_convert:
     info = graphs[name]
-    utl.convert_graph(args.converter_path, info['folder'], args.undirected, args.always)
+    folder = info['folder']
+    if args.destination:
+      folder = os.path.join(args.destination, name)
+    utl.convert_graph(args.converter_path, folder, args.undirected, args.always)
   
 
 def info_command(args: argparse.Namespace, graphs: Dict[str, Dict]):
@@ -117,6 +120,7 @@ def main():
   convert_parser.add_argument('-a', '--all', action='store_true', help='Download all graphs')
   convert_parser.add_argument('-u', '--undirected', action='store_true', help='Convert to undirected graph')
   convert_parser.add_argument('-y', '--always', action='store_true', help='Always convert the graph')
+  convert_parser.add_argument('-d', '--destination', help='Destination folder')
   convert_parser.add_argument('graph', nargs='*', help='graph(s) to download', metavar='GRAPH')
   
   # parse arguments
