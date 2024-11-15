@@ -153,6 +153,7 @@ public:
           G, in_frontier, out_frontier, [=](auto src, auto dst, auto edge, auto weight) -> bool {
             if (distances[dst] == size + 1) {
               distances[dst] = iter + 1;
+              parents[dst] = src;
               return true;
             }
             return false;
@@ -182,14 +183,35 @@ public:
   edge_t getDistance(size_t vertex) const { return _instance->distances[vertex]; }
 
   /**
+   * @brief Returns the distances from the source vertex to all vertices in the graph.
+   *
+   * @return A vector of distances.
+   */
+  std::vector<edge_t> getDistances() const {
+    std::vector<edge_t> distances(_instance->G.getVertexCount());
+    sycl::queue& queue = _instance->G.getQueue();
+    queue.memcpy(distances.data(), _instance->distances, distances.size() * sizeof(edge_t)).wait();
+    return distances;
+  }
+
+  /**
    * @brief Returns the parent vertices for a vertex in the graph.
    *
    * @param vertex The vertex for which to get the parent vertices.
    * @return A pointer to the array of parent vertices.
    */
-  vertex_t getParents(size_t vertex) const {
-    throw std::runtime_error("Not implemented");
-    return _instance->parents[vertex];
+  vertex_t getParent(size_t vertex) const { return _instance->parents[vertex]; }
+
+  /**
+   * @brief Returns the parent vertices for all vertices in the graph.
+   *
+   * @return A vector of parent vertices.
+   */
+  std::vector<vertex_t> getParents() const {
+    std::vector<vertex_t> parents(_instance->G.getVertexCount());
+    sycl::queue& queue = _instance->G.getQueue();
+    queue.memcpy(parents.data(), _instance->parents, parents.size() * sizeof(vertex_t)).wait();
+    return parents;
   }
 
 private:

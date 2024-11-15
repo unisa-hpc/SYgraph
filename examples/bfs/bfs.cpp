@@ -93,10 +93,13 @@ int main(int argc, char** argv) {
 
   if (args.print_output) {
     std::cout << std::left;
-    std::cout << std::setw(10) << "Vertex" << std::setw(10) << "Distance" << std::endl;
+    std::cout << std::setw(10) << "Vertex" << std::setw(10) << "Distance" << std::setw(10) << "Parent" << std::endl;
+    auto distances = bfs.getDistances();
+    auto parents = bfs.getParents();
     for (size_t i = 0; i < G.getVertexCount(); i++) {
-      auto distance = bfs.getDistance(i);
-      if (distance != size + 1) { std::cout << std::setw(10) << i << std::setw(10) << distance << std::endl; }
+      auto distance = distances[i];
+      auto parent = parents[i];
+      if (distance != size + 1) { std::cout << std::setw(10) << i << std::setw(10) << distance << std::setw(10) << parent << std::endl; }
     }
   }
 
