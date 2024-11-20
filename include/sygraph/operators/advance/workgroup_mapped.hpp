@@ -223,14 +223,15 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
 
   size_t coarsening_factor = types::detail::COMPUTE_UNIT_SIZE / sygraph::detail::device::getSubgroupSize(q);
 
+  sycl::event to_wait;
   sycl::range<1> local_range;
   size_t global_size;
   if constexpr (InFW == sygraph::frontier::frontier_view::vertex) {
     size_t bitmap_range = in.getBitmapRange();
-    size_t offsets_size = in.computeActiveFrontier();
+    to_wait = in.computeActiveFrontier();
     local_range = {bitmap_range * coarsening_factor};
-    global_size = {local_range[0] * (sygraph::detail::device::getMaxComputeUints(q) * 16)};
-    // global_size = offsets_size * bitmap_range;
+    global_size = {local_range[0] * multiplier[iter++]};
+    // global_size = {local_range[0] * (sygraph::detail::device::getMaxComputeUints(q) * 8)};
   } else if constexpr (InFW == sygraph::frontier::frontier_view::graph) {
     local_range = {types::detail::COMPUTE_UNIT_SIZE};
     global_size = num_nodes;
@@ -245,6 +246,7 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
   const uint32_t max_num_subgroups = sygraph::detail::device::getMaxNumSubgroups(q);
 
   auto e = q.submit([&](sycl::handler& cgh) {
+    cgh.depends_on(to_wait);
     sycl::local_accessor<uint32_t, 1> n_edges_wg{local_range, cgh};
     sycl::local_accessor<uint32_t, 1> n_edges_sg{local_range, cgh};
     sycl::local_accessor<bool, 1> visited{local_range, cgh};

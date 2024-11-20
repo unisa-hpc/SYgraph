@@ -321,7 +321,7 @@ public:
 
   const DeviceFrontier& getDeviceFrontier() const { return _bitmap; }
 
-  size_t computeActiveFrontier() const {
+  sycl::event computeActiveFrontier() const {
     sycl::range<1> local_range{types::detail::COMPUTE_UNIT_SIZE};
     auto bitmap = this->getDeviceFrontier();
     size_t size = bitmap.getBitmapSize(1);
@@ -365,12 +365,10 @@ public:
           });
     });
 
-    e.wait();
-
 #ifdef ENABLE_PROFILING
     sygraph::Profiler::addEvent(e, "computeActiveFrontier");
 #endif
-    return 0;
+    return e;
   }
 
   static void swap(FrontierMLB<T>& a, FrontierMLB<T>& b) { std::swap(a._bitmap, b._bitmap); }
