@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sygraph/sycl/event.hpp>
+#include <sygraph/utils/device.hpp>
 #include <sygraph/utils/memory.hpp>
 #include <sygraph/utils/types.hpp>
 #include <sygraph/utils/vector.hpp>
@@ -186,32 +187,33 @@ public:
 
   bool empty() const {
     auto bitmap = this->getDeviceFrontier();
-    size_t size = bitmap.getBitmapSize(1);
-
-    uint sumResult = 0;
-    sycl::buffer<uint, 1> accumulator{&sumResult, sycl::range<1>{1}};
-    accumulator.set_write_back(false);
 
     const size_t local_size = types::detail::COMPUTE_UNIT_SIZE;
+    const size_t global_size = local_size * sygraph::detail::device::getMaxComputeUints(_queue);
+
+    size_t bitmap_size = bitmap.getBitmapSize(Levels - 1);
+    size_t moduled_size = bitmap_size % local_size ? bitmap_size + local_size - (bitmap_size % local_size) : bitmap_size;
+
+    bool check = false;
+    sycl::buffer<bool, 1> check_buf(&check, sycl::range<1>(1));
+    check_buf.set_write_back(false);
 
     auto e = _queue.submit([&](sycl::handler& cgh) {
-      auto red = sycl::reduction(accumulator, cgh, sycl::plus<>{});
+      sycl::accessor check_acc(check_buf, cgh, sycl::read_write);
 
-      cgh.parallel_for<is_mlb_frontier_empty_kernel>(local_size, red, [=](sycl::id<1> idx, auto& sum) {
-        uint count = 0;
-        for (auto i = idx; i < size; i += local_size) { count += static_cast<uint>(bitmap.getData(1)[i]); }
-        sum += count;
+      cgh.parallel_for<is_mlb_frontier_empty_kernel>(sycl::nd_range<1>{global_size, local_size}, [=](sycl::nd_item<1> item) {
+        sycl::group<1> group = item.get_group();
+        bool tmp = false;
+        for (auto i = item.get_global_linear_id(); i < moduled_size && !tmp && !check_acc[0]; i += global_size) {
+          tmp = sycl::any_of_group(group, i < bitmap_size ? bitmap.getData(Levels - 1)[i] : 0, [](bitmap_type val) { return val != 0; });
+        }
+        if (group.leader() && !check_acc[0] && tmp) check_acc[0] = true;
       });
     });
-
-    e.wait_and_throw();
-
 #ifdef ENABLE_PROFILING
     sygraph::Profiler::addEvent(e, "isFrontierEmpty");
 #endif
-
-    sycl::host_accessor empty_acc(accumulator);
-    return empty_acc[0] == static_cast<int>(0);
+    return !check_buf.get_host_access()[0];
   }
 
   bool check(size_t idx) const {
@@ -320,8 +322,6 @@ public:
   const DeviceFrontier& getDeviceFrontier() const { return _bitmap; }
 
   size_t computeActiveFrontier() const {
-    if constexpr (Levels != 2) { throw std::runtime_error("Only 2 levels are supported"); }
-
     sycl::range<1> local_range{types::detail::COMPUTE_UNIT_SIZE};
     auto bitmap = this->getDeviceFrontier();
     size_t size = bitmap.getBitmapSize(1);
@@ -333,20 +333,17 @@ public:
 
     if (size_offsets > 0) { return size_offsets; }
 
-    _queue.fill(_bitmap.getOffsetsSize(), static_cast<uint32_t>(0), 1).wait();
-
     auto e = this->_queue.submit([&](sycl::handler& cgh) {
       sycl::local_accessor<int, 1> local_offsets(local_range[0] * range, cgh);
       sycl::local_accessor<uint32_t, 1> local_size(1, cgh);
-      // bitmap.getOffsetsSize()[0] = 0;
-
 
       cgh.parallel_for<mlb_compute_active_frontier_kernel>(
           sycl::nd_range<1>{global_range, local_range},
           [=, offsets_size = bitmap.getOffsetsSize(), offsets = bitmap.getOffsets()](sycl::nd_item<1> item) {
             int gid = item.get_global_linear_id();
-            size_t lid = item.get_local_linear_id();
             auto group = item.get_group();
+
+            if (gid == 0) { offsets_size[0] = 0; }
 
             sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> local_size_ref(local_size[0]);
             sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device> offsets_size_ref{offsets_size[0]};
@@ -366,7 +363,9 @@ public:
             size_t data_offset = 0;
             if (group.leader()) { data_offset = offsets_size_ref.fetch_add(local_size_ref.load()); }
             data_offset = sycl::group_broadcast(group, data_offset, 0);
-            for (size_t i = lid; i < local_size_ref.load(); i += item.get_local_range(0)) { offsets[data_offset + i] = local_offsets[i]; }
+            for (size_t i = item.get_local_linear_id(); i < local_size_ref.load(); i += item.get_local_range(0)) {
+              offsets[data_offset + i] = local_offsets[i];
+            }
           });
     });
 
