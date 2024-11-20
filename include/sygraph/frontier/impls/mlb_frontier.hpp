@@ -162,7 +162,7 @@ public:
     }
     _queue.wait();
     int* offsets = sygraph::memory::detail::memoryAlloc<int, memory::space::device>(_bitmap.getBitmapSize(), _queue);
-    uint32_t* offsets_size = sygraph::memory::detail::memoryAlloc<uint32_t, memory::space::shared>(1, _queue);
+    uint32_t* offsets_size = sygraph::memory::detail::memoryAlloc<uint32_t, memory::space::device>(1, _queue);
     auto size = _bitmap.getBitmapSize();
     _queue.fill(offsets_size, static_cast<uint32_t>(0), 1).wait();
 
@@ -328,11 +328,6 @@ public:
     uint32_t range = bitmap.getBitmapRange();
     sycl::range<1> global_range{(size > local_range[0] ? size + local_range[0] - (size % local_range[0]) : local_range[0])};
 
-    uint32_t size_offsets;
-    _queue.copy(_bitmap.getOffsetsSize(), &size_offsets, 1).wait();
-
-    if (size_offsets > 0) { return size_offsets; }
-
     auto e = this->_queue.submit([&](sycl::handler& cgh) {
       sycl::local_accessor<int, 1> local_offsets(local_range[0] * range, cgh);
       sycl::local_accessor<uint32_t, 1> local_size(1, cgh);
@@ -340,6 +335,7 @@ public:
       cgh.parallel_for<mlb_compute_active_frontier_kernel>(
           sycl::nd_range<1>{global_range, local_range},
           [=, offsets_size = bitmap.getOffsetsSize(), offsets = bitmap.getOffsets()](sycl::nd_item<1> item) {
+            if (offsets_size[0] > 0) { return; }
             int gid = item.get_global_linear_id();
             auto group = item.get_group();
 
@@ -374,8 +370,7 @@ public:
 #ifdef ENABLE_PROFILING
     sygraph::Profiler::addEvent(e, "computeActiveFrontier");
 #endif
-    _queue.copy(_bitmap.getOffsetsSize(), &size_offsets, 1).wait();
-    return size_offsets;
+    return 0;
   }
 
   static void swap(FrontierMLB<T>& a, FrontierMLB<T>& b) { std::swap(a._bitmap, b._bitmap); }
