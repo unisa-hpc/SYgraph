@@ -89,16 +89,16 @@ struct BitmapKernel {
     sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::sub_group> sg_tail{subgroup_reduce_tail[sgroup_id]};
     sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> wg_tail{workgroup_reduce_tail[0]};
 
-    const size_t offset = sgroup_id * sgroup_size;
+    const uint32_t offset = sgroup_id * sgroup_size;
     if (context.check(item, assigned_vertex)) {
-      size_t n_edges = graph_dev.getDegree(assigned_vertex);
+      uint32_t n_edges = graph_dev.getDegree(assigned_vertex);
       if (n_edges >= wgroup_size * wgroup_size) { // assign to the workgroup
-        size_t loc = wg_tail.fetch_add(1);
+        uint32_t loc = wg_tail.fetch_add(static_cast<uint32_t>(1));
         n_edges_wg[loc] = n_edges;
         workgroup_reduce[loc] = assigned_vertex;
         workgroup_ids[loc] = lid;
       } else if (n_edges >= sgroup_size) { // assign to the subgroup
-        size_t loc = sg_tail.fetch_add(1);
+        uint32_t loc = sg_tail.fetch_add(static_cast<uint32_t>(1));
         n_edges_sg[offset + loc] = n_edges;
         subgroup_reduce[offset + loc] = assigned_vertex;
         subgroup_ids[offset + loc] = lid;

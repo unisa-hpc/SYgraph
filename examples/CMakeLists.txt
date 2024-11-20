@@ -12,8 +12,48 @@ set_property(DIRECTORY ${CMAKE_SOURCE_DIR}/ PROPERTY CMAKE_RUNTIME_OUTPUT_DIRECT
 
 get_directory_property(all_targets BUILDSYSTEM_TARGETS)
 
-if (DEFINED ARCH)
-  set(CMAKE_CXX_FLAGS "${CMAXE_CXX_FLAGS} -fsycl -fsycl-targets=${ARCH}")
-else()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl")
+# If compiling with oneAPI
+if (CMAKE_CXX_COMPILER MATCHES ".*dpcpp.*" OR CMAKE_CXX_COMPILER MATCHES ".*clang.*" OR CMAKE_CXX_COMPILER MATCHES ".*icpx.*")
+  if (DEFINED ARCH AND NOT ARCH STREQUAL "")
+    message("AOT Compilation")
+    set(CMAKE_CXX_FLAGS "${CMAXE_CXX_FLAGS} -fsycl -fsycl-targets=${ARCH}")
+  else()
+    message("JIT Compilation")
+    # Identify the available targets
+
+    # Check for CUDA
+    find_package(CUDAToolkit QUIET)
+
+    # Check for OpenCL
+    find_package(OpenCL QUIET)
+
+    # Check for HIP
+    find_package(hip QUIET)
+
+    # Initialize an empty list for SYCL targets
+    set(SYCL_TARGETS "")
+
+    if (CUDAToolkit_FOUND)
+        message(STATUS "CUDA Toolkit found. Adding 'nvptx64-nvidia-cuda' to SYCL targets.")
+        list(APPEND SYCL_TARGETS "nvptx64-nvidia-cuda")
+    endif()
+
+    if (OpenCL_FOUND)
+        message(STATUS "Intel OpenCL driver found. Adding 'spir64' to SYCL targets.")
+        list(APPEND SYCL_TARGETS "spir64")
+    endif()
+
+    if (hip_FOUND)
+        message(STATUS "HIP found. Adding 'amdgcn-amd-amdhsa' to SYCL targets.")
+        list(APPEND SYCL_TARGETS "amdgcn-amd-amdhsa")
+    endif()
+
+    # Remove duplicate entries from SYCL_TARGETS
+    list(REMOVE_DUPLICATES SYCL_TARGETS)
+
+    # Convert SYCL_TARGETS list to a semicolon-separated string
+    string(REPLACE ";" "," SYCL_TARGETS_STR "${SYCL_TARGETS}")
+
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -fsycl-targets=${SYCL_TARGETS_STR}")
+  endif()
 endif()

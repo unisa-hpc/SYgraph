@@ -256,7 +256,7 @@ public:
       auto bitmap = this->getDeviceFrontier();
       auto size_acc = size_buf.get_access<sycl::access::mode::write>(cgh);
       cgh.parallel_for<compute_size_mlb_frontier_kernel>(sycl::range<1>{frontier_size}, [=](sycl::id<1> idx) {
-        if (idx == 0) { size_acc[0] = 0; }
+        if (idx[0] == 0) { size_acc[0] = 0; }
         sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> ref(size_acc[0]);
         size_t num_active_nodes = 0;
         bitmap_type t = bitmap.getData()[idx];
