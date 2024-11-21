@@ -106,4 +106,4 @@ To configure the project, the following list of the available CMake options.
 We welcome contributions! If you have improvements or bug fixes, please fork the repository and open a pull request against the `develop` branch. Ensure your changes are tested on multiple backends where possible.
 
 ## License
-This project is licensed under the MIT License. See the LICENSE file for details.
+This project is licensed under the Apache License 2.0. See the [LICENSE](./LICENSE) file for details.
