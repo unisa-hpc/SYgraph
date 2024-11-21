@@ -210,7 +210,7 @@ template<sygraph::frontier::frontier_view InFW,
          typename InFrontierT,
          typename OutFrontierT,
          typename LambdaT>
-sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const OutFrontierT& out, LambdaT&& functor) {
+sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const OutFrontierT& out, LambdaT&& functor, size_t expected_size) {
   sycl::queue& q = graph.getQueue();
 
   size_t num_nodes = graph.getVertexCount();
@@ -230,8 +230,11 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
     size_t bitmap_range = in.getBitmapRange();
     to_wait = in.computeActiveFrontier();
     local_range = {bitmap_range * coarsening_factor};
-    global_size = {local_range[0] * multiplier[iter++]};
-    // global_size = {local_range[0] * (sygraph::detail::device::getMaxComputeUints(q) * 8)};
+    if (expected_size > 0) {
+      global_size = {expected_size + (local_range[0] - (expected_size % local_range[0]))};
+    } else {
+      global_size = {local_range[0] * (sygraph::detail::device::getMaxComputeUints(q) * 8)};
+    }
   } else if constexpr (InFW == sygraph::frontier::frontier_view::graph) {
     local_range = {types::detail::COMPUTE_UNIT_SIZE};
     global_size = num_nodes;
