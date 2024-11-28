@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
 #endif
 
   std::cerr << "[*] Building Graph" << std::endl;
-  auto G = sygraph::graph::build::fromCSR<sygraph::memory::space::shared>(q, csr);
+  auto G = sygraph::graph::build::fromCSR<sygraph::memory::space::device>(q, csr);
   printGraphInfo(G);
   size_t size = G.getVertexCount();
 
