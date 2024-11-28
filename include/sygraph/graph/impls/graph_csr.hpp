@@ -163,7 +163,7 @@ public:
    * @param properties The properties of the graph.
    */
   GraphCSR(sycl::queue& q, formats::CSR<ValueT, IndexT, OffsetT>& csr, Properties properties)
-      : Graph<IndexT, OffsetT, ValueT>(properties), _queue(q) {
+      : Graph<IndexT, OffsetT, ValueT>(properties), _queue(q), _csr(csr) {
     IndexT n_rows = csr.getRowOffsetsSize();
     OffsetT n_nonzeros = csr.getNumNonzeros();
     IndexT* row_offsets = memory::detail::memoryAlloc<IndexT, Space>(n_rows + 1, _queue);
@@ -212,20 +212,63 @@ public:
    * @param vertex The vertex.
    * @return The number of neighbors.
    */
-  size_t getDegree(vertex_t vertex) const override { return _device_graph.getDegree(vertex); }
+  size_t getDegree(vertex_t vertex) const override {
+    if constexpr (Space == memory::space::device) {
+      return _csr.getRowOffsets()[vertex + 1] - _csr.getRowOffsets()[vertex];
+    } else {
+      return _device_graph.getDegree(vertex);
+    }
+  }
 
   /**
    * @brief Returns the index of the first neighbor of a vertex in the graph.
    * @param vertex The vertex.
    * @return The index of the first neighbor.
    */
-  vertex_t getFirstNeighbor(vertex_t vertex) const override { return _device_graph.getFirstNeighbor(vertex); }
+  vertex_t getFirstNeighbor(vertex_t vertex) const override {
+    if constexpr (Space == memory::space::device) {
+      return _csr.getRowOffsets()[vertex];
+    } else {
+      return _device_graph.getFirstNeighbor(vertex);
+    }
+  }
 
-  vertex_t getSourceVertex(edge_t edge) const override { return _device_graph.getSourceVertex(edge); }
+  vertex_t getSourceVertex(edge_t edge) const override {
+    if constexpr (Space == memory::space::device) {
+      // binary search
+      vertex_t low = 0;
+      vertex_t high = _csr.getRowOffsetsSize() - 1;
+      while (low <= high) {
+        vertex_t mid = low + (high - low) / 2;
+        if (_csr.getRowOffsets()[mid] <= edge && edge < _csr.getRowOffsets()[mid + 1]) {
+          return mid;
+        } else if (_csr.getRowOffsets()[mid] > edge) {
+          high = mid - 1;
+        } else {
+          low = mid + 1;
+        }
+      }
+      return _csr.getRowOffsetsSize();
+    } else {
+      return _device_graph.getSourceVertex(edge);
+    }
+  }
 
-  vertex_t getDestinationVertex(edge_t edge) const override { return _device_graph.getDestinationVertex(edge); }
+  vertex_t getDestinationVertex(edge_t edge) const override {
+    if constexpr (Space == memory::space::device) {
+      return _csr.getColumnIndices()[edge];
+    } else {
+      return _device_graph.getDestinationVertex(edge);
+    }
+  }
 
-  weight_t getEdgeWeight(edge_t edge) const override { return _device_graph.getEdgeWeight(edge); }
+  weight_t getEdgeWeight(edge_t edge) const override {
+    if constexpr (Space == memory::space::device) {
+      return _csr.getValues()[edge];
+    } else {
+      return _device_graph.getEdgeWeight(edge);
+    }
+  }
 
   /* Getters and Setters for CSR Graph */
 
@@ -233,7 +276,7 @@ public:
    * @brief Returns the number of rows in the graph.
    * @return The number of rows.
    */
-  IndexT getOffsetsSize() const { return _device_graph.getVertexCount(); }
+  IndexT getOffsetsSize() const { return _device_graph.getVertexCount() + 1; }
 
   /**
    * @brief Returns the number of non-zero values in the graph.
@@ -245,37 +288,73 @@ public:
    * @brief Returns a pointer to the column indices of the graph.
    * @return A pointer to the column indices.
    */
-  IndexT* getColumnIndices() { return _device_graph.getColumnIndices(); }
+  IndexT* getColumnIndices() {
+    if constexpr (Space == memory::space::device) {
+      return _csr.getColumnIndices().data();
+    } else {
+      return _device_graph.getColumnIndices();
+    }
+  }
 
   /**
    * @brief Returns a constant pointer to the column indices of the graph.
    * @return A constant pointer to the column indices.
    */
-  const IndexT* getColumnIndices() const { return _device_graph.getColumnIndices(); }
+  const IndexT* getColumnIndices() const {
+    if constexpr (Space == memory::space::device) {
+      return _csr.getColumnIndices().data();
+    } else {
+      return _device_graph.getColumnIndices();
+    }
+  }
 
   /**
    * @brief Returns a pointer to the row offsets of the graph.
    * @return A pointer to the row offsets.
    */
-  OffsetT* getRowOffsets() { return _device_graph.getRowOffsets(); }
+  OffsetT* getRowOffsets() {
+    if constexpr (Space == memory::space::device) {
+      return _csr.getRowOffsets().data();
+    } else {
+      return _device_graph.getRowOffsets();
+    }
+  }
 
   /**
    * @brief Returns a constant pointer to the row offsets of the graph.
    * @return A constant pointer to the row offsets.
    */
-  const OffsetT* getRowOffsets() const { return _device_graph.getRowOffsets(); }
+  const OffsetT* getRowOffsets() const {
+    if constexpr (Space == memory::space::device) {
+      return _csr.getRowOffsets().data();
+    } else {
+      return _device_graph.getRowOffsets();
+    }
+  }
 
   /**
    * @brief Returns a pointer to the non-zero values of the graph.
    * @return A pointer to the non-zero values.
    */
-  ValueT* getValues() { return _device_graph.getValues(); }
+  ValueT* getValues() {
+    if constexpr (Space == memory::space::device) {
+      return _csr.getValues().data();
+    } else {
+      return _device_graph.getValues();
+    }
+  }
 
   /**
    * @brief Returns a constant pointer to the non-zero values of the graph.
    * @return A constant pointer to the non-zero values.
    */
-  const ValueT* getValues() const { return _device_graph.getValues(); }
+  const ValueT* getValues() const {
+    if constexpr (Space == memory::space::device) {
+      return _csr.getValues().data();
+    } else {
+      return _device_graph.getValues();
+    }
+  }
 
 
   /**
@@ -298,7 +377,7 @@ public:
 
 private:
   sycl::queue& _queue; ///< The SYCL queue associated with the graph.
-
+  const formats::CSR<ValueT, IndexT, OffsetT>& _csr;
   GraphCSRDevice<IndexT, OffsetT, ValueT> _device_graph;
 };
 } // namespace detail
