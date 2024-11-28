@@ -2,6 +2,39 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd ) 
 SCRIPT_DIR="$SCRIPT_DIR/.."
 
+datasets_path="/data/datasets"
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -d | --datasets)
+      datasets_path=$2
+      shift
+      shift
+      ;;
+    -h | --help)
+      echo "Usage: $0 [options]"
+      echo "Options:"
+      echo "  -d, --datasets <path>  Path to the datasets directory"
+      echo "  -h, --help             Display this help message"
+      return 0 2>/dev/null
+      exit 0
+      ;;
+    *)
+    echo "Invalid argument: $1"
+      return 1 2>/dev/null
+      exit 1
+      ;;
+  esac
+done
+
+# check if the datasets path exists
+if [ ! -d $datasets_path ]; then
+  echo "Datasets path does not exist: $datasets_path"
+  return 1 2>/dev/null
+  exit 1
+fi
+
 benchs=("bfs" "sssp" "bc" "cc")
 graphs=("hollywood-2009" "soc-orkut" "soc-LiveJournal1" "roadNet-CA" "kron_g500-logn21" "indochina-2004" "road_usa")
 
@@ -18,7 +51,7 @@ declare -A SOURCES=(
 function benchmark {
   bench=$1
   graph=$2
-  graph_path=/data/datasets/$graph/$graph.bin
+  graph_path=$datasets_path/$graph/$graph.bin
 
   sources=(${SOURCES[$graph]})
 
