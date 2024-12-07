@@ -2,14 +2,13 @@ import requests
 import os
 import zipfile
 import tarfile
-from tqdm import tqdm
 
 import requests
 import os
 import zipfile
 import tarfile
 import shutil
-from tqdm import tqdm
+import gdown
 
 def check_disk_space(directory, required_space):
     """Check if there's enough space on the drive."""
@@ -34,16 +33,7 @@ def download_and_extract(name, url, download_dir='.', extract_to='.'):
 
         # Save the file temporarily in the specified download directory
         temp_file_path = os.path.join(download_dir, f'{name}_temp')
-        with open(temp_file_path, 'wb') as file, tqdm(
-            desc=f'Downloading {name}',
-            total=total_size,
-            unit='B',
-            unit_scale=True,
-            unit_divisor=1024,
-        ) as bar:
-            for chunk in response.iter_content(chunk_size=8192):
-                file.write(chunk)
-                bar.update(len(chunk))
+        gdown.download(url, temp_file_path, quiet=False)
 
         # Step 2: Determine the file type
         with open(temp_file_path, 'rb') as file:
