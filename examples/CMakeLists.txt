@@ -12,6 +12,22 @@ set_property(DIRECTORY ${CMAKE_SOURCE_DIR}/ PROPERTY CMAKE_RUNTIME_OUTPUT_DIRECT
 
 get_directory_property(all_targets BUILDSYSTEM_TARGETS)
 
+# Define the GRAPH_LOCATION parameter
+set(GRAPH_LOCATION "device" CACHE STRING "Location of the graph: host, device, or shared")
+set_property(CACHE GRAPH_LOCATION PROPERTY STRINGS "host" "device" "shared")
+
+# Map GRAPH_LOCATION to integers in compile definitions
+if (GRAPH_LOCATION STREQUAL "host")
+    message(WARNING "GRAPH_LOCATION=host is not recommended for performance. Use at your own risk.")
+    add_compile_definitions(GRAPH_LOCATION=0)
+elseif (GRAPH_LOCATION STREQUAL "device")
+    add_compile_definitions(GRAPH_LOCATION=1)
+elseif (GRAPH_LOCATION STREQUAL "shared")
+    add_compile_definitions(GRAPH_LOCATION=2)
+else()
+    message(FATAL_ERROR "Invalid GRAPH_LOCATION value. Must be 'host', 'device', or 'shared'.")
+endif()
+
 # If compiling with oneAPI
 if (CMAKE_CXX_COMPILER MATCHES ".*dpcpp.*" OR CMAKE_CXX_COMPILER MATCHES ".*clang.*" OR CMAKE_CXX_COMPILER MATCHES ".*icpx.*")
   if (DEFINED ARCH AND NOT ARCH STREQUAL "")
