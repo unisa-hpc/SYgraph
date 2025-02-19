@@ -1,3 +1,6 @@
+# Copyright (c) 2025 University of Salerno
+# SPDX-License-Identifier: Apache-2.0
+
 option(SYGRAPH_BUILD_TESTS "Build tests" OFF)
 option(SYGRAPH_BUILD_EXAMPLES "Build Examples" OFF)
 option(SYGRAPH_SAMPLE_DATA "Generate samples data" OFF)

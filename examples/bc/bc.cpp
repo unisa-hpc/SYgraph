@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2025 University of Salerno
+ * SPDX-License-Identifier: Apache-2.0
+ */
 #include "../include/utils.hpp"
 #include <chrono>
 #include <iomanip>
@@ -26,7 +30,7 @@ int main(int argc, char** argv) {
   printDeviceInfo(q, "[*] ");
 
   std::cerr << "[*] Building Graph" << std::endl;
-  auto G = sygraph::graph::build::fromCSR<sygraph::memory::space::device>(q, csr);
+  auto G = sygraph::graph::build::fromCSR<graph_location>(q, csr);
   printGraphInfo(G);
   size_t size = G.getVertexCount();
 

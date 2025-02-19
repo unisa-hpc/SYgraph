@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2025 University of Salerno
+ * SPDX-License-Identifier: Apache-2.0
+ */
 #include <iomanip>
 #include <iostream>
 #include <random>
@@ -6,6 +10,16 @@
 
 #include <sygraph/sygraph.hpp>
 
+// Map the numeric macro to the actual object
+#if GRAPH_LOCATION == 0
+constexpr sygraph::memory::space graph_location = sygraph::memory::space::host;
+#elif GRAPH_LOCATION == 1
+constexpr sygraph::memory::space graph_location = sygraph::memory::space::device;
+#elif GRAPH_LOCATION == 2
+constexpr sygraph::memory::space graph_location = sygraph::memory::space::shared;
+#else
+#error "Invalid GRAPH_LOCATION value. Must be 0 (host), 1 (device), or 2 (shared)."
+#endif
 
 template<typename IndexT>
 struct ArgsT {
