@@ -334,11 +334,6 @@ public:
     size_t global_size = sygraph::detail::device::getMaxComputeUints(_queue) * local_range[0];
     sycl::range<1> global_range{global_size};
 
-    uint32_t size_offsets;
-    _queue.copy(_bitmap.getOffsetsSize(), &size_offsets, 1).wait();
-
-    if (size_offsets > 0) { return size_offsets; }
-
     auto e = this->_queue.submit([&](sycl::handler& cgh) {
       sycl::local_accessor<int, 1> local_offsets(local_range[0] * range, cgh);
       sycl::local_accessor<uint32_t, 1> local_size(1, cgh);
