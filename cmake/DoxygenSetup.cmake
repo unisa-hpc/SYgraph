@@ -1,3 +1,6 @@
+# Copyright (c) 2025 University of Salerno
+# SPDX-License-Identifier: Apache-2.0
+
 option(SYGRAPH_DOCS "Generate documentation" ON)
 
 # Add documentation target

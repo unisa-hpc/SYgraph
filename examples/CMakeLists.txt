@@ -1,3 +1,6 @@
+# Copyright (c) 2025 University of Salerno
+# SPDX-License-Identifier: Apache-2.0
+
 link_libraries(sygraph)
 
 add_executable(csr2binary csr_to_binary.cpp)

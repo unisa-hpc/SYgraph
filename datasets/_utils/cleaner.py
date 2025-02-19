@@ -1,3 +1,6 @@
+# Copyright (c) 2025 University of Salerno
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 
 def clean_graph(folder, only_installation: bool = False):

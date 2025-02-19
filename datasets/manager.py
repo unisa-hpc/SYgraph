@@ -1,5 +1,7 @@
 #! /usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
+# Copyright (c) 2025 University of Salerno
+# SPDX-License-Identifier: Apache-2.0
 
 from typing import Dict
 import yaml
