@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2025 University of Salerno
+ * SPDX-License-Identifier: Apache-2.0
+ */
 #pragma once
 
 #include <sygraph/sycl/event.hpp>
@@ -326,7 +330,9 @@ public:
     auto bitmap = this->getDeviceFrontier();
     size_t size = bitmap.getBitmapSize(1);
     uint32_t range = bitmap.getBitmapRange();
-    sycl::range<1> global_range{(size > local_range[0] ? size + local_range[0] - (size % local_range[0]) : local_range[0])};
+    // sycl::range<1> global_range{(size > local_range[0] ? size + local_range[0] - (size % local_range[0]) : local_range[0])};
+    size_t global_size = sygraph::detail::device::getMaxComputeUints(_queue) * local_range[0];
+    sycl::range<1> global_range{global_size};
 
     uint32_t size_offsets;
     _queue.copy(_bitmap.getOffsetsSize(), &size_offsets, 1).wait();
@@ -340,18 +346,14 @@ public:
       cgh.parallel_for<mlb_compute_active_frontier_kernel>(
           sycl::nd_range<1>{global_range, local_range},
           [=, offsets_size = bitmap.getOffsetsSize(), offsets = bitmap.getOffsets()](sycl::nd_item<1> item) {
-            int gid = item.get_global_linear_id();
             auto group = item.get_group();
-
-            if (gid == 0) { offsets_size[0] = 0; }
-
+            if (item.get_global_linear_id() == 0) { offsets_size[0] = 0; }
             sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group> local_size_ref(local_size[0]);
             sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device> offsets_size_ref{offsets_size[0]};
 
             if (group.leader()) { local_size_ref.store(0); }
             sycl::group_barrier(group);
-
-            if (gid < size) {
+            for (uint32_t gid = item.get_global_linear_id(); gid < size; gid += item.get_global_range(0)) {
               bitmap_type data = bitmap.getData(1)[gid];
               for (size_t i = 0; i < range; i++) {
                 if (data & (static_cast<bitmap_type>(1) << i)) { local_offsets[local_size_ref++] = i + gid * range; }
