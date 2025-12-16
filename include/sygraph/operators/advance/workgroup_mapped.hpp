@@ -113,6 +113,13 @@ struct Context {
     } else if constexpr (OFW == sygraph::frontier::frontier_view::none) {
     }
   }
+
+  template<typename G>
+  SYCL_EXTERNAL inline void accumulate_edges(sycl::nd_item<1> item, const G& graph_dev, const uint32_t& vertex) const {
+    auto wgid = item.get_group_linear_id();
+    sycl::atomic_ref<int, sycl::memory_order::relaxed, sycl::memory_scope::device> ref{in_dev_frontier._edges_processed[wgid]};
+    if (in_dev_frontier.check(vertex)) { ref += graph_dev.getDegree(vertex); }
+  }
 };
 
 template<sygraph::frontier::frontier_view InFW,
@@ -140,6 +147,8 @@ struct BitmapKernel {
 
     while (context.needToProcess(state)) {
       const auto assigned_vertex = context.getAssignedElement(state);
+
+      context.accumulate_edges(item, graph_dev, assigned_vertex);
 
       // Reset local reductions so the group can classify work for this iteration.
       if (sgroup.leader()) { subgroup_reduce_tail[sgroup_id] = 0; }

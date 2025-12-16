@@ -140,6 +140,8 @@ public:
 
   void setOffsetsSize(uint32_t* offsets_size) { this->_offsets_size = offsets_size; }
 
+  int* _edges_processed;
+
 protected:
   uint _range;                ///< The range of the bitmap.
   uint32_t _num_elems;        ///< The number of elements in the bitmap.
@@ -174,6 +176,9 @@ public:
     _bitmap.setData(ptr);
     _bitmap.setOffsets(offsets);
     _bitmap.setOffsetsSize(offsets_size);
+
+    _bitmap._edges_processed = sygraph::memory::detail::memoryAlloc<int, memory::space::shared>(16384, _queue);
+    _queue.fill(_bitmap._edges_processed, static_cast<int>(0), 16384).wait();
   }
 
   ~FrontierMLB() {
@@ -364,6 +369,7 @@ public:
 #ifdef ENABLE_PROFILING
     sygraph::Profiler::addEvent(e, "clearFrontierOffsets");
 #endif
+    _queue.fill(_bitmap._edges_processed, static_cast<int>(0), 16384);
     _queue.wait();
   }
 

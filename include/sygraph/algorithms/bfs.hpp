@@ -179,7 +179,7 @@ public:
             }
             return false;
           },
-          sygraph::frontier::size::infer_from_device);
+          sygraph::frontier::size::fetch_from_memory);
     };
 
     auto pull_step = [&]() {
@@ -195,7 +195,7 @@ public:
                 }
                 return false;
               },
-              sygraph::frontier::size::infer_from_device);
+              sygraph::frontier::size::fetch_from_memory);
     };
 
     bool push = direction != BFSDirection::pull;
@@ -214,6 +214,12 @@ public:
 #ifdef ENABLE_PROFILING
       sygraph::Profiler::addEvent(e, "advance");
 #endif
+      std::cout << "BFS Iteration " << iter << " completed in " << e.getRuntime() << " ms." << std::endl;
+      auto* ptr = in_frontier.getDeviceFrontier()._edges_processed;
+      for (int i = 0; i < 16384; i++) {
+        if (ptr[i] > 0) { std::cout << "[" << i << "]:" << ptr[i] << " "; }
+      }
+      std::cout << std::endl << std::endl;
       evaluateHeuristic(alpha, beta, out_frontier, direction, push);
       sygraph::frontier::swap(in_frontier, out_frontier);
       out_frontier.clear();
