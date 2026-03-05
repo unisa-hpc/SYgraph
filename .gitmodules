@@ -1,0 +1,3 @@
+[submodule "SYnergy"]
+	path = SYnergy
+	url = https://github.com/unisa-hpc/SYnergy.git
