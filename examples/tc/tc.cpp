@@ -5,6 +5,7 @@
 #include <iostream>
 #include <sycl/sycl.hpp>
 #include <sygraph/sygraph.hpp>
+#include <synergy.hpp>
 
 template<typename GraphT, typename BfsT>
 bool validate(const GraphT& graph, BfsT& bfs, uint source) {
@@ -24,9 +25,9 @@ int main(int argc, char** argv) {
   auto csr = readCSR<type_t, type_t, type_t>(opts, &properties);
 
 #ifdef ENABLE_PROFILING
-  sycl::queue q{sycl::gpu_selector_v, sycl::property::queue::enable_profiling()};
+  synergy::queue q{sycl::gpu_selector_v, sycl::property::queue::enable_profiling()};
 #else
-  sycl::queue q{sycl::gpu_selector_v};
+  synergy::queue q{sycl::gpu_selector_v};
 #endif
 
   printDeviceInfo(q, "[*] ");
@@ -40,7 +41,12 @@ int main(int argc, char** argv) {
   tc.init();
 
   std::cout << "[*] Running TC" << std::endl;
+  auto start_energy_j = q.device_energy_consumption();
+  auto start_timer = std::chrono::high_resolution_clock::now();
   tc.run<true>();
+  auto end_timer = std::chrono::high_resolution_clock::now();
+  auto end_energy_j = q.device_energy_consumption();
+
 
   std::cerr << "[!] Done" << std::endl;
 
@@ -61,8 +67,12 @@ int main(int argc, char** argv) {
   if (opts.print_output) { /* TODO implement*/
     std::cout << "Total num triangles: " << tc.getNumTriangles() << std::endl;
   }
-
-#ifdef ENABLE_PROFILING
+  
+  #ifdef ENABLE_PROFILING
   sygraph::Profiler::print();
-#endif
+  #endif
+  std::cout << "Total Host Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_timer - start_timer).count() << " ms" << std::endl;
+  std::cout << "Total Energy Consumption: " << end_energy_j - start_energy_j << " J" << std::endl;
+
+
 }
