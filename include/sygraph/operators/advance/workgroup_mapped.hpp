@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <type_traits>
 #include <sycl/sycl.hpp>
 
 #include <sygraph/operators/advance/common.hpp>
@@ -32,12 +33,18 @@ SYCL_EXTERNAL inline uint32_t workgroupMappedUpperBound(const T* values, uint32_
   return left;
 }
 
-template<sygraph::operators::direction Direction, sygraph::frontier::frontier_view IFW, sygraph::frontier::frontier_view OFW>
+template<sygraph::operators::direction Direction,
+         sygraph::frontier::frontier_view IFW,
+         sygraph::frontier::frontier_view OFW,
+         bool DenseBitmapTraversal,
+         typename InFrontierT,
+         typename OutFrontierT>
 class workgroup_mapped_advance_kernel; // needed only for naming purposes
 
 template<sygraph::frontier::frontier_view IFW,
          sygraph::frontier::frontier_view OFW,
          sygraph::operators::direction Direction,
+         bool DenseBitmapTraversal,
          typename InFrontierDevT,
          typename OutFrontierDevT>
 struct WorkgroupMappedContext : AdvanceContextBase<IFW, OFW, Direction, InFrontierDevT, OutFrontierDevT> {
@@ -49,7 +56,7 @@ struct WorkgroupMappedContext : AdvanceContextBase<IFW, OFW, Direction, InFronti
       return {
           item.get_group_linear_id(),
           static_cast<uint16_t>(item.get_local_range(0) / this->in_dev_frontier.getBitmapRange()),
-          this->in_dev_frontier.getOffsetsSize()[0],
+          static_cast<uint32_t>(DenseBitmapTraversal ? this->in_dev_frontier.getBitmapSize() : this->in_dev_frontier.getOffsetsSize()[0]),
           item,
       };
     } else if constexpr (IFW == sygraph::frontier::frontier_view::graph) {
@@ -68,6 +75,9 @@ struct WorkgroupMappedContext : AdvanceContextBase<IFW, OFW, Direction, InFronti
     if constexpr (IFW == sygraph::frontier::frontier_view::vertex) {
       const uint16_t bitmap_range = this->in_dev_frontier.getBitmapRange();
       const uint32_t actual_id_offset = (state.group_offset * state.coarsening_factor) + (state.item.get_local_linear_id() / bitmap_range);
+      if constexpr (DenseBitmapTraversal) {
+        return actual_id_offset * bitmap_range + (state.item.get_local_linear_id() % bitmap_range);
+      }
       if (actual_id_offset >= state.offsets_size) { return this->limit; }
       const int* bitmap_offsets = this->in_dev_frontier.getOffsets();
       const auto assigned_vertex = (bitmap_offsets[actual_id_offset] * bitmap_range) + (state.item.get_local_linear_id() % bitmap_range);
@@ -193,7 +203,8 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
   const sycl::event& dependency = launch.launch_config.dependency;
 
   using element_t = advance_element_t<InFW, GraphT>;
-  WorkgroupMappedContext<InFW, OutFW, Direction, decltype(launch.in_dev_frontier), decltype(launch.out_dev_frontier)> context{
+  constexpr bool dense_bitmap_traversal = uses_dense_bitmap_traversal_v<InFrontierT>;
+  WorkgroupMappedContext<InFW, OutFW, Direction, dense_bitmap_traversal, decltype(launch.in_dev_frontier), decltype(launch.out_dev_frontier)> context{
       launch.num_nodes, launch.in_dev_frontier, launch.out_dev_frontier};
   using bitmap_kernel_t = WorkgroupMappedBitmapKernel<InFW, OutFW, Direction, element_t, decltype(context), decltype(launch.graph_dev), LambdaT>;
 
@@ -205,7 +216,13 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
     sycl::local_accessor<uint32_t, 1> scan_ends{local_range, cgh};
     sycl::local_accessor<uint32_t, 1> source_done{local_range, cgh};
 
-    cgh.parallel_for<workgroup_mapped_advance_kernel<Direction, InFW, OutFW>>(
+    cgh.parallel_for<workgroup_mapped_advance_kernel<
+        Direction,
+        InFW,
+        OutFW,
+        dense_bitmap_traversal,
+        std::remove_cvref_t<InFrontierT>,
+        std::remove_cvref_t<OutFrontierT>>>(
         sycl::nd_range<1>{global_range, local_range},
         bitmap_kernel_t{context, launch.graph_dev, vertices, start_edges, scan_begins, scan_ends, source_done, std::forward<LambdaT>(functor)});
   });

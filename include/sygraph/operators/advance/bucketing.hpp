@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <type_traits>
 #include <sycl/sycl.hpp>
 
 #include <sygraph/operators/advance/common.hpp>
@@ -18,12 +19,18 @@ namespace advance {
 
 namespace detail {
 
-template<sygraph::operators::direction Direction, sygraph::frontier::frontier_view IFW, sygraph::frontier::frontier_view OFW>
+template<sygraph::operators::direction Direction,
+         sygraph::frontier::frontier_view IFW,
+         sygraph::frontier::frontier_view OFW,
+         bool DenseBitmapTraversal,
+         typename InFrontierT,
+         typename OutFrontierT>
 class bucketing_advance_kernel; // needed only for naming purposes
 
 template<sygraph::frontier::frontier_view IFW,
          sygraph::frontier::frontier_view OFW,
          sygraph::operators::direction Direction,
+         bool DenseBitmapTraversal,
          typename InFrontierDevT,
          typename OutFrontierDevT>
 struct BucketingContext : AdvanceContextBase<IFW, OFW, Direction, InFrontierDevT, OutFrontierDevT> {
@@ -35,7 +42,7 @@ struct BucketingContext : AdvanceContextBase<IFW, OFW, Direction, InFrontierDevT
       return {
           item.get_group_linear_id(),
           static_cast<uint16_t>(item.get_local_range(0) / this->in_dev_frontier.getBitmapRange()),
-          this->in_dev_frontier.getOffsetsSize()[0],
+          static_cast<uint32_t>(DenseBitmapTraversal ? this->in_dev_frontier.getBitmapSize() : this->in_dev_frontier.getOffsetsSize()[0]),
           item,
       };
     } else if constexpr (IFW == sygraph::frontier::frontier_view::graph) {
@@ -54,6 +61,9 @@ struct BucketingContext : AdvanceContextBase<IFW, OFW, Direction, InFrontierDevT
     if constexpr (IFW == sygraph::frontier::frontier_view::vertex) {
       const uint16_t bitmap_range = this->in_dev_frontier.getBitmapRange();
       const uint32_t actual_id_offset = (state.group_offset * state.coarsening_factor) + (state.item.get_local_linear_id() / bitmap_range);
+      if constexpr (DenseBitmapTraversal) {
+        return actual_id_offset * bitmap_range + (state.item.get_local_linear_id() % bitmap_range);
+      }
       const int* bitmap_offsets = this->in_dev_frontier.getOffsets();
       const auto assigned_vertex = (bitmap_offsets[actual_id_offset] * bitmap_range) + (state.item.get_local_linear_id() % bitmap_range);
       return assigned_vertex;
@@ -253,7 +263,8 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
   const sycl::event& dependency = launch.launch_config.dependency;
 
   using element_t = advance_element_t<InFW, GraphT>;
-  BucketingContext<InFW, OutFW, Direction, decltype(launch.in_dev_frontier), decltype(launch.out_dev_frontier)> context{
+  constexpr bool dense_bitmap_traversal = uses_dense_bitmap_traversal_v<InFrontierT>;
+  BucketingContext<InFW, OutFW, Direction, dense_bitmap_traversal, decltype(launch.in_dev_frontier), decltype(launch.out_dev_frontier)> context{
       launch.num_nodes, launch.in_dev_frontier, launch.out_dev_frontier};
   const uint32_t max_num_subgroups = sygraph::detail::device::getMaxNumSubgroups(launch.q);
   using bitmap_kernel_t = BitmapKernel<InFW, OutFW, Direction, element_t, decltype(context), decltype(launch.graph_dev), LambdaT>;
@@ -273,21 +284,28 @@ sygraph::Event launchBitmapKernel(GraphT& graph, const InFrontierT& in, const Ou
     sycl::local_accessor<uint32_t, 1> workgroup_ids{local_range, cgh};
     sycl::local_accessor<uint32_t, 1> workgroup_claimed{local_range, cgh};
 
-    cgh.parallel_for<bucketing_advance_kernel<Direction, InFW, OutFW>>(sycl::nd_range<1>{global_range, local_range},
-                                                                       bitmap_kernel_t{context,
-                                                                                       launch.graph_dev,
-                                                                                       n_edges_wg,
-                                                                                       n_edges_sg,
-                                                                                       visited,
-                                                                                       subgroup_reduce,
-                                                                                       subgroup_reduce_tail,
-                                                                                       subgroup_ids,
-                                                                                       subgroup_claimed,
-                                                                                       workgroup_reduce,
-                                                                                       workgroup_reduce_tail,
-                                                                                       workgroup_ids,
-                                                                                       workgroup_claimed,
-                                                                                       std::forward<LambdaT>(functor)});
+    cgh.parallel_for<bucketing_advance_kernel<
+        Direction,
+        InFW,
+        OutFW,
+        dense_bitmap_traversal,
+        std::remove_cvref_t<InFrontierT>,
+        std::remove_cvref_t<OutFrontierT>>>(
+        sycl::nd_range<1>{global_range, local_range},
+        bitmap_kernel_t{context,
+                        launch.graph_dev,
+                        n_edges_wg,
+                        n_edges_sg,
+                        visited,
+                        subgroup_reduce,
+                        subgroup_reduce_tail,
+                        subgroup_ids,
+                        subgroup_claimed,
+                        workgroup_reduce,
+                        workgroup_reduce_tail,
+                        workgroup_ids,
+                        workgroup_claimed,
+                        std::forward<LambdaT>(functor)});
   });
   return {e};
 }

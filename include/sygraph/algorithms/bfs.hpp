@@ -28,6 +28,9 @@ namespace algorithms {
 
 enum class bfs_direction { push, pull, hybrid };
 
+template<sygraph::frontier::frontier_type FrontierType>
+class compute_unexplored_degree_kernel;
+
 struct BFSRunDetails {
   size_t iterations = 0;
   std::set<size_t> push_steps;
@@ -117,7 +120,7 @@ struct BFSInstance {
  *
  * @tparam GraphType The type of the graph on which the BFS algorithm will be performed.
  */
-template<typename GraphType> // TODO: Implement the getParents method.
+template<typename GraphType, sygraph::frontier::frontier_type FrontierType = sygraph::frontier::frontier_type::bitmap> // TODO: Implement the getParents method.
 class BFS {
   using vertex_t = typename GraphType::vertex_t;
   using edge_t = typename GraphType::edge_t;
@@ -166,8 +169,8 @@ public:
     using frontier_view_t = sygraph::frontier::frontier_view;
     using frontier_impl_t = sygraph::frontier::frontier_type;
 
-    auto in_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::mlb>(queue, G);
-    auto out_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, frontier_impl_t::mlb>(queue, G);
+    auto in_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, FrontierType>(queue, G);
+    auto out_frontier = sygraph::frontier::makeFrontier<frontier_view_t::vertex, FrontierType>(queue, G);
 
     in_frontier.insert(source);
 
@@ -283,17 +286,40 @@ private:
 
   template<typename F>
   size_t fetchFrontierDegree(const F& frontier) {
-    size_t total_degree = 0;
     auto& G = _instance->G;
-    auto g_device = G.getDeviceGraph();
+    if constexpr (requires { frontier.size(); }) {
+      size_t total_degree = 0;
+      auto g_device = G.getDeviceGraph();
 
-    auto e = sygraph::operators::compute::reduce<sygraph::frontier::frontier_view::vertex, sycl::plus<size_t>>(
-        G, frontier, total_degree, [=](auto v, auto& accumulator) { accumulator += g_device.getDegree(v); });
-    e.waitAndThrow();
+      auto e = sygraph::operators::compute::reduce<sygraph::frontier::frontier_view::vertex, sycl::plus<size_t>>(
+          G, frontier, total_degree, [=](auto v, auto& accumulator) { accumulator += g_device.getDegree(v); });
+      e.waitAndThrow();
 #ifdef ENABLE_PROFILING
-    sygraph::Profiler::addEvent(e, "computeFrontierDegree");
+      sygraph::Profiler::addEvent(e, "computeFrontierDegree");
 #endif
-    return total_degree;
+      return total_degree;
+    } else {
+      size_t total_degree = 0;
+      auto bitmap = frontier.getDeviceFrontier();
+      auto* data = bitmap.getData();
+      const size_t bitmap_words = frontier.getBitmapSize();
+      const size_t bitmap_range = frontier.getBitmapRange();
+      const size_t vertex_count = G.getVertexCount();
+
+      for (size_t word_idx = 0; word_idx < bitmap_words; ++word_idx) {
+        const auto word = data[word_idx];
+        if (word == 0) { continue; }
+
+        const size_t base = word_idx * bitmap_range;
+        for (size_t bit = 0; bit < bitmap_range; ++bit) {
+          const size_t vertex = base + bit;
+          if (vertex >= vertex_count) { break; }
+          if (word & (static_cast<typename F::bitmap_type>(1) << bit)) { total_degree += G.getDegree(vertex); }
+        }
+      }
+
+      return total_degree;
+    }
   }
 
   uint32_t fetchUnexploredDegree() {
@@ -309,7 +335,7 @@ private:
     auto e = queue.submit([&](sycl::handler& cgh) {
       auto sum_reduction = sycl::reduction<uint32_t>(degree_buf, cgh, sycl::plus<uint32_t>());
 
-      cgh.parallel_for<class compute_unexplored_degree_kernel>(sycl::range<1>(nodes), sum_reduction, [=](sycl::id<1> idx, auto& sum) {
+      cgh.parallel_for<compute_unexplored_degree_kernel<FrontierType>>(sycl::range<1>(nodes), sum_reduction, [=](sycl::id<1> idx, auto& sum) {
         size_t vertex = idx[0];
         if (distances[vertex] == nodes + 1) { sum += static_cast<uint32_t>(g_device.getDegree(vertex)); }
       });
@@ -333,7 +359,12 @@ private:
   template<typename F>
   bool shouldSwitchToPush(const F& frontier, float beta) {
     auto& G = _instance->G;
-    auto frontier_size = frontier.size();
+    size_t frontier_size = 0;
+    if constexpr (requires { frontier.size(); }) {
+      frontier_size = frontier.size();
+    } else {
+      frontier_size = frontier.getNumActiveElements();
+    }
     auto total_nodes = G.getVertexCount();
     return frontier_size < (total_nodes / beta);
   }

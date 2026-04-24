@@ -21,15 +21,15 @@ namespace operators {
 namespace filter {
 namespace detail {
 
+template<sygraph::frontier::frontier_type FT>
 class inplace_filter_kernel;
+template<sygraph::frontier::frontier_type FT>
 class external_filter_kernel;
 
-template<graph::detail::GraphConcept GraphT, typename InFrontierT>
+template<graph::detail::GraphConcept GraphT, typename InFrontierT, sygraph::frontier::frontier_type FT>
 sygraph::detail::kernel::LaunchConfig buildLaunchConfig(const GraphT& graph, const InFrontierT& in, int expected_size, sycl::queue& q) {
   sygraph::detail::kernel::LaunchConfig config{};
   auto in_dev_frontier = in.getDeviceFrontier();
-  uint32_t active_size = 0;
-  size_t requested_global = 0;
 
   config.local = {in.getBitmapRange()};
 
@@ -37,15 +37,21 @@ sygraph::detail::kernel::LaunchConfig buildLaunchConfig(const GraphT& graph, con
     throw std::runtime_error("Invalid expected_size value. Only fetch_from_memory is supported for filter operation.");
   }
 
-  config.dependency = in.computeActiveFrontier();
-  config.dependency.wait_and_throw();
-  auto copy_e = q.copy(in_dev_frontier.getOffsetsSize(), &active_size, 1);
-  copy_e.wait();
+  size_t requested_global = 0;
+  if constexpr (FT == sygraph::frontier::frontier_type::bitmap) {
+    requested_global = static_cast<size_t>(in.getBitmapSize()) * in.getBitmapRange();
+  } else {
+    uint32_t active_size = 0;
+    config.dependency = in.computeActiveFrontier();
+    config.dependency.wait_and_throw();
+    auto copy_e = q.copy(in_dev_frontier.getOffsetsSize(), &active_size, 1);
+    copy_e.wait();
 #ifdef ENABLE_PROFILING
-  sygraph::Profiler::addEvent(copy_e, "frontier_size_fetch");
+    sygraph::Profiler::addEvent(copy_e, "frontier_size_fetch");
 #endif
-  const size_t bitmap_range = in.getBitmapRange();
-  requested_global = static_cast<size_t>(active_size) * bitmap_range;
+    const size_t bitmap_range = in.getBitmapRange();
+    requested_global = static_cast<size_t>(active_size) * bitmap_range;
+  }
   config.global = {sygraph::detail::kernel::ensureLocalMultiple(requested_global, config.local[0])};
   return config;
 }
@@ -61,7 +67,7 @@ launchBitmapKernelExternal(GraphT& graph, const sygraph::frontier::Frontier<T, F
 
   size_t num_nodes = graph.getVertexCount();
 
-  auto config = buildLaunchConfig(graph, in, frontier::size::fetch_from_memory, q);
+  auto config = buildLaunchConfig<GraphT, decltype(in), FT>(graph, in, frontier::size::fetch_from_memory, q);
 
   out.clear();
 
@@ -72,13 +78,16 @@ launchBitmapKernelExternal(GraphT& graph, const sygraph::frontier::Frontier<T, F
   uint8_t bitmap_range = in_dev.getBitmapRange();
 
   sygraph::Event e = q.submit([&](sycl::handler& cgh) {
-    cgh.parallel_for<external_filter_kernel>(sycl::nd_range<1>{config.global, config.local}, [=](sycl::nd_item<1> item) {
+    cgh.parallel_for<external_filter_kernel<FT>>(sycl::nd_range<1>{config.global, config.local}, [=](sycl::nd_item<1> item) {
       auto lid = item.get_local_id();
       auto group_id = item.get_group_linear_id();
-      auto local_size = item.get_local_range()[0];
-      int* bitmap_offsets = in_dev.getOffsets();
-
-      size_t actual_id = bitmap_offsets[group_id] * bitmap_range + lid;
+      size_t actual_id = 0;
+      if constexpr (FT == sygraph::frontier::frontier_type::bitmap) {
+        actual_id = group_id * bitmap_range + lid;
+      } else {
+        int* bitmap_offsets = in_dev.getOffsets();
+        actual_id = bitmap_offsets[group_id] * bitmap_range + lid;
+      }
 
       if (actual_id < num_nodes && in_dev.check(actual_id) && functor(actual_id)) { out_dev.insert(actual_id); }
     });
@@ -98,20 +107,23 @@ sygraph::Event launchBitmapKernelInplace(GraphT& graph, const sygraph::frontier:
 
   size_t num_nodes = graph.getVertexCount();
 
-  auto config = buildLaunchConfig(graph, frontier, frontier::size::fetch_from_memory, q);
+  auto config = buildLaunchConfig<GraphT, decltype(frontier), FT>(graph, frontier, frontier::size::fetch_from_memory, q);
 
   size_t bitmap_range = frontier.getBitmapRange();
 
   using type_t = T;
 
   sygraph::Event e = q.submit([&](sycl::handler& cgh) {
-    cgh.parallel_for<inplace_filter_kernel>(sycl::nd_range<1>{config.global, config.local}, [=](sycl::nd_item<1> item) {
+    cgh.parallel_for<inplace_filter_kernel<FT>>(sycl::nd_range<1>{config.global, config.local}, [=](sycl::nd_item<1> item) {
       auto lid = item.get_local_id();
       auto group_id = item.get_group_linear_id();
-      auto local_size = item.get_local_range()[0];
-      int* bitmap_offsets = dev_frontier.getOffsets();
-
-      size_t actual_id = bitmap_offsets[group_id] * bitmap_range + lid;
+      size_t actual_id = 0;
+      if constexpr (FT == sygraph::frontier::frontier_type::bitmap) {
+        actual_id = group_id * bitmap_range + lid;
+      } else {
+        int* bitmap_offsets = dev_frontier.getOffsets();
+        actual_id = bitmap_offsets[group_id] * bitmap_range + lid;
+      }
 
       if (actual_id < num_nodes && dev_frontier.check(actual_id) && functor(actual_id)) { dev_frontier.remove(actual_id); }
     });

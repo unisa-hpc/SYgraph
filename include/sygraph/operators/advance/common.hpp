@@ -20,6 +20,15 @@ namespace operators {
 namespace advance {
 namespace detail {
 
+template<typename FrontierT>
+struct uses_dense_bitmap_traversal : std::false_type {};
+
+template<typename T>
+struct uses_dense_bitmap_traversal<sygraph::frontier::Frontier<T, sygraph::frontier::frontier_type::bitmap>> : std::true_type {};
+
+template<typename FrontierT>
+inline constexpr bool uses_dense_bitmap_traversal_v = uses_dense_bitmap_traversal<std::remove_cvref_t<FrontierT>>::value;
+
 struct AdvanceContextState {
   size_t group_offset;
   uint16_t coarsening_factor;
@@ -94,32 +103,39 @@ buildAdvanceLaunchConfig(GraphT& graph, const InFrontierT& in, bool pull_advance
   if constexpr (InFW == sygraph::frontier::frontier_view::vertex) {
     const size_t bitmap_range = in.getBitmapRange();
     config.local = {bitmap_range * coarsening_factor};
-    uint32_t active_size = 0;
-    if constexpr (requires { in.computeActiveFrontier(pull_advance); }) {
-      config.dependency = in.computeActiveFrontier(pull_advance);
-    } else {
-      active_size = static_cast<uint32_t>(in.computeActiveFrontier());
-    }
-
     size_t requested_global = 0;
-    if (expected_size > 0) {
-      requested_global = static_cast<size_t>(expected_size);
-    } else if (expected_size == frontier::size::infer_from_device) {
-      // `coarsening_factor` is already encoded in the work-group width:
-      // each work-group covers `coarsening_factor` bitmap-offset integers.
-      requested_global = config.local[0] * sygraph::detail::device::getNumComputeUnits(q);
-    } else if (expected_size == frontier::size::fetch_from_memory) {
-      if constexpr (requires { in.computeActiveFrontier(pull_advance); }) {
-        config.dependency.wait_and_throw();
-        auto copy_e = q.copy(in_dev_frontier.getOffsetsSize(), &active_size, 1);
-        copy_e.wait();
-#ifdef ENABLE_PROFILING
-        sygraph::Profiler::addEvent(copy_e, "frontier_size_fetch");
-#endif
+    if constexpr (uses_dense_bitmap_traversal_v<InFrontierT>) {
+      if (expected_size != frontier::size::fetch_from_memory && expected_size != frontier::size::infer_from_device) {
+        throw std::runtime_error("Invalid expected_size value for plain bitmap advance.");
       }
-      requested_global = static_cast<size_t>(active_size) * bitmap_range;
+      requested_global = static_cast<size_t>(in.getBitmapSize()) * bitmap_range;
     } else {
-      throw std::runtime_error("Invalid expected_size value");
+      uint32_t active_size = 0;
+      if constexpr (requires { in.computeActiveFrontier(pull_advance); }) {
+        config.dependency = in.computeActiveFrontier(pull_advance);
+      } else {
+        active_size = static_cast<uint32_t>(in.computeActiveFrontier());
+      }
+
+      if (expected_size > 0) {
+        requested_global = static_cast<size_t>(expected_size);
+      } else if (expected_size == frontier::size::infer_from_device) {
+        // `coarsening_factor` is already encoded in the work-group width:
+        // each work-group covers `coarsening_factor` bitmap-offset integers.
+        requested_global = config.local[0] * sygraph::detail::device::getNumComputeUnits(q);
+      } else if (expected_size == frontier::size::fetch_from_memory) {
+        if constexpr (requires { in.computeActiveFrontier(pull_advance); }) {
+          config.dependency.wait_and_throw();
+          auto copy_e = q.copy(in_dev_frontier.getOffsetsSize(), &active_size, 1);
+          copy_e.wait();
+#ifdef ENABLE_PROFILING
+          sygraph::Profiler::addEvent(copy_e, "frontier_size_fetch");
+#endif
+        }
+        requested_global = static_cast<size_t>(active_size) * bitmap_range;
+      } else {
+        throw std::runtime_error("Invalid expected_size value");
+      }
     }
 
     config.global = {sygraph::detail::kernel::ensureLocalMultiple(requested_global, config.local[0])};
